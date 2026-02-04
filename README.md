@@ -1,6 +1,8 @@
-# Arcadia Admin Panel
+# Arcadia - Admin Pannel
+**Version 1.1.4**
 
-**[EN]** Advanced server-side administration tool with GUI, offline player management, and warning system.
+Ce mod ajoute un panneau d'administration pour Arcadia, permettant de gérer les joueurs, les inventaires et les progressions.
+r-side administration tool with GUI, offline player management, and warning system.
 **[FR]** Outil d'administration serveur avancé avec GUI, gestion des joueurs hors ligne et système d'avertissement.
 
 ---

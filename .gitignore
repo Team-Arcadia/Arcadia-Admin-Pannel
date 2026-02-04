@@ -15,6 +15,7 @@ build/
 .project
 .settings/
 bin/
+*.code-workspace
 
 # Java compile files
 *.class

@@ -1,11 +1,13 @@
 # CHANGELOG / JOURNAL DES MODIFICATIONS
 
-## [1.1.4] - 2026-02-03
+## [1.1.4] - 2026-02-04
 ### Fixed
 - **InvSee**: Fixed an issue where the inventory menu would close immediately after opening. The Admin Panel now closes *before* opening the target inventory.
+- **Repository**: Cleaned up unnecessary files and updated `.gitignore`.
 
 ### Corrigé
 - **InvSee**: Correction d'un bug où le menu se fermait immédiatement. Le Panel Admin se ferme maintenant *avant* l'ouverture de l'inventaire.
+- **Dépôt**: Nettoyage des fichiers inutiles et mise à jour de `.gitignore`.
 
 ## [1.1.3] - 2026-02-03
 ### Added
