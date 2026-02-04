@@ -1,0 +1,76 @@
+plugins {
+    id 'java-library'
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.neoforged.moddev' version '2.0.123'
+}
+
+tasks.named('wrapper', Wrapper).configure {
+    gradleVersion = '8.7' // NeoForge 1.21 requires Gradle 8.7+
+}
+
+version = '1.1.4'
+group = 'com.vyrriox.arcadiaadminpanel'
+
+repositories {
+    mavenLocal()
+}
+
+base {
+    archivesName = 'arcadia-admin-panel'
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(21)
+
+// NeoForge configuration
+neoForge {
+    version = '21.1.1' // NeoForge 1.21.1 version (check latest stable)
+
+
+    // parchment {
+    //    mappingsVersion = '1.21-2024.06.23' 
+    //    minecraftVersion = '1.21'
+    // }
+
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.base.archivesName.get()
+        }
+
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.base.archivesName.get()
+        }
+
+        gameTestServer {
+            type = "gameTestServer"
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.base.archivesName.get()
+        }
+
+        data {
+            data()
+            programArguments.addAll '--mod', project.base.archivesName.get(), '--all', '--output', file('src/generated/resources/').getAbsolutePath(), '--existing', file('src/main/resources/').getAbsolutePath()
+        }
+    }
+
+    mods {
+        arcadiaadminpannel {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
+dependencies {
+    // Add any specific dependencies here
+}
+
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+}
