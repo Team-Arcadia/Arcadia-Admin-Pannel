@@ -12,11 +12,11 @@
       "projectName": "adminpanel",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\clientRunProgramArgs.txt"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\clientRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\clientRunVmArgs.txt",
-        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\bin\\main"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\clientRunVmArgs.txt",
+        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\run",
       "env": {},
@@ -34,11 +34,11 @@
       "projectName": "adminpanel",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\dataRunProgramArgs.txt"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\dataRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\dataRunVmArgs.txt",
-        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\bin\\main"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\dataRunVmArgs.txt",
+        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\run",
       "env": {},
@@ -56,11 +56,11 @@
       "projectName": "adminpanel",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\gameTestServerRunProgramArgs.txt"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\gameTestServerRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\gameTestServerRunVmArgs.txt",
-        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\bin\\main"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\gameTestServerRunVmArgs.txt",
+        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\run",
       "env": {},
@@ -78,11 +78,11 @@
       "projectName": "adminpanel",
       "mainClass": "net.neoforged.devlaunch.Main",
       "args": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\serverRunProgramArgs.txt"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\serverRunProgramArgs.txt"
       ],
       "vmArgs": [
-        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\build\\moddev\\serverRunVmArgs.txt",
-        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia- Admin Pannel\\bin\\main"
+        "@C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\build\\moddev\\serverRunVmArgs.txt",
+        "-Dfml.modFolders\u003darcadiaadminpannel%%C:\\Users\\Jimmy\\Documents\\github\\Arcadia - Admin Pannel\\bin\\main"
       ],
       "cwd": "${workspaceFolder}\\run",
       "env": {},

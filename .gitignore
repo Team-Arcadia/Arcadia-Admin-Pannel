@@ -1,0 +1,34 @@
+# Gradle files
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+!**/src/main/**/build/
+!**/src/test/**/build/
+
+# IDE specific files
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+.classpath
+.project
+.settings/
+bin/
+
+# Java compile files
+*.class
+*.log
+*.ctxt
+
+# Minecraft specific
+run/
+run_server/
+run_client/
+logs/
+crash-reports/
+debug/
+
+# OS specific files
+.DS_Store
+Thumbs.db
