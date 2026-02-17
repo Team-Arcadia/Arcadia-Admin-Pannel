@@ -1,8 +1,8 @@
 <div align="center">
 
-<h1 style="font-size: 3em; margin-top: 20px; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
+<h1 align="center" style="font-size: 3em; margin-top: 20px; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
 
-<p>
+<p align="center">
   <a href="https://discord.gg/xjF8Rtzyd4">
     <img src="https://img.shields.io/discord/1457392657830772738?style=for-the-badge&color=5865F2&label=Discord&logo=discord&logoColor=white" alt="Discord" height="30"/>
   </a>
@@ -24,9 +24,9 @@
 
 <br><br>
 
+<h2 align="center">🇺🇸 English (US)</h2>
 <div align="center">
-  <h2>🇺🇸 English (US)</h2>
-  <hr style="width: 50%; margin: auto;">
+  <hr style="width: 50%;">
 </div>
 
 <br>
@@ -47,8 +47,8 @@
 <br>
 
 <div align="center">
-    <h3>🎮 Join the Adventure</h3>
-    <p>Experience the mod in action on our unique <strong>Industry, Magic & Exploration</strong> modpack.</p>
+    <h3 align="center">🎮 Join the Adventure</h3>
+    <p align="center">Experience the mod in action on our unique <strong>Industry, Magic & Exploration</strong> modpack.</p>
     <a href="https://arcadia-echoes-of-power.fr/">
         <img src="https://img.shields.io/badge/Play_Now-Arcadia_Modpack-2ea44f?style=for-the-badge&logo=curseforge" alt="Play Now">
     </a>
@@ -56,9 +56,9 @@
 
 <br><br>
 
+<h2 align="center">🇫🇷 Français (FR)</h2>
 <div align="center">
-  <h2>🇫🇷 Français (FR)</h2>
-  <hr style="width: 50%; margin: auto;">
+  <hr style="width: 50%;">
 </div>
 
 <br>
@@ -79,8 +79,8 @@
 <br>
 
 <div align="center">
-    <h3>🎮 Rejoignez l'Aventure</h3>
-    <p>Découvrez le mod en action sur notre modpack unique <strong>Industrie, Magie & Exploration</strong>.</p>
+    <h3 align="center">🎮 Rejoignez l'Aventure</h3>
+    <p align="center">Découvrez le mod en action sur notre modpack unique <strong>Industrie, Magie & Exploration</strong>.</p>
     <a href="https://arcadia-echoes-of-power.fr/">
         <img src="https://img.shields.io/badge/Jouer_Maintenant-Modpack_Arcadia-2ea44f?style=for-the-badge&logo=curseforge" alt="Jouer Maintenant">
     </a>
@@ -91,9 +91,9 @@
 
 <div align="center">
 
-<h2>❤️ Support the Project / Soutenir le Projet</h2>
+<h2 align="center">❤️ Support the Project / Soutenir le Projet</h2>
 
-<p>
+<p align="center">
   <strong>Your support helps us keep Arcadia alive and evolving!</strong><br>
   <em>Votre soutien nous aide à faire vivre et évoluer Arcadia !</em>
 </p>
