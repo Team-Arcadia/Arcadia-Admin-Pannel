@@ -1,7 +1,5 @@
 <div align="center">
 
-<img src="https://via.placeholder.com/800x200.png?text=Arcadia+Admin+Pannel" alt="Arcadia Admin Panel Banner" width="800" height="200" />
-
 <h1 style="font-size: 3em; margin-top: 20px; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
 
 <p>
@@ -50,9 +48,9 @@
 
 <div align="center">
     <h3>🎮 Join the Adventure</h3>
-    <p>Experience the mod in action on our unique MMORPG server.</p>
+    <p>Experience the mod in action on our unique <strong>Industry, Magic & Exploration</strong> modpack.</p>
     <a href="https://arcadia-echoes-of-power.fr/">
-        <img src="https://img.shields.io/badge/Play_Now-Arcadia_Server-2ea44f?style=for-the-badge&logo=minecraft" alt="Play Now">
+        <img src="https://img.shields.io/badge/Play_Now-Arcadia_Modpack-2ea44f?style=for-the-badge&logo=curseforge" alt="Play Now">
     </a>
 </div>
 
@@ -82,9 +80,9 @@
 
 <div align="center">
     <h3>🎮 Rejoignez l'Aventure</h3>
-    <p>Découvrez le mod en action sur notre serveur MMORPG unique.</p>
+    <p>Découvrez le mod en action sur notre modpack unique <strong>Industrie, Magie & Exploration</strong>.</p>
     <a href="https://arcadia-echoes-of-power.fr/">
-        <img src="https://img.shields.io/badge/Jouer_Maintenant-Serveur_Arcadia-2ea44f?style=for-the-badge&logo=minecraft" alt="Jouer Maintenant">
+        <img src="https://img.shields.io/badge/Jouer_Maintenant-Modpack_Arcadia-2ea44f?style=for-the-badge&logo=curseforge" alt="Jouer Maintenant">
     </a>
 </div>
 
