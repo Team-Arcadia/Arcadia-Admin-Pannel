@@ -1,8 +1,8 @@
 <div align="center">
 
-<h1 align="center" style="font-size: 3em; margin-top: 20px; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
+<h1 style="font-size: 3em; margin-top: 20px; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
 
-<p align="center">
+<p>
   <a href="https://discord.gg/xjF8Rtzyd4">
     <img src="https://img.shields.io/discord/1457392657830772738?style=for-the-badge&color=5865F2&label=Discord&logo=discord&logoColor=white" alt="Discord" height="30"/>
   </a>
@@ -24,7 +24,7 @@
 
 <br><br>
 
-<h2 align="center">🇺🇸 English (US)</h2>
+<p align="center" style="font-size: 1.5em; font-weight: bold;">🇺🇸 English (US)</p>
 <div align="center">
   <hr style="width: 50%;">
 </div>
@@ -56,7 +56,7 @@
 
 <br><br>
 
-<h2 align="center">🇫🇷 Français (FR)</h2>
+<p align="center" style="font-size: 1.5em; font-weight: bold;">🇫🇷 Français (FR)</p>
 <div align="center">
   <hr style="width: 50%;">
 </div>
@@ -79,8 +79,8 @@
 <br>
 
 <div align="center">
-    <h3 align="center">🎮 Rejoignez l'Aventure</h3>
-    <p align="center">Découvrez le mod en action sur notre modpack unique <strong>Industrie, Magie & Exploration</strong>.</p>
+    <h3>🎮 Rejoignez l'Aventure</h3>
+    <p>Découvrez le mod en action sur notre modpack unique <strong>Industrie, Magie & Exploration</strong>.</p>
     <a href="https://arcadia-echoes-of-power.fr/">
         <img src="https://img.shields.io/badge/Jouer_Maintenant-Modpack_Arcadia-2ea44f?style=for-the-badge&logo=curseforge" alt="Jouer Maintenant">
     </a>
@@ -91,7 +91,7 @@
 
 <div align="center">
 
-<h2 align="center">❤️ Support the Project / Soutenir le Projet</h2>
+<p align="center" style="font-size: 1.5em; font-weight: bold;">❤️ Support the Project / Soutenir le Projet</p>
 
 <p align="center">
   <strong>Your support helps us keep Arcadia alive and evolving!</strong><br>
