@@ -106,7 +106,7 @@
 <br><br>
 
 <a href="https://www.arcadia-echoes-of-power.fr/partenariat">
-  <img src="https://img.shields.io/badge/Meet_Our_Partners-Découvrir_Nos_Partenaires-orange?style=for-the-badge" alt="Partners" height="30">
+  <img src="https://img.shields.io/badge/Partners-Partenaires-orange?style=for-the-badge&logoColor=white" alt="Partners">
 </a>
 </div>
 
