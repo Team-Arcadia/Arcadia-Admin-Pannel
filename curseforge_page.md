@@ -2,92 +2,111 @@
 
 <img src="https://via.placeholder.com/800x200.png?text=Arcadia+Admin+Pannel" alt="Arcadia Admin Panel Banner" width="800" height="200" />
 
-<h1>Arcadia - Admin Pannel</h1>
+<h1 style="font-size: 2.5em; font-weight: bold; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
 
-<p>
+<p align="center">
   <a href="https://discord.gg/xjF8Rtzyd4">
-    <img src="https://img.shields.io/discord/1063165384462159933?color=5865F2&label=Discord&logo=discord&logoColor=white" alt="Discord" />
+    <img src="https://img.shields.io/discord/1457392657830772738?style=for-the-badge&color=5865F2&label=Discord&logo=discord&logoColor=white" alt="Discord" height="30"/>
   </a>
   &nbsp;
   <a href="https://arcadia-echoes-of-power.fr/">
-    <img src="https://img.shields.io/badge/Website-Arcadia-blue?style=flat&logo=google-chrome" alt="Website" />
+    <img src="https://img.shields.io/badge/Website-Arcadia-blue?style=for-the-badge&logo=google-chrome" alt="Website" height="30"/>
   </a>
   &nbsp;
   <a href="https://buy.stripe.com/3cI3co6X97Vy4IK50QfIs00">
-    <img src="https://img.shields.io/badge/Donate-Stripe-6772E5?style=flat&logo=stripe&logoColor=white" alt="Donate" />
+    <img src="https://img.shields.io/badge/Donate-Stripe-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate" height="30"/>
   </a>
   &nbsp;
   <a href="https://www.arcadia-echoes-of-power.fr/partenariat">
-    <img src="https://img.shields.io/badge/Partners-Arcadia-orange?style=flat" alt="Partners" />
+    <img src="https://img.shields.io/badge/Partners-Arcadia-orange?style=for-the-badge" alt="Partners" height="30"/>
   </a>
 </p>
 
 </div>
 
-<hr />
+<br>
 
-<table>
+<table width="100%" border="0" cellspacing="0" cellpadding="10">
   <thead>
     <tr>
-      <th align="center">🇺🇸 English (US)</th>
-      <th align="center">🇫🇷 Français (FR)</th>
+      <th width="50%" align="center">
+        <h2>🇺🇸 English (US)</h2>
+      </th>
+      <th width="50%" align="center">
+        <h2>🇫🇷 Français (FR)</h2>
+      </th>
     </tr>
   </thead>
   <tbody>
     <tr>
       <td valign="top">
-        <p><strong>Arcadia Admin Pannel</strong> is a comprehensive administration tool designed for the <strong>Arcadia: Echoes of Power</strong> server.</p>
-        <p>It provides server operators with a powerful GUI to manage players, view inventories, and handle warnings efficiently.</p>
+        <p><strong>Arcadia Admin Pannel</strong> is the ultimate administration solution crafted specifically for the <strong>Arcadia: Echoes of Power</strong> server.</p>
+        <p>Empower your moderation team with a robust GUI that streamlines player management.</p>
+        
         <h3>✨ Key Features</h3>
         <ul>
-          <li><strong>Player GUI</strong>: Easily manage online and offline players.</li>
-          <li><strong>Inventory Management</strong>: View and clear player inventories (InvSee).</li>
-          <li><strong>Progress Reset</strong>: Reset player progress with a single click.</li>
-          <li><strong>Offline Data</strong>: Access player homes and last seen locations (requires FTB Essentials).</li>
-          <li><strong>Warning System</strong>: Dedicated interface for managing warnings (<code>warns.json</code>).</li>
-          <li><strong>Moderation Tools</strong>: Kick, Ban, and Teleport directly from the menu.</li>
+            <li>👤 <strong>Player GUI</strong><br>Manage online & offline players effortlessly.</li>
+            <li>🎒 <strong>Smart Inventory (InvSee)</strong><br>View, edit, and clear player inventories in real-time.</li>
+            <li>🔄 <strong>Progress Control</strong><br>One-click progress reset for streamlined testing/fixes.</li>
+            <li>📍 <strong>Offline Tracking</strong><br>Access homes & last locations via <em>FTB Essentials</em> integration.</li>
+            <li>⚠️ <strong>Warning System</strong><br>Dedicated JSON-based storage (<code>warns.json</code>) to track player discipline.</li>
+            <li>🛠️ <strong>Admin Suite</strong><br>Kick, Ban, Unban, and Teleport directly from the interface.</li>
         </ul>
-        <h3>🎮 Our Server</h3>
-        <p>This mod was created for <strong>Arcadia: Echoes of Power</strong>, a unique Minecraft server.<br />
-        <a href="https://arcadia-echoes-of-power.fr/"><strong>Join the Adventure!</strong></a></p>
+
+        <div align="center">
+            <h3>🎮 Join the Adventure</h3>
+            <p>Experience the mod in action on our unique MMORPG server.</p>
+            <a href="https://arcadia-echoes-of-power.fr/">
+                <img src="https://img.shields.io/badge/Play_Now-Arcadia_Server-2ea44f?style=for-the-badge&logo=minecraft" alt="Play Now">
+            </a>
+        </div>
       </td>
       <td valign="top">
-        <p><strong>Arcadia Admin Pannel</strong> est un outil d'administration complet conçu pour le serveur <strong>Arcadia: Echoes of Power</strong>.</p>
-        <p>Il offre aux opérateurs un GUI puissant pour gérer les joueurs, consulter les inventaires et gérer les avertissements efficacement.</p>
+        <p><strong>Arcadia Admin Pannel</strong> est la solution d'administration ultime conçue spécifiquement pour le serveur <strong>Arcadia: Echoes of Power</strong>.</p>
+        <p>Donnez à votre équipe de modération un GUI robuste pour une gestion fluide.</p>
+
         <h3>✨ Fonctionnalités Clés</h3>
         <ul>
-          <li><strong>GUI Joueurs</strong> : Gérez facilement les joueurs en ligne et hors ligne.</li>
-          <li><strong>Gestion d'Inventaire</strong> : Voir et vider les inventaires (InvSee).</li>
-          <li><strong>Réinitialisation</strong> : Reset la progression des joueurs en un clic.</li>
-          <li><strong>Données Hors Ligne</strong> : Accès aux homes et dernières positions (requiert FTB Essentials).</li>
-          <li><strong>Système d'Avertissement</strong> : Interface dédiée pour la gestion des warns (<code>warns.json</code>).</li>
-          <li><strong>Outils de Modération</strong> : Kick, Ban et Téléportation directement depuis le menu.</li>
+            <li>👤 <strong>GUI Joueurs</strong><br>Gérez les joueurs en ligne et hors ligne sans effort.</li>
+            <li>🎒 <strong>Inventaire Intelligent (InvSee)</strong><br>Voir, éditer et vider les inventaires en temps réel.</li>
+            <li>🔄 <strong>Contrôle de Progression</strong><br>Réinitialisation en un clic pour tests et corrections.</li>
+            <li>📍 <strong>Suivi Hors Ligne</strong><br>Accès aux homes et positions via <em>FTB Essentials</em>.</li>
+            <li>⚠️ <strong>Système d'Avertissement</strong><br>Stockage JSON dédié (<code>warns.json</code>) pour le suivi disciplinaire.</li>
+            <li>🛠️ <strong>Suite Admin</strong><br>Kick, Ban, Unban et Téléportation directement depuis l'interface.</li>
         </ul>
-        <h3>🎮 Notre Serveur</h3>
-        <p>Ce mod a été créé pour <strong>Arcadia: Echoes of Power</strong>, un serveur Minecraft unique.<br />
-        <a href="https://arcadia-echoes-of-power.fr/"><strong>Rejoignez l'Aventure !</strong></a></p>
+
+        <div align="center">
+            <h3>🎮 Rejoignez l'Aventure</h3>
+            <p>Découvrez le mod en action sur notre serveur MMORPG unique.</p>
+            <a href="https://arcadia-echoes-of-power.fr/">
+                <img src="https://img.shields.io/badge/Jouer_Maintenant-Serveur_Arcadia-2ea44f?style=for-the-badge&logo=minecraft" alt="Jouer Maintenant">
+            </a>
+        </div>
       </td>
     </tr>
   </tbody>
 </table>
 
-<hr />
+<br>
+<hr>
 
 <div align="center">
 
-<h3>❤️ Support Us / Nous Soutenir</h3>
+<h2>❤️ Support the Project / Soutenir le Projet</h2>
 
 <p>
-If you like our work, consider supporting us!<br>
-Si vous aimez notre travail, pensez à nous soutenir !
+  <strong>Your support helps us keep Arcadia alive and evolving!</strong><br>
+  <em>Votre soutien nous aide à faire vivre et évoluer Arcadia !</em>
 </p>
 
 <a href="https://buy.stripe.com/3cI3co6X97Vy4IK50QfIs00">
-  <img src="https://img.shields.io/badge/Donate-Stripe-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate Button" height="40" />
+  <img src="https://img.shields.io/badge/Donate_via_Stripe-Support_Us-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Support Us" height="50" />
 </a>
 
 <br><br>
 
-<p><strong><a href="https://www.arcadia-echoes-of-power.fr/partenariat">Partners List / Liste des Partenaires</a></strong></p>
+<a href="https://www.arcadia-echoes-of-power.fr/partenariat">
+  <img src="https://img.shields.io/badge/Meet_Our_Partners-Découvrir_Nos_Partenaires-orange?style=for-the-badge" alt="Partners" height="30"/>
+</a>
 
 </div>
