@@ -2,21 +2,21 @@
 
 <h1 style="font-size: 3em; margin-top: 20px; margin-bottom: 20px;">Arcadia Admin Pannel</h1>
 
-<p>
+<p align="center">
   <a href="https://discord.gg/xjF8Rtzyd4">
-    <img src="https://img.shields.io/discord/1457392657830772738?style=for-the-badge&color=5865F2&label=Discord&logo=discord&logoColor=white" alt="Discord" height="30"/>
+    <img src="https://img.shields.io/discord/1457392657830772738?style=for-the-badge&color=5865F2&label=Discord&logo=discord&logoColor=white" alt="Discord">
   </a>
   &nbsp;
   <a href="https://arcadia-echoes-of-power.fr/">
-    <img src="https://img.shields.io/badge/Website-Arcadia-blue?style=for-the-badge&logo=google-chrome" alt="Website" height="30"/>
+    <img src="https://img.shields.io/badge/Website-Arcadia-blue?style=for-the-badge&logo=google-chrome" alt="Website">
   </a>
   &nbsp;
   <a href="https://buy.stripe.com/3cI3co6X97Vy4IK50QfIs00">
-    <img src="https://img.shields.io/badge/Donate-Stripe-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate" height="30"/>
+    <img src="https://img.shields.io/badge/Donate-Stripe-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Donate">
   </a>
   &nbsp;
   <a href="https://www.arcadia-echoes-of-power.fr/partenariat">
-    <img src="https://img.shields.io/badge/Partners-Arcadia-orange?style=for-the-badge" alt="Partners" height="30"/>
+    <img src="https://img.shields.io/badge/Partners-Arcadia-orange?style=for-the-badge" alt="Partners">
   </a>
 </p>
 
@@ -98,14 +98,16 @@
   <em>Votre soutien nous aide à faire vivre et évoluer Arcadia !</em>
 </p>
 
+<div align="center">
 <a href="https://buy.stripe.com/3cI3co6X97Vy4IK50QfIs00">
-  <img src="https://img.shields.io/badge/Donate_via_Stripe-Support_Us-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Support Us" height="50" />
+  <img src="https://img.shields.io/badge/Donate_via_Stripe-Support_Us-6772E5?style=for-the-badge&logo=stripe&logoColor=white" alt="Support Us" height="40">
 </a>
 
 <br><br>
 
 <a href="https://www.arcadia-echoes-of-power.fr/partenariat">
-  <img src="https://img.shields.io/badge/Meet_Our_Partners-Découvrir_Nos_Partenaires-orange?style=for-the-badge" alt="Partners" height="30"/>
+  <img src="https://img.shields.io/badge/Meet_Our_Partners-Découvrir_Nos_Partenaires-orange?style=for-the-badge" alt="Partners" height="30">
 </a>
+</div>
 
 </div>
