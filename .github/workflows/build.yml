@@ -2,9 +2,14 @@ name: Build & Test
 
 on:
   push:
-    branches: [ main, develop, staging, hotfix ]
+    tags: [ 'v*' ]
+    paths:
+      - 'src/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'libs/**'
   pull_request:
-    branches: [ main, develop, staging ]
+    branches: [ main ]
 
 permissions:
   contents: read
