@@ -3,6 +3,7 @@ package com.vyrriox.arcadiaadminpanel.client;
 import com.vyrriox.arcadiaadminpanel.client.screen.AdminPanelScreen;
 import com.vyrriox.arcadiaadminpanel.client.screen.PlayerDetailScreen;
 import com.vyrriox.arcadiaadminpanel.client.screen.WarnListScreen;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ChestMenu;
 import net.neoforged.api.distmarker.Dist;
@@ -34,21 +35,22 @@ public final class AdminPanelClient {
 
         String title = cs.getTitle().getString();
 
+        var mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        var inv = mc.player.getInventory();
+
         if (title.equals(TITLE_PANEL_EN) || title.equals(TITLE_PANEL_FR)) {
-            event.setNewScreen(new AdminPanelScreen(chestMenu,
-                    cs.getMinecraft().player.getInventory(), cs.getTitle()));
+            event.setNewScreen(new AdminPanelScreen(chestMenu, inv, cs.getTitle()));
             return;
         }
 
         if (title.startsWith(TITLE_DETAIL_EN) || title.startsWith(TITLE_DETAIL_FR)) {
-            event.setNewScreen(new PlayerDetailScreen(chestMenu,
-                    cs.getMinecraft().player.getInventory(), cs.getTitle()));
+            event.setNewScreen(new PlayerDetailScreen(chestMenu, inv, cs.getTitle()));
             return;
         }
 
         if (title.startsWith(TITLE_WARNS_EN) || title.startsWith(TITLE_WARNS_FR)) {
-            event.setNewScreen(new WarnListScreen(chestMenu,
-                    cs.getMinecraft().player.getInventory(), cs.getTitle()));
+            event.setNewScreen(new WarnListScreen(chestMenu, inv, cs.getTitle()));
         }
     }
 
