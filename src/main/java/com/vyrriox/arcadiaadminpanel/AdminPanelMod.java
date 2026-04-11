@@ -1,6 +1,7 @@
 package com.vyrriox.arcadiaadminpanel;
 
 import com.arcadia.lib.ArcadiaModRegistry;
+import com.arcadia.lib.client.ArcadiaModCard;
 import com.arcadia.lib.data.DatabaseManager;
 import com.vyrriox.arcadiaadminpanel.command.AdminPanelCommand;
 import com.vyrriox.arcadiaadminpanel.data.WarnTableDefinition;
@@ -46,6 +47,26 @@ public class AdminPanelMod {
         event.enqueueWork(() -> {
             // Register database tables for multi-server warn sync
             DatabaseManager.registerTables(new WarnTableDefinition());
+
+            // Register hub card (visible in Arcadia Hub via L key)
+            ArcadiaModRegistry.registerCard(new ArcadiaModCard(
+                    "adminpanel",
+                    "\u2699",
+                    "Admin Panel",
+                    "Server Management",
+                    0xB87333,
+                    90,
+                    true,
+                    "arcadia.staff.mod"
+            ));
+
+            // Register click handler — sends command to server (bypasses tab system)
+            ArcadiaModRegistry.registerCardClickHandler("adminpanel", () -> {
+                var player = net.minecraft.client.Minecraft.getInstance().player;
+                if (player != null) {
+                    player.connection.sendCommand("arcadia_adminpanel panel");
+                }
+            });
 
             // Register server action so other mods can open the admin panel
             ArcadiaModRegistry.registerServerAction("adminpanel:open",
