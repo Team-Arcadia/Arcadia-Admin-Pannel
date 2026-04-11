@@ -43,8 +43,8 @@ desktop.ini
 .claude/
 CLAUDE.md
 
-# ── Local dependencies ──────────────────────────────────
-libs/
+# ── Local dependencies (tracked — required for CI build) ─
+# libs/ is committed so GitHub Actions can compile against arcadia-lib
 
 # ── Release artifacts ───────────────────────────────────
 RELEASE_NOTES.md

@@ -2,9 +2,9 @@
   <img src="https://img.shields.io/badge/Minecraft-1.21.1-brightgreen?style=for-the-badge&logo=mojangstudios" alt="Minecraft 1.21.1"/>
   <img src="https://img.shields.io/badge/NeoForge-21.1+-orange?style=for-the-badge" alt="NeoForge"/>
   <img src="https://img.shields.io/badge/Java-21-red?style=for-the-badge&logo=openjdk" alt="Java 21"/>
-  <img src="https://img.shields.io/github/v/release/Team-Arcadia/Arcadia-Admin-Pannel?style=for-the-badge&label=Version&color=blue" alt="Version"/>
-  <img src="https://img.shields.io/github/actions/workflow/status/Team-Arcadia/Arcadia-Admin-Pannel/build.yml?style=for-the-badge&label=Build" alt="Build"/>
-  <img src="https://img.shields.io/github/license/Team-Arcadia/Arcadia-Admin-Pannel?style=for-the-badge" alt="License"/>
+  <img src="https://img.shields.io/github/v/release/laforetbrut/Arcadia-Admin-Pannel?style=for-the-badge&label=Version&color=blue" alt="Version"/>
+  <img src="https://img.shields.io/github/actions/workflow/status/laforetbrut/Arcadia-Admin-Pannel/build.yml?style=for-the-badge&label=Build" alt="Build"/>
+  <img src="https://img.shields.io/github/license/laforetbrut/Arcadia-Admin-Pannel?style=for-the-badge" alt="License"/>
 </p>
 
 <h1 align="center">Arcadia Admin Panel</h1>
@@ -81,7 +81,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 - [Arcadia Lib](https://github.com/Team-Arcadia) **>= 1.2.0**
 
 ### Steps
-1. Download the latest release from the [Releases](https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/releases) page
+1. Download the latest release from the [Releases](https://github.com/laforetbrut/Arcadia-Admin-Pannel/releases) page
 2. Place `arcadia-lib-1.2.0.jar` in your `mods/` folder
 3. Place `arcadia-admin-panel-1.2.0.jar` in your `mods/` folder
 4. Start the server
@@ -139,7 +139,7 @@ com.vyrriox.arcadiaadminpanel
 ## Building from Source
 
 ```bash
-git clone https://github.com/Team-Arcadia/Arcadia-Admin-Pannel.git
+git clone https://github.com/laforetbrut/Arcadia-Admin-Pannel.git
 cd Arcadia-Admin-Pannel
 ./gradlew build
 ```
@@ -230,7 +230,7 @@ Toutes les commandes utilisent le prefixe `/arcadia_adminpanel`.
 - [Arcadia Lib](https://github.com/Team-Arcadia) **>= 1.2.0**
 
 ### Etapes
-1. Telecharger la derniere release depuis [Releases](https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/releases)
+1. Telecharger la derniere release depuis [Releases](https://github.com/laforetbrut/Arcadia-Admin-Pannel/releases)
 2. Placer `arcadia-lib-1.2.0.jar` dans le dossier `mods/`
 3. Placer `arcadia-admin-panel-1.2.0.jar` dans le dossier `mods/`
 4. Demarrer le serveur
@@ -241,7 +241,7 @@ Installer sur le client active le rendu steampunk ArcadiaTheme pour tous les men
 ## Compiler depuis les Sources
 
 ```bash
-git clone https://github.com/Team-Arcadia/Arcadia-Admin-Pannel.git
+git clone https://github.com/laforetbrut/Arcadia-Admin-Pannel.git
 cd Arcadia-Admin-Pannel
 ./gradlew build
 ```
