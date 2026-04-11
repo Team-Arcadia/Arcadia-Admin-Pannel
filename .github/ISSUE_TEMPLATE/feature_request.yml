@@ -1,0 +1,43 @@
+name: "Feature Request / Demande de fonctionnalite"
+description: "Suggest a new feature | Proposer une fonctionnalite"
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **English:** Have an idea? We'd love to hear it!
+        **Francais:** Une idee ? Nous serions ravis de l'entendre !
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Feature Description / Description"
+      description: "Describe the feature you'd like | Decrivez la fonctionnalite souhaitee"
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: "Motivation / Why? / Pourquoi ?"
+      description: "Why would this be useful? | Pourquoi ce serait utile ?"
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: "Alternatives Considered / Alternatives envisagees"
+      description: "Any workarounds or alternative approaches? | Solutions de contournement ?"
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: "Scope / Portee"
+      options:
+        - GUI / Interface
+        - Commands / Commandes
+        - Moderation
+        - Performance / Optimization
+        - Integration (other mods)
+        - Other / Autre

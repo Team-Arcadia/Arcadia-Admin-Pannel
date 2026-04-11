@@ -1,0 +1,78 @@
+name: "Bug Report / Rapport de Bug"
+description: "Report a bug | Signaler un bug"
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **English:** Thank you for reporting a bug! Please fill in the details below.
+        **Francais:** Merci de signaler un bug ! Veuillez remplir les details ci-dessous.
+
+  - type: input
+    id: version
+    attributes:
+      label: "Mod Version"
+      description: "Which version of Arcadia Admin Panel? | Quelle version ?"
+      placeholder: "1.2.0"
+    validations:
+      required: true
+
+  - type: input
+    id: mc-version
+    attributes:
+      label: "Minecraft / NeoForge Version"
+      placeholder: "1.21.1 / NeoForge 21.1.221"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: side
+    attributes:
+      label: "Side / Cote"
+      options:
+        - Server (Dedicated)
+        - Client (Singleplayer)
+        - Both / Les deux
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: "Bug Description"
+      description: "Describe the bug | Decrivez le bug"
+      placeholder: "A clear description of what the bug is..."
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: "Steps to Reproduce / Etapes pour reproduire"
+      description: "How can we reproduce this? | Comment reproduire ?"
+      value: |
+        1.
+        2.
+        3.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: "Expected Behavior / Comportement attendu"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: "Crash Log / Stacktrace"
+      description: "Paste relevant logs | Collez les logs pertinents"
+      render: text
+
+  - type: textarea
+    id: modlist
+    attributes:
+      label: "Other Mods Installed / Autres mods installes"
+      description: "List relevant mods that might interact | Listez les mods pertinents"

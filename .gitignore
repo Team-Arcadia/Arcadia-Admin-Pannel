@@ -1,42 +1,50 @@
-# Gradle files
+# ── Build output ─────────────────────────────────────────
 .gradle/
 build/
+bin/
+out/
 !gradle/wrapper/gradle-wrapper.jar
 !**/src/main/**/build/
 !**/src/test/**/build/
 
-# IDE specific files
+# ── IDE ──────────────────────────────────────────────────
 .idea/
 .vscode/
 *.iml
 *.ipr
 *.iws
+*.code-workspace
 .classpath
 .project
 .settings/
-bin/
-*.code-workspace
 
-# Java compile files
+# ── Java ─────────────────────────────────────────────────
 *.class
 *.log
 *.ctxt
+*.jar
+!gradle/wrapper/gradle-wrapper.jar
 
-# Minecraft specific
+# ── Minecraft / NeoForge ────────────────────────────────
 run/
 run_server/
 run_client/
 logs/
 crash-reports/
 debug/
+src/generated/
 
-# OS specific files
+# ── OS ───────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+desktop.ini
 
-# Claude Code
+# ── Claude Code (local only) ────────────────────────────
 .claude/
 CLAUDE.md
 
-# Libs (local dependency JARs)
+# ── Local dependencies ──────────────────────────────────
 libs/
+
+# ── Release artifacts ───────────────────────────────────
+RELEASE_NOTES.md
