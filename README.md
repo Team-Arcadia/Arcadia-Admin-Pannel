@@ -109,7 +109,7 @@ Each server identifies itself via the JVM property:
 ## Architecture
 
 ```
-com.vyrriox.arcadiaadminpanel
+com.arcadia.adminpanel
   +-- AdminPanelMod.java           Entry point, event registration
   +-- client/
   |   +-- AdminPanelClient.java     Screen interception (ScreenEvent.Opening)

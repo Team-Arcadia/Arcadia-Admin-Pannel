@@ -11,7 +11,7 @@
 |---|---|
 | **Project** | Arcadia Admin Panel |
 | **Mod ID** | `arcadiaadminpanel` |
-| **Package** | `com.vyrriox.arcadiaadminpanel` |
+| **Package** | `com.arcadia.adminpanel` |
 | **Mod Loader** | NeoForge 21.1+ |
 | **Minecraft** | 1.21.1 |
 | **Java** | 21 |
@@ -92,7 +92,7 @@ git push origin v1.2.1
 | Classes | `PascalCase` | `AdminPanelMenu` |
 | Methods / fields | `camelCase` | `buildMenu()`, `currentPage` |
 | Constants | `UPPER_SNAKE_CASE` | `ITEMS_PER_PAGE` |
-| Packages | `lowercase` | `com.vyrriox.arcadiaadminpanel.gui` |
+| Packages | `lowercase` | `com.arcadia.adminpanel.gui` |
 
 ### Architecture Rules
 

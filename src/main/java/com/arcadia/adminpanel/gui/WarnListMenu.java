@@ -1,9 +1,9 @@
-package com.vyrriox.arcadiaadminpanel.gui;
+package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
 import com.arcadia.lib.util.SoundHelper;
-import com.vyrriox.arcadiaadminpanel.util.LanguageHelper;
-import com.vyrriox.arcadiaadminpanel.util.WarnManager;
+import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;

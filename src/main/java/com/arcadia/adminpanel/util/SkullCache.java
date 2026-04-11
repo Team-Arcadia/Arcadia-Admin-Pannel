@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.util;
+package com.arcadia.adminpanel.util;
 
 import com.mojang.authlib.GameProfile;
 import net.minecraft.core.component.DataComponents;

@@ -109,7 +109,7 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 #### Changed
 - **Refactor**: Renamed packages from `com.jimmy` to `com.vyrriox`.
-- **Build**: Updated group id to `com.vyrriox.arcadiaadminpanel`.
+- **Build**: Updated group id to `com.arcadia.adminpanel`.
 
 ---
 
@@ -128,7 +128,7 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 #### Changé
 - **Refonte**: Refactorisation des noms de package de `com.jimmy` à `com.vyrriox`.
-- **Build**: Mise à jour du group id vers `com.vyrriox.arcadiaadminpanel`.
+- **Build**: Mise à jour du group id vers `com.arcadia.adminpanel`.
 
 ______________________________________________________________________
 

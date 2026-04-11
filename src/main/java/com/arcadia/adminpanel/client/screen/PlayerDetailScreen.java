@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.client.screen;
+package com.arcadia.adminpanel.client.screen;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;

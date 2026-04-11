@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.util;
+package com.arcadia.adminpanel.util;
 
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;

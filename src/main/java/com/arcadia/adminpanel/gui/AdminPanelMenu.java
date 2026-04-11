@@ -1,9 +1,9 @@
-package com.vyrriox.arcadiaadminpanel.gui;
+package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
-import com.vyrriox.arcadiaadminpanel.util.LanguageHelper;
-import com.vyrriox.arcadiaadminpanel.util.OfflinePlayerManager;
-import com.vyrriox.arcadiaadminpanel.util.SkullCache;
+import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.OfflinePlayerManager;
+import com.arcadia.adminpanel.util.SkullCache;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.SimpleContainer;
@@ -176,7 +176,7 @@ public class AdminPanelMenu extends ChestMenu {
         // Search (47)
         if (slotId == 47) {
             sp.closeContainer();
-            com.vyrriox.arcadiaadminpanel.event.ChatListener.startSearchSession(sp);
+            com.arcadia.adminpanel.event.ChatListener.startSearchSession(sp);
             return;
         }
 

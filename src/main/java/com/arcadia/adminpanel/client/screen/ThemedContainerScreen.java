@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.client.screen;
+package com.arcadia.adminpanel.client.screen;
 
 import com.arcadia.lib.client.ArcadiaTheme;
 import net.minecraft.client.gui.GuiGraphics;

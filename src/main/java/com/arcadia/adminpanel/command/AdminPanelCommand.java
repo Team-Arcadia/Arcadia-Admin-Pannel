@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.command;
+package com.arcadia.adminpanel.command;
 
 import com.arcadia.lib.ArcadiaMessages;
 import com.arcadia.lib.staff.StaffActions;
@@ -12,12 +12,12 @@ import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
-import com.vyrriox.arcadiaadminpanel.gui.AdminPanelMenu;
-import com.vyrriox.arcadiaadminpanel.gui.WarnListMenu;
-import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
-import com.vyrriox.arcadiaadminpanel.util.LanguageHelper;
-import com.vyrriox.arcadiaadminpanel.util.OfflinePlayerManager;
-import com.vyrriox.arcadiaadminpanel.util.WarnManager;
+import com.arcadia.adminpanel.gui.AdminPanelMenu;
+import com.arcadia.adminpanel.gui.WarnListMenu;
+import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.OfflinePlayerManager;
+import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;

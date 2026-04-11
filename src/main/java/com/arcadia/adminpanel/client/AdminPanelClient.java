@@ -1,8 +1,8 @@
-package com.vyrriox.arcadiaadminpanel.client;
+package com.arcadia.adminpanel.client;
 
-import com.vyrriox.arcadiaadminpanel.client.screen.AdminPanelScreen;
-import com.vyrriox.arcadiaadminpanel.client.screen.PlayerDetailScreen;
-import com.vyrriox.arcadiaadminpanel.client.screen.WarnListScreen;
+import com.arcadia.adminpanel.client.screen.AdminPanelScreen;
+import com.arcadia.adminpanel.client.screen.PlayerDetailScreen;
+import com.arcadia.adminpanel.client.screen.WarnListScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.world.inventory.ChestMenu;

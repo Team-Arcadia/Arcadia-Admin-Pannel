@@ -7,11 +7,11 @@ issueTrackerURL=""
 modId="arcadiaadminpanel"
 version="1.2.0"
 displayName="Arcadia Admin Panel"
-authors="vyrriox"
+authors="vyrriox, Team Arcadia"
 description='''
 Arcadia Admin Panel - Lightweight & Optimized Server Management
 Steampunk-themed admin interface powered by Arcadia Lib
-Developed by vyrriox
+Developed by Team Arcadia
 '''
 
 [[dependencies.arcadiaadminpanel]]

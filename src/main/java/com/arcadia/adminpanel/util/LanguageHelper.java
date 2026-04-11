@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.util;
+package com.arcadia.adminpanel.util;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;

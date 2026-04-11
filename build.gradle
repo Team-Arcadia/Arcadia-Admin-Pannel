@@ -11,7 +11,7 @@ tasks.named('wrapper', Wrapper).configure {
 }
 
 version = '1.2.0'
-group = 'com.vyrriox.arcadiaadminpanel'
+group = 'com.arcadia.adminpanel'
 
 repositories {
     mavenLocal()

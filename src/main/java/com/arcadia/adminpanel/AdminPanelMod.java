@@ -1,15 +1,15 @@
-package com.vyrriox.arcadiaadminpanel;
+package com.arcadia.adminpanel;
 
 import com.arcadia.lib.ArcadiaModRegistry;
 import com.arcadia.lib.client.ArcadiaModCard;
 import com.arcadia.lib.data.DatabaseManager;
-import com.vyrriox.arcadiaadminpanel.command.AdminPanelCommand;
-import com.vyrriox.arcadiaadminpanel.data.WarnTableDefinition;
-import com.vyrriox.arcadiaadminpanel.gui.AdminPanelMenu;
-import com.vyrriox.arcadiaadminpanel.event.ChatListener;
-import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
-import com.vyrriox.arcadiaadminpanel.util.OfflinePlayerManager;
-import com.vyrriox.arcadiaadminpanel.util.WarnManager;
+import com.arcadia.adminpanel.command.AdminPanelCommand;
+import com.arcadia.adminpanel.data.WarnTableDefinition;
+import com.arcadia.adminpanel.gui.AdminPanelMenu;
+import com.arcadia.adminpanel.event.ChatListener;
+import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.OfflinePlayerManager;
+import com.arcadia.adminpanel.util.WarnManager;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.fml.event.lifecycle.FMLCommonSetupEvent;

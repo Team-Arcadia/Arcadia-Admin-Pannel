@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.gui;
+package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.ArcadiaMessages;
 import com.arcadia.lib.item.ItemBuilder;
@@ -8,11 +8,11 @@ import com.arcadia.lib.staff.StaffService;
 import com.arcadia.lib.text.MessageHelper;
 import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
-import com.vyrriox.arcadiaadminpanel.event.ChatListener;
-import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
-import com.vyrriox.arcadiaadminpanel.util.LanguageHelper;
-import com.vyrriox.arcadiaadminpanel.util.SkullCache;
-import com.vyrriox.arcadiaadminpanel.util.WarnManager;
+import com.arcadia.adminpanel.event.ChatListener;
+import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.SkullCache;
+import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;

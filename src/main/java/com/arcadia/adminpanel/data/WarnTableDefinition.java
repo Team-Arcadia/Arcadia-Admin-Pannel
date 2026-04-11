@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.data;
+package com.arcadia.adminpanel.data;
 
 import com.arcadia.lib.data.TableDefinition;
 

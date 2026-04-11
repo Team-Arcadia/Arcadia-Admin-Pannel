@@ -1,7 +1,7 @@
-package com.vyrriox.arcadiaadminpanel.util;
+package com.arcadia.adminpanel.util;
 
 import com.mojang.authlib.GameProfile;
-import com.vyrriox.arcadiaadminpanel.AdminPanelMod;
+import com.arcadia.adminpanel.AdminPanelMod;
 import net.minecraft.server.MinecraftServer;
 import org.jetbrains.annotations.Nullable;
 

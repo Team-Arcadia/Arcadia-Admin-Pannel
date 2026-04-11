@@ -1,4 +1,4 @@
-package com.vyrriox.arcadiaadminpanel.util;
+package com.arcadia.adminpanel.util;
 
 import com.arcadia.lib.ServerContext;
 import com.arcadia.lib.data.DatabaseManager;
