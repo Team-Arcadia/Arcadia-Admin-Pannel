@@ -34,3 +34,10 @@ type="required"
 versionRange="[1.2.0,)"
 ordering="AFTER"
 side="BOTH"
+
+# Load after immersive_melodies to avoid class loading order conflict
+[[dependencies.arcadiaadminpanel]]
+modId="immersive_melodies"
+type="optional"
+ordering="AFTER"
+side="CLIENT"

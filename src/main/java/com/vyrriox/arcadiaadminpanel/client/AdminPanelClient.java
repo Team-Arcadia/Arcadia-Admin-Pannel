@@ -11,6 +11,7 @@ import net.neoforged.neoforge.client.event.RegisterMenuScreensEvent;
 
 /**
  * Client-side event handler — registers themed screens for custom menu types.
+ * Uses LOWEST priority to ensure all registries are stable before loading.
  *
  * @author vyrriox
  */
