@@ -49,18 +49,13 @@ public class PlayerDetailMenu extends ChestMenu {
                 (id, playerInv, player) -> new PlayerDetailMenu(id, playerInv, (ServerPlayer) player,
                         targetUUID, targetName, isOnline),
                 Component.literal(String.format(LanguageHelper.getText("detail.title", admin), targetName))
-        ), buf -> {
-            buf.writeUtf(targetName);
-            buf.writeLong(targetUUID.getMostSignificantBits());
-            buf.writeLong(targetUUID.getLeastSignificantBits());
-            buf.writeBoolean(isOnline);
-        });
+        ));
     }
 
     /** Server constructor. */
     public PlayerDetailMenu(int id, Inventory playerInv, ServerPlayer admin,
                             UUID targetUUID, String targetName, boolean isOnline) {
-        super(ModMenuTypes.PLAYER_DETAIL.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = admin;
         this.targetUUID = targetUUID;
         this.targetName = targetName;
@@ -70,7 +65,7 @@ public class PlayerDetailMenu extends ChestMenu {
 
     /** Client constructor (minimal, items sync from server). */
     public PlayerDetailMenu(int id, Inventory playerInv, UUID targetUUID, String targetName, boolean isOnline) {
-        super(ModMenuTypes.PLAYER_DETAIL.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.targetUUID = targetUUID;
         this.targetName = targetName;
@@ -79,7 +74,7 @@ public class PlayerDetailMenu extends ChestMenu {
 
     /** Client fallback constructor. */
     public PlayerDetailMenu(int id, Inventory playerInv) {
-        super(ModMenuTypes.PLAYER_DETAIL.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.targetUUID = UUID.randomUUID();
         this.targetName = "Unknown";

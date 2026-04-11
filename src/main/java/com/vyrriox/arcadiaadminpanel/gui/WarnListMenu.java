@@ -38,17 +38,13 @@ public class WarnListMenu extends ChestMenu {
                 (id, playerInv, player) -> new WarnListMenu(id, playerInv, (ServerPlayer) player,
                         targetUUID, targetName),
                 Component.literal(String.format(LanguageHelper.getText("warn.list.title", admin), targetName))
-        ), buf -> {
-            buf.writeUtf(targetName);
-            buf.writeLong(targetUUID.getMostSignificantBits());
-            buf.writeLong(targetUUID.getLeastSignificantBits());
-        });
+        ));
     }
 
     /** Server constructor. */
     public WarnListMenu(int id, Inventory playerInv, ServerPlayer admin,
                         UUID targetUUID, String targetName) {
-        super(ModMenuTypes.WARN_LIST.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = admin;
         this.targetUUID = targetUUID;
         this.targetName = targetName;
@@ -57,7 +53,7 @@ public class WarnListMenu extends ChestMenu {
 
     /** Client constructor with data. */
     public WarnListMenu(int id, Inventory playerInv, UUID targetUUID, String targetName) {
-        super(ModMenuTypes.WARN_LIST.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.targetUUID = targetUUID;
         this.targetName = targetName;
@@ -65,7 +61,7 @@ public class WarnListMenu extends ChestMenu {
 
     /** Client fallback constructor. */
     public WarnListMenu(int id, Inventory playerInv) {
-        super(ModMenuTypes.WARN_LIST.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.targetUUID = UUID.randomUUID();
         this.targetName = "Unknown";

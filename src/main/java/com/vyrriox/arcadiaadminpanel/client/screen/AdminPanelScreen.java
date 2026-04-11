@@ -1,27 +1,26 @@
 package com.vyrriox.arcadiaadminpanel.client.screen;
 
 import com.arcadia.lib.client.ArcadiaTheme;
-import com.vyrriox.arcadiaadminpanel.gui.AdminPanelMenu;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 
 /**
  * Admin Panel screen with ArcadiaTheme rendering and client-side search bar.
- * The search bar filters player heads visually by dimming non-matching slots.
  *
  * @author vyrriox
  */
-public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
+public class AdminPanelScreen extends ThemedContainerScreen {
 
     private EditBox searchBox;
     private String searchQuery = "";
 
-    public AdminPanelScreen(AdminPanelMenu menu, Inventory inventory, Component title) {
+    public AdminPanelScreen(ChestMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
     }
 
@@ -29,7 +28,6 @@ public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
     protected void init() {
         super.init();
 
-        // Search bar above the container
         int searchWidth = 120;
         int searchX = this.leftPos + (this.imageWidth - searchWidth) / 2;
         int searchY = this.topPos - 16;
@@ -50,7 +48,6 @@ public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
     protected void renderBg(@NotNull GuiGraphics g, float partialTick, int mouseX, int mouseY) {
         super.renderBg(g, partialTick, mouseX, mouseY);
 
-        // Search bar background panel
         if (searchBox != null) {
             int px = searchBox.getX() - 4;
             int py = searchBox.getY() - 3;
@@ -64,14 +61,12 @@ public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
     protected void renderSlot(@NotNull GuiGraphics g, @NotNull Slot slot) {
         super.renderSlot(g, slot);
 
-        // Dim non-matching player heads when search is active
         if (!searchQuery.isEmpty() && slot.index < 45 && slot.hasItem()) {
             var stack = slot.getItem();
             if (stack.is(Items.PLAYER_HEAD)) {
                 String name = stack.getHoverName().getString().toLowerCase()
                         .replaceAll("§[0-9a-fk-or]", "");
                 if (!name.contains(searchQuery)) {
-                    // Dark overlay on non-matching slots
                     g.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0xCC0A0810);
                 }
             }
@@ -80,9 +75,8 @@ public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
 
     @Override
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-        // Prevent closing inventory when typing in search box
         if (searchBox != null && searchBox.isFocused()) {
-            if (keyCode == 256) { // Escape
+            if (keyCode == 256) {
                 searchBox.setFocused(false);
                 return true;
             }
@@ -101,7 +95,6 @@ public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        // Don't process clicks on dimmed slots
         if (!searchQuery.isEmpty() && this.hoveredSlot != null && this.hoveredSlot.index < 45
                 && this.hoveredSlot.hasItem()) {
             var stack = this.hoveredSlot.getItem();
@@ -109,7 +102,7 @@ public class AdminPanelScreen extends ThemedContainerScreen<AdminPanelMenu> {
                 String name = stack.getHoverName().getString().toLowerCase()
                         .replaceAll("§[0-9a-fk-or]", "");
                 if (!name.contains(searchQuery)) {
-                    return false; // Block click on non-matching player
+                    return false;
                 }
             }
         }

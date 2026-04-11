@@ -1,17 +1,17 @@
 package com.vyrriox.arcadiaadminpanel.client.screen;
 
-import com.vyrriox.arcadiaadminpanel.gui.PlayerDetailMenu;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.ChestMenu;
 
 /**
  * Themed screen for player detail view.
  *
  * @author vyrriox
  */
-public class PlayerDetailScreen extends ThemedContainerScreen<PlayerDetailMenu> {
+public class PlayerDetailScreen extends ThemedContainerScreen {
 
-    public PlayerDetailScreen(PlayerDetailMenu menu, Inventory inventory, Component title) {
+    public PlayerDetailScreen(ChestMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
     }
 }

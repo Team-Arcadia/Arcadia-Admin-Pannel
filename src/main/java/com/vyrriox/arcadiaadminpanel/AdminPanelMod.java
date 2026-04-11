@@ -6,7 +6,6 @@ import com.arcadia.lib.data.DatabaseManager;
 import com.vyrriox.arcadiaadminpanel.command.AdminPanelCommand;
 import com.vyrriox.arcadiaadminpanel.data.WarnTableDefinition;
 import com.vyrriox.arcadiaadminpanel.event.ChatListener;
-import com.vyrriox.arcadiaadminpanel.gui.ModMenuTypes;
 import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
 import com.vyrriox.arcadiaadminpanel.util.OfflinePlayerManager;
 import com.vyrriox.arcadiaadminpanel.util.WarnManager;
@@ -33,9 +32,6 @@ public class AdminPanelMod {
     public static final String MOD_ID = "arcadiaadminpanel";
 
     public AdminPanelMod(IEventBus modEventBus) {
-        // Register custom menu types
-        ModMenuTypes.register(modEventBus);
-
         // Common setup (database tables, module registration)
         modEventBus.addListener(this::onCommonSetup);
 

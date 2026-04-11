@@ -39,12 +39,12 @@ public class AdminPanelMenu extends ChestMenu {
         admin.openMenu(new SimpleMenuProvider(
                 (id, playerInv, player) -> new AdminPanelMenu(id, playerInv, (ServerPlayer) player, filter),
                 LanguageHelper.getComponent("menu.title", admin)
-        ), buf -> buf.writeUtf(filter));
+        ));
     }
 
     /** Server constructor. */
     public AdminPanelMenu(int id, Inventory playerInv, ServerPlayer admin, String filter) {
-        super(ModMenuTypes.ADMIN_PANEL.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = admin;
         this.filter = filter != null ? filter : "";
         buildMenu();
@@ -52,7 +52,7 @@ public class AdminPanelMenu extends ChestMenu {
 
     /** Client constructor (items sync from server). */
     public AdminPanelMenu(int id, Inventory playerInv, String filter) {
-        super(ModMenuTypes.ADMIN_PANEL.get(), id, playerInv, new SimpleContainer(54), 6);
+        super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.filter = filter != null ? filter : "";
     }

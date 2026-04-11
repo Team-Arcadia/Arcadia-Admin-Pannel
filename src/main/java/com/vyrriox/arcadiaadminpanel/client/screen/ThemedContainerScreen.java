@@ -14,9 +14,9 @@ import org.jetbrains.annotations.NotNull;
  *
  * @author vyrriox
  */
-public class ThemedContainerScreen<T extends ChestMenu> extends AbstractContainerScreen<T> {
+public class ThemedContainerScreen extends AbstractContainerScreen<ChestMenu> {
 
-    public ThemedContainerScreen(T menu, Inventory inventory, Component title) {
+    public ThemedContainerScreen(ChestMenu menu, Inventory inventory, Component title) {
         super(menu, inventory, title);
         this.imageHeight = 222;
         this.imageWidth = 176;
@@ -25,10 +25,7 @@ public class ThemedContainerScreen<T extends ChestMenu> extends AbstractContaine
 
     @Override
     protected void renderBg(@NotNull GuiGraphics g, float partialTick, int mouseX, int mouseY) {
-        // Full-screen overlay
         g.fill(0, 0, this.width, this.height, ArcadiaTheme.OVERLAY_BG);
-
-        // Themed container background
         ArcadiaTheme.drawContainerBg(g, this.leftPos, this.topPos, this.imageWidth, 6);
     }
 
@@ -40,7 +37,6 @@ public class ThemedContainerScreen<T extends ChestMenu> extends AbstractContaine
 
     @Override
     protected void renderLabels(@NotNull GuiGraphics g, int mouseX, int mouseY) {
-        // Render title centered with ArcadiaTheme styling
         ArcadiaTheme.drawTitleBar(g, this.title, this.imageWidth / 2, 4, this.imageWidth - 16);
     }
 }
