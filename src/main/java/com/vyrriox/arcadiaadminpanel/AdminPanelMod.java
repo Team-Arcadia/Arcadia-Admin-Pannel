@@ -5,6 +5,7 @@ import com.arcadia.lib.client.ArcadiaModCard;
 import com.arcadia.lib.data.DatabaseManager;
 import com.vyrriox.arcadiaadminpanel.command.AdminPanelCommand;
 import com.vyrriox.arcadiaadminpanel.data.WarnTableDefinition;
+import com.vyrriox.arcadiaadminpanel.gui.AdminPanelMenu;
 import com.vyrriox.arcadiaadminpanel.event.ChatListener;
 import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
 import com.vyrriox.arcadiaadminpanel.util.OfflinePlayerManager;
@@ -58,6 +59,14 @@ public class AdminPanelMod {
                     true,
                     "arcadia.staff.mod"
             ));
+
+            // Register tab opener so clicking the hub card opens the admin panel
+            ArcadiaModRegistry.registerTabOpener(90,
+                    player -> AdminPanelMenu.open((net.minecraft.server.level.ServerPlayer) player));
+
+            // Register server action as alternative entry point
+            ArcadiaModRegistry.registerServerAction("adminpanel:open",
+                    player -> AdminPanelMenu.open(player));
         });
     }
 
