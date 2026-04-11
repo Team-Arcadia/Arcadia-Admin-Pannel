@@ -72,6 +72,11 @@ public final class LanguageHelper {
         en.put("error.no_warns", "This player has no warnings.");
         en.put("error.invalid_target", "Invalid target.");
         en.put("error.player_only", "This command can only be used by players.");
+        en.put("action.mute", "Mute Player");
+        en.put("action.unmute", "Unmute Player");
+        en.put("mute.hint", "Click to mute for 10 minutes");
+        en.put("mute.remaining", "Time remaining:");
+        en.put("mute.reason", "Reason:");
         en.put("nav.previous", "Previous");
         en.put("nav.next", "Next");
         en.put("reload.start", "Reloading admin panel data...");
@@ -134,6 +139,11 @@ public final class LanguageHelper {
         fr.put("error.no_warns", "Ce joueur n'a aucun avertissement.");
         fr.put("error.invalid_target", "Cible invalide.");
         fr.put("error.player_only", "Cette commande ne peut être utilisée que par un joueur.");
+        fr.put("action.mute", "Rendre Muet");
+        fr.put("action.unmute", "Retirer le Mute");
+        fr.put("mute.hint", "Cliquez pour mute 10 minutes");
+        fr.put("mute.remaining", "Temps restant :");
+        fr.put("mute.reason", "Raison :");
         fr.put("nav.previous", "Précédent");
         fr.put("nav.next", "Suivant");
         fr.put("reload.start", "Rechargement des données admin...");

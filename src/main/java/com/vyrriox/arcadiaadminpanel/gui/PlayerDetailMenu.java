@@ -2,7 +2,11 @@ package com.vyrriox.arcadiaadminpanel.gui;
 
 import com.arcadia.lib.ArcadiaMessages;
 import com.arcadia.lib.item.ItemBuilder;
+import com.arcadia.lib.staff.StaffActions;
+import com.arcadia.lib.staff.StaffRole;
+import com.arcadia.lib.staff.StaffService;
 import com.arcadia.lib.text.MessageHelper;
+import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
 import com.vyrriox.arcadiaadminpanel.event.ChatListener;
 import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
@@ -157,6 +161,27 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         // ── Action bar (row 6) ──────────────────────────────────────────────
+
+        // Mute/Unmute (slot 45) — requires MOD staff role
+        if (isOnline && StaffService.getRole(admin).atLeast(StaffRole.MOD)) {
+            boolean isMuted = StaffActions.isMuted(targetUUID);
+            if (isMuted) {
+                long remaining = StaffActions.getMuteRemaining(targetUUID);
+                String reason = StaffActions.getMuteReason(targetUUID);
+                this.getContainer().setItem(45, ItemBuilder.of(Items.GREEN_DYE)
+                        .name(Component.literal("§a" + LanguageHelper.getText("action.unmute", admin)))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("mute.remaining", admin)
+                                + " §e" + TextFormatter.formatMs(remaining)))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("mute.reason", admin)
+                                + " §c" + (reason != null ? reason : "N/A")))
+                        .build());
+            } else {
+                this.getContainer().setItem(45, ItemBuilder.of(Items.SCULK_SHRIEKER)
+                        .name(Component.literal("§6" + LanguageHelper.getText("action.mute", admin)))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("mute.hint", admin)))
+                        .build());
+            }
+        }
 
         // Clear inventory (slot 46)
         if (canUseCommand("clear")) {
@@ -353,6 +378,21 @@ public class PlayerDetailMenu extends ChestMenu {
                     }
                 }
                 admin.closeContainer();
+            }
+            case 45 -> { // Mute/Unmute
+                if (isOnline && StaffService.getRole(admin).atLeast(StaffRole.MOD)) {
+                    boolean isMuted = StaffActions.isMuted(targetUUID);
+                    if (isMuted) {
+                        StaffActions.unmute(targetUUID, admin);
+                        SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
+                    } else {
+                        // Default mute: 10 minutes
+                        StaffActions.mute(targetUUID, admin, "Admin Panel", 10 * 60_000L);
+                        SoundHelper.playAt(admin, SoundHelper.CLICK);
+                    }
+                    admin.closeContainer();
+                    admin.getServer().execute(() -> open(admin, targetUUID, targetName, isOnline));
+                }
             }
             case 49 -> { // Kick
                 if (isOnline && canUseCommand("kick")) {
