@@ -49,10 +49,40 @@ docs: update documentation
 perf: improve performance
 ```
 
+## Branch Strategy / Strategie de branches
+
+```
+main          Production-ready releases (protected)
+  |
+staging       Pre-release testing & QA
+  |
+develop       Active development, feature integration
+  |
+feat/*        Feature branches (from develop)
+fix/*         Bug fix branches (from develop)
+hotfix        Critical production fixes (from main)
+```
+
+| Branch | Purpose | Merges into |
+|--------|---------|-------------|
+| `main` | Stable releases, tagged versions | - |
+| `staging` | Testing before production | `main` |
+| `develop` | Feature integration, daily work | `staging` |
+| `feat/*` | New features | `develop` |
+| `fix/*` | Bug fixes | `develop` |
+| `hotfix` | Critical production patches | `main` + `develop` |
+
+### Workflow
+1. Create `feat/my-feature` from `develop`
+2. Work and commit on your feature branch
+3. PR into `develop` (code review)
+4. When ready for testing: merge `develop` into `staging`
+5. After QA passes: merge `staging` into `main` + tag release
+
 ## Pull Request Process / Processus de PR
 
 1. Fork the repository / Forkez le repo
-2. Create a feature branch / Creez une branche: `git checkout -b feat/my-feature`
+2. Create a feature branch from `develop` / Creez une branche depuis `develop`: `git checkout -b feat/my-feature develop`
 3. Make your changes / Faites vos modifications
 4. Ensure `./gradlew build` passes / Verifiez que le build passe
 5. Submit a PR against `main` / Soumettez une PR vers `main`

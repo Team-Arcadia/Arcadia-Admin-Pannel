@@ -2,9 +2,9 @@ name: Build & Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop, staging, hotfix ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, develop, staging ]
 
 permissions:
   contents: read
@@ -35,6 +35,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: arcadia-admin-panel
+          name: arcadia-admin-panel-${{ github.ref_name }}-${{ github.sha }}
           path: build/libs/arcadia-admin-panel-*.jar
           retention-days: 30
