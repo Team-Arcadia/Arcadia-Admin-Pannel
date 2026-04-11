@@ -35,6 +35,6 @@ jobs:
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: arcadia-admin-panel-${{ github.ref_name }}-${{ github.sha }}
+          name: Arcadia-Admin-Panel-${{ github.ref_name }}
           path: build/libs/arcadia-admin-panel-*.jar
           retention-days: 30
