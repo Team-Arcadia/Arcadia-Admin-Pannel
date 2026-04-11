@@ -77,6 +77,11 @@ public final class LanguageHelper {
         en.put("mute.hint", "Click to mute for 10 minutes");
         en.put("mute.remaining", "Time remaining:");
         en.put("mute.reason", "Reason:");
+        en.put("mute.feedback", "You are muted. Remaining: %time% — Reason: %reason%");
+        en.put("staff.chat.enabled", "Staff chat enabled. All messages go to staff channel.");
+        en.put("staff.chat.disabled", "Staff chat disabled. Messages go to public chat.");
+        en.put("staff.online", "Staff online (%d):");
+        en.put("staff.none_online", "No staff members online.");
         en.put("nav.previous", "Previous");
         en.put("nav.next", "Next");
         en.put("reload.start", "Reloading admin panel data...");
@@ -144,6 +149,11 @@ public final class LanguageHelper {
         fr.put("mute.hint", "Cliquez pour mute 10 minutes");
         fr.put("mute.remaining", "Temps restant :");
         fr.put("mute.reason", "Raison :");
+        fr.put("mute.feedback", "Vous êtes muté. Restant : %time% — Raison : %reason%");
+        fr.put("staff.chat.enabled", "Chat staff activé. Tous vos messages vont au canal staff.");
+        fr.put("staff.chat.disabled", "Chat staff désactivé. Messages en chat public.");
+        fr.put("staff.online", "Staff en ligne (%d) :");
+        fr.put("staff.none_online", "Aucun staff en ligne.");
         fr.put("nav.previous", "Précédent");
         fr.put("nav.next", "Suivant");
         fr.put("reload.start", "Rechargement des données admin...");

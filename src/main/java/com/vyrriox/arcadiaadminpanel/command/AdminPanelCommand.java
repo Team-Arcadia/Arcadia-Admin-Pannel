@@ -1,8 +1,14 @@
 package com.vyrriox.arcadiaadminpanel.command;
 
 import com.arcadia.lib.ArcadiaMessages;
+import com.arcadia.lib.staff.StaffActions;
+import com.arcadia.lib.staff.StaffChatService;
+import com.arcadia.lib.staff.StaffRole;
+import com.arcadia.lib.staff.StaffService;
+import com.arcadia.lib.text.TextFormatter;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
+import com.mojang.brigadier.arguments.LongArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
@@ -98,7 +104,87 @@ public final class AdminPanelCommand {
                                 .then(Commands.argument("target", StringArgumentType.string())
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .executes(AdminPanelCommand::executeClearWarns)))
+
+                        // ── Staff commands (moved from lib) ─────────────────────
+
+                        // /arcadia_adminpanel staffchat <message>
+                        .then(Commands.literal("staffchat")
+                                .then(Commands.argument("message", StringArgumentType.greedyString())
+                                        .executes(ctx -> {
+                                            if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
+                                            if (!StaffService.requireRole(ctx.getSource(), StaffRole.HELPER)) return 0;
+                                            StaffChatService.broadcast(sp, StringArgumentType.getString(ctx, "message"));
+                                            return 1;
+                                        })))
+
+                        // /arcadia_adminpanel stafftoggle
+                        .then(Commands.literal("stafftoggle")
+                                .executes(ctx -> {
+                                    if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
+                                    if (!StaffService.requireRole(ctx.getSource(), StaffRole.HELPER)) return 0;
+                                    boolean on = StaffChatService.toggle(sp.getUUID());
+                                    sp.sendSystemMessage(ArcadiaMessages.info(
+                                            LanguageHelper.getText(on ? "staff.chat.enabled" : "staff.chat.disabled", sp)));
+                                    return 1;
+                                }))
+
+                        // /arcadia_adminpanel stafflist
+                        .then(Commands.literal("stafflist")
+                                .executes(ctx -> {
+                                    if (!StaffService.requireRole(ctx.getSource(), StaffRole.HELPER)) return 0;
+                                    var staff = StaffService.getStaffOnline();
+                                    ServerPlayer admin = ctx.getSource().getEntity() instanceof ServerPlayer sp ? sp : null;
+                                    if (staff.isEmpty()) {
+                                        ctx.getSource().sendSuccess(() -> ArcadiaMessages.info(
+                                                LanguageHelper.getText("staff.none_online", admin)), false);
+                                    } else {
+                                        StringBuilder sb = new StringBuilder();
+                                        sb.append(LanguageHelper.getText("staff.online", admin)
+                                                .replace("%d", String.valueOf(staff.size()))).append(" ");
+                                        for (int i = 0; i < staff.size(); i++) {
+                                            if (i > 0) sb.append(", ");
+                                            ServerPlayer s = staff.get(i);
+                                            sb.append("§").append(StaffService.getRole(s).getColor().getChar())
+                                              .append(s.getName().getString());
+                                        }
+                                        ctx.getSource().sendSuccess(() -> ArcadiaMessages.info(sb.toString()), false);
+                                    }
+                                    return 1;
+                                }))
+
+                        // /arcadia_adminpanel mute <player> <minutes> [reason]
+                        .then(Commands.literal("mute")
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .then(Commands.argument("minutes", LongArgumentType.longArg(1))
+                                                .executes(ctx -> executeMute(ctx, null))
+                                                .then(Commands.argument("reason", StringArgumentType.greedyString())
+                                                        .executes(ctx -> executeMute(ctx,
+                                                                StringArgumentType.getString(ctx, "reason")))))))
+
+                        // /arcadia_adminpanel unmute <player>
+                        .then(Commands.literal("unmute")
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .executes(ctx -> {
+                                            if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
+                                            if (!StaffService.requireRole(ctx.getSource(), StaffRole.MOD)) return 0;
+                                            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+                                            StaffActions.unmute(target.getUUID(), sp);
+                                            return 1;
+                                        })))
         );
+    }
+
+    private static int executeMute(CommandContext<CommandSourceStack> ctx, String reason) {
+        try {
+            if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
+            if (!StaffService.requireRole(ctx.getSource(), StaffRole.MOD)) return 0;
+            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+            long mins = LongArgumentType.getLong(ctx, "minutes");
+            StaffActions.mute(target.getUUID(), sp, reason, mins * 60_000L);
+            return 1;
+        } catch (Exception e) {
+            return 0;
+        }
     }
 
     private static int executePanel(CommandContext<CommandSourceStack> context, String filter) {

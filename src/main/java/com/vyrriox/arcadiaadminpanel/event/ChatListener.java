@@ -1,16 +1,22 @@
 package com.vyrriox.arcadiaadminpanel.event;
 
 import com.arcadia.lib.ArcadiaMessages;
-import com.arcadia.lib.util.SoundHelper;
+import com.arcadia.lib.staff.StaffActions;
+import com.arcadia.lib.staff.StaffChatService;
+import com.arcadia.lib.staff.StaffService;
 import com.arcadia.lib.text.MessageHelper;
+import com.arcadia.lib.text.TextFormatter;
+import com.arcadia.lib.util.SoundHelper;
 import com.vyrriox.arcadiaadminpanel.gui.AdminPanelMenu;
 import com.vyrriox.arcadiaadminpanel.gui.PlayerDetailMenu;
 import com.vyrriox.arcadiaadminpanel.util.LanguageHelper;
 import com.vyrriox.arcadiaadminpanel.util.WarnManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
+import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.ServerChatEvent;
+import net.neoforged.neoforge.event.entity.player.PlayerEvent;
 
 import java.util.Map;
 import java.util.UUID;
@@ -44,11 +50,30 @@ public class ChatListener {
         admin.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("warn.prompt.cancel", admin)));
     }
 
-    @SubscribeEvent
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
     public void onChat(ServerChatEvent event) {
         ServerPlayer player = event.getPlayer();
         UUID playerUUID = player.getUUID();
         String message = event.getMessage().getString();
+
+        // ── Mute enforcement (highest priority) ─────────────────────────────
+        if (StaffActions.isMuted(playerUUID)) {
+            long remaining = StaffActions.getMuteRemaining(playerUUID);
+            String reason = StaffActions.getMuteReason(playerUUID);
+            player.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("mute.feedback", player)
+                            .replace("%time%", TextFormatter.formatMs(remaining))
+                            .replace("%reason%", reason != null ? reason : "N/A")));
+            event.setCanceled(true);
+            return;
+        }
+
+        // ── Staff chat toggle redirect ──────────────────────────────────────
+        if (StaffChatService.isToggled(playerUUID) && StaffService.isStaff(player)) {
+            StaffChatService.broadcast(player, message);
+            event.setCanceled(true);
+            return;
+        }
 
         // Cancel keyword
         if (message.equalsIgnoreCase("cancel")) {
@@ -106,5 +131,16 @@ public class ChatListener {
             player.getServer().execute(() -> AdminPanelMenu.open(player, searchQuery));
             return;
         }
+    }
+
+    // ── Cleanup on disconnect ───────────────────────────────────────────────
+
+    @SubscribeEvent
+    public void onQuit(PlayerEvent.PlayerLoggedOutEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+        UUID uuid = sp.getUUID();
+        warnSessions.remove(uuid);
+        searchSessions.remove(uuid);
+        StaffChatService.onDisconnect(uuid);
     }
 }
