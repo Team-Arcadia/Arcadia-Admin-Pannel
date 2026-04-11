@@ -1,4 +1,61 @@
-# CHANGELOG / JOURNAL DES MODIFICATIONS
+# Changelog
+
+All notable changes to Arcadia Admin Panel are documented here.
+
+---
+
+## [1.2.0] - 2026-04-11
+
+### Added
+- **Arcadia Lib Integration** — Mod is now powered by Arcadia Lib. Uses ArcadiaTheme (steampunk copper design), ItemBuilder, ArcadiaMessages, SoundHelper, MessageHelper, and ArcadiaModRegistry.
+- **Both-Sided Mod** — Now runs on both client and server (was server-only). Client gets themed GUI screens with ArcadiaTheme rendering.
+- **Player Search Bar** — Client-side search bar in the admin panel to filter players by name in real-time. Also supports chat-based search and `/arcadia_adminpanel panel <filter>` command.
+- **Multi-Server Warn Sync** — Warnings now synchronize across servers via shared MySQL database (Arcadia Lib DatabaseManager). Falls back to local JSON when database is disabled.
+- **Custom Menu Types** — Registered custom NeoForge MenuTypes for AdminPanel, PlayerDetail, and WarnList screens.
+- **New Command** — `/arcadia_adminpanel clearwarns <player>` to clear all warnings for a player at once.
+- **Warn Server Origin** — Each warning now stores the server ID it was issued from (visible in warn list).
+- **Cancel Sessions** — Warn and search chat sessions can be cancelled by typing 'cancel'.
+
+### Changed
+- **Commands Renamed** — All commands moved from `/arcadiaadmin` to `/arcadia_adminpanel` for consistency with Arcadia ecosystem.
+- **Pre-Filled Suggestions** — All player argument commands now suggest both online and offline players automatically.
+- **Mod ID Fixed** — Changed from `arcadiaadminpannel` (typo) to `arcadiaadminpanel`.
+- **NeoForge Updated** — Upgraded from NeoForge 21.1.1 to 21.1.219 with Parchment mappings.
+- **pack_format Updated** — Updated from legacy Forge format 9 to NeoForge format 15.
+
+### Performance
+- **Async Database Operations** — All database writes (insert, delete, clear warns) run on dedicated thread pool via DatabaseManager.
+- **Optimized Menus** — Menus use ItemBuilder (fluent API) instead of manual DataComponents manipulation.
+
+### Removed
+- **PlayerDataCache** — Removed unused class (was dead code).
+- **FTBHelper** — Removed legacy reflection-based FTB integration (FTBDataReader handles all data reading).
+
+### Ajouts
+- **Intégration Arcadia Lib** — Le mod utilise désormais Arcadia Lib. Thème steampunk cuivré (ArcadiaTheme), ItemBuilder, ArcadiaMessages, SoundHelper, MessageHelper et ArcadiaModRegistry.
+- **Mod Both-Sided** — Fonctionne désormais côté client et serveur (était serveur uniquement). Le client obtient des écrans GUI thématisés.
+- **Barre de Recherche** — Barre de recherche côté client pour filtrer les joueurs par nom en temps réel. Supporte aussi la recherche via chat et commande `/arcadia_adminpanel panel <filtre>`.
+- **Synchronisation Multi-Serveur des Warns** — Les avertissements se synchronisent entre serveurs via MySQL partagée. Fallback JSON local si base désactivée.
+- **Types de Menu Personnalisés** — MenuTypes NeoForge personnalisés pour AdminPanel, PlayerDetail et WarnList.
+- **Nouvelle Commande** — `/arcadia_adminpanel clearwarns <joueur>` pour supprimer tous les avertissements d'un joueur.
+- **Origine Serveur des Warns** — Chaque avertissement stocke l'ID du serveur d'origine.
+- **Annulation Sessions** — Les sessions warn et recherche sont annulables en tapant 'cancel'.
+
+### Modifications
+- **Commandes Renommées** — Toutes les commandes passent de `/arcadiaadmin` à `/arcadia_adminpanel` pour cohérence Arcadia.
+- **Suggestions Pré-Remplies** — Toutes les commandes à argument joueur suggèrent automatiquement les joueurs en ligne et hors ligne.
+- **Mod ID Corrigé** — Passage de `arcadiaadminpannel` (typo) à `arcadiaadminpanel`.
+- **NeoForge Mis à Jour** — Passage de NeoForge 21.1.1 à 21.1.219 avec mappings Parchment.
+
+### Performance
+- **Opérations Base de Données Asynchrones** — Toutes les écritures DB tournent sur un pool de threads dédié.
+- **Menus Optimisés** — Les menus utilisent ItemBuilder (API fluent) au lieu de manipulation manuelle des DataComponents.
+
+### Suppressions
+- **PlayerDataCache** — Classe inutilisée supprimée.
+- **FTBHelper** — Intégration FTB par réflexion legacy supprimée (FTBDataReader gère tout).
+
+---
 
 ## [1.1.4] - 2026-02-04
 ### Fixed

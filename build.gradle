@@ -3,18 +3,19 @@ plugins {
     id 'eclipse'
     id 'idea'
     id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.123'
+    id 'net.neoforged.moddev' version '2.0.140'
 }
 
 tasks.named('wrapper', Wrapper).configure {
-    gradleVersion = '8.7' // NeoForge 1.21 requires Gradle 8.7+
+    gradleVersion = '8.7'
 }
 
-version = '1.1.4'
+version = '1.2.0'
 group = 'com.vyrriox.arcadiaadminpanel'
 
 repositories {
     mavenLocal()
+    flatDir { dirs 'libs' }
 }
 
 base {
@@ -23,16 +24,13 @@ base {
 
 java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 
-// NeoForge configuration
 neoForge {
-    version = '21.1.1' // NeoForge 1.21.1 version (check latest stable)
+    version = '21.1.219'
 
-
-    // parchment {
-    //    mappingsVersion = '1.21-2024.06.23' 
-    //    minecraftVersion = '1.21'
-    // }
-
+    parchment {
+        mappingsVersion = '2024.11.17'
+        minecraftVersion = '1.21.1'
+    }
 
     runs {
         client {
@@ -58,7 +56,7 @@ neoForge {
     }
 
     mods {
-        arcadiaadminpannel {
+        arcadiaadminpanel {
             sourceSet sourceSets.main
         }
     }
@@ -67,10 +65,9 @@ neoForge {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-    // Add any specific dependencies here
+    implementation files("libs/arcadia-lib-1.2.0.jar")
 }
 
-
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    options.encoding = 'UTF-8'
 }

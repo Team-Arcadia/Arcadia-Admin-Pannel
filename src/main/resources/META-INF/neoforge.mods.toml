@@ -4,26 +4,33 @@ license="All rights reserved"
 issueTrackerURL=""
 
 [[mods]]
-modId="arcadiaadminpannel"
-version="1.1.0"
+modId="arcadiaadminpanel"
+version="1.2.0"
 displayName="Arcadia Admin Panel"
 authors="vyrriox"
 description='''
 Arcadia Admin Panel - Lightweight & Optimized Server Management
+Steampunk-themed admin interface powered by Arcadia Lib
 Developed by vyrriox
 '''
-displayTest="IGNORE_SERVER_VERSION"
 
-[[dependencies.arcadiaadminpannel]]
+[[dependencies.arcadiaadminpanel]]
 modId="neoforge"
 type="required"
 versionRange="[21.1,)"
 ordering="NONE"
 side="BOTH"
 
-[[dependencies.arcadiaadminpannel]]
+[[dependencies.arcadiaadminpanel]]
 modId="minecraft"
 type="required"
 versionRange="[1.21,1.22)"
 ordering="NONE"
+side="BOTH"
+
+[[dependencies.arcadiaadminpanel]]
+modId="arcadia_lib"
+type="required"
+versionRange="[1.2.0,)"
+ordering="AFTER"
 side="BOTH"

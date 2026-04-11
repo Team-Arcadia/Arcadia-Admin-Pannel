@@ -1,9 +1,11 @@
 package com.vyrriox.arcadiaadminpanel.command;
 
+import com.arcadia.lib.ArcadiaMessages;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.vyrriox.arcadiaadminpanel.gui.AdminPanelMenu;
 import com.vyrriox.arcadiaadminpanel.gui.WarnListMenu;
 import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
@@ -12,127 +14,120 @@ import com.vyrriox.arcadiaadminpanel.util.OfflinePlayerManager;
 import com.vyrriox.arcadiaadminpanel.util.WarnManager;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 
 import java.util.Collection;
 import java.util.UUID;
+import java.util.stream.Stream;
 
 /**
- * Main command handler for /arcadiaadmin
- * Consolidated commands:
- * - panel
- * - warn
- * - warnlist
- * - checkwarn
- * - delwarn
- * - reload
- * 
+ * Command handler for /arcadia_adminpanel.
+ * All sub-commands with pre-filled suggestions.
+ *
  * @author vyrriox
  */
-public class AdminPanelCommand {
+public final class AdminPanelCommand {
+
+    private static final SuggestionProvider<CommandSourceStack> PLAYER_SUGGESTIONS = (context, builder) -> {
+        // Online players
+        Stream<String> online = context.getSource().getOnlinePlayerNames().stream();
+        // Offline players
+        Stream<String> offline = OfflinePlayerManager.getInstance().getCache().values().stream()
+                .map(OfflinePlayerManager.CachedPlayerSummary::name);
+        return SharedSuggestionProvider.suggest(Stream.concat(online, offline).distinct(), builder);
+    };
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
-                Commands.literal("arcadiaadmin")
-                        // Subcommand: panel
+                Commands.literal("arcadia_adminpanel")
+
+                        // /arcadia_adminpanel panel [filter]
                         .then(Commands.literal("panel")
                                 .requires(source -> source.hasPermission(2))
-                                .executes(AdminPanelCommand::executePanel))
+                                .executes(ctx -> executePanel(ctx, ""))
+                                .then(Commands.argument("filter", StringArgumentType.greedyString())
+                                        .executes(ctx -> executePanel(ctx,
+                                                StringArgumentType.getString(ctx, "filter")))))
 
-                        // Subcommand: reload
+                        // /arcadia_adminpanel reload
                         .then(Commands.literal("reload")
                                 .requires(source -> source.hasPermission(2))
-                                .executes(context -> {
-                                    context.getSource().sendSuccess(
-                                            () -> Component
-                                                    .literal("§e[ArcadiaAdmin] Reloading offline player cache..."),
-                                            true);
-                                    OfflinePlayerManager.getInstance()
-                                            .reload(context.getSource().getServer());
-                                    // Also clear FTBReader cache
-                                    FTBDataReader.clearCache();
-                                    context.getSource().sendSuccess(
-                                            () -> Component.literal("§a[ArcadiaAdmin] Reload complete!"), true);
-                                    return 1;
-                                }))
+                                .executes(AdminPanelCommand::executeReload))
 
-                        // Subcommand: warn <targets> <reason>
+                        // /arcadia_adminpanel warn <targets> <reason>
                         .then(Commands.literal("warn")
                                 .requires(source -> source.hasPermission(2))
                                 .then(Commands.argument("targets", EntityArgument.players())
                                         .then(Commands.argument("reason", StringArgumentType.greedyString())
                                                 .executes(AdminPanelCommand::executeWarn))))
 
-                        // Subcommand: warnlist <target>
+                        // /arcadia_adminpanel warnlist <target>
                         .then(Commands.literal("warnlist")
                                 .requires(source -> source.hasPermission(2))
                                 .then(Commands.argument("target", StringArgumentType.string())
+                                        .suggests(PLAYER_SUGGESTIONS)
                                         .executes(AdminPanelCommand::executeWarnList)))
 
-                        // Subcommand: checkwarn (Self view)
+                        // /arcadia_adminpanel checkwarn
                         .then(Commands.literal("checkwarn")
                                 .executes(AdminPanelCommand::executeCheckWarn))
 
-                        // Subcommand: delwarn <target> <index>
+                        // /arcadia_adminpanel delwarn <target> <index>
                         .then(Commands.literal("delwarn")
                                 .requires(source -> source.hasPermission(2))
                                 .then(Commands.argument("target", StringArgumentType.string())
-                                        .suggests((context, builder) -> {
-                                            // Suggest online players
-                                            for (String name : context.getSource().getOnlinePlayerNames()) {
-                                                if (name.toLowerCase()
-                                                        .startsWith(builder.getRemaining().toLowerCase())) {
-                                                    builder.suggest(name);
-                                                }
-                                            }
-                                            // Suggest offline players
-                                            var cache = OfflinePlayerManager.getInstance().getCache();
-                                            for (var entry : cache.values()) {
-                                                if (entry.name().toLowerCase()
-                                                        .startsWith(builder.getRemaining().toLowerCase())) {
-                                                    builder.suggest(entry.name());
-                                                }
-                                            }
-                                            // Don't duplicate? builder handles it usually
-                                            return builder.buildFuture();
-                                        })
+                                        .suggests(PLAYER_SUGGESTIONS)
                                         .then(Commands.argument("index", IntegerArgumentType.integer(1))
                                                 .suggests((context, builder) -> {
                                                     String targetName = StringArgumentType.getString(context, "target");
                                                     UUID targetUUID = resolveUUID(context.getSource(), targetName);
                                                     if (targetUUID != null) {
-                                                        int count = WarnManager.getInstance().getWarns(targetUUID)
-                                                                .size();
-                                                        for (int i = 1; i <= count; i++) {
-                                                            builder.suggest(i);
-                                                        }
+                                                        int count = WarnManager.getInstance().getWarns(targetUUID).size();
+                                                        for (int i = 1; i <= count; i++) builder.suggest(i);
                                                     }
                                                     return builder.buildFuture();
                                                 })
-                                                .executes(AdminPanelCommand::executeDelWarn)))));
+                                                .executes(AdminPanelCommand::executeDelWarn))))
+
+                        // /arcadia_adminpanel clearwarns <target>
+                        .then(Commands.literal("clearwarns")
+                                .requires(source -> source.hasPermission(2))
+                                .then(Commands.argument("target", StringArgumentType.string())
+                                        .suggests(PLAYER_SUGGESTIONS)
+                                        .executes(AdminPanelCommand::executeClearWarns)))
+        );
     }
 
-    private static int executePanel(CommandContext<CommandSourceStack> context) {
+    private static int executePanel(CommandContext<CommandSourceStack> context, String filter) {
         CommandSourceStack source = context.getSource();
         if (!(source.getEntity() instanceof ServerPlayer player)) {
-            source.sendFailure(Component.literal("§cThis command can only be used by players"));
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.player_only", (ServerPlayer) null)));
             return 0;
         }
         try {
-            AdminPanelMenu.open(player);
+            AdminPanelMenu.open(player, filter);
             return 1;
         } catch (Exception e) {
-            source.sendFailure(Component.literal("§cFailed to open admin panel: " + e.getMessage()));
-            e.printStackTrace();
+            source.sendFailure(ArcadiaMessages.error("Failed to open admin panel: " + e.getMessage()));
             return 0;
         }
+    }
+
+    private static int executeReload(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+
+        source.sendSuccess(() -> ArcadiaMessages.info(LanguageHelper.getText("reload.start", admin)), true);
+
+        OfflinePlayerManager.getInstance().reload(source.getServer());
+        FTBDataReader.clearCache();
+        WarnManager.getInstance().reload();
+
+        source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);
+        return 1;
     }
 
     private static int executeWarn(CommandContext<CommandSourceStack> context) {
@@ -141,30 +136,23 @@ public class AdminPanelCommand {
             String reason = StringArgumentType.getString(context, "reason");
             CommandSourceStack source = context.getSource();
             String by = source.getTextName();
+            ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
 
             for (ServerPlayer target : targets) {
                 WarnManager.getInstance().addWarn(target.getUUID(), reason, by);
 
-                // Notify Admin
-                ServerPlayer adminPlayer = source.getEntity() instanceof ServerPlayer
-                        ? (ServerPlayer) source.getEntity()
-                        : null;
-                source.sendSuccess(() -> Component.literal("§a" + LanguageHelper.getText("warn.success", adminPlayer)
-                        + " §7(" + target.getName().getString() + ")"), true);
+                source.sendSuccess(() -> ArcadiaMessages.success(
+                        LanguageHelper.getText("warn.success", admin) + " §7(" + target.getName().getString() + ")"), true);
 
-                // Notify Target (Chat)
-                target.sendSystemMessage(Component.literal(
-                        "§c[WARNING] " + String.format(LanguageHelper.getText("warn.notification", target), by)));
+                target.sendSystemMessage(ArcadiaMessages.error(
+                        String.format(LanguageHelper.getText("warn.notification", target), by)));
                 target.sendSystemMessage(Component.literal("§cReason: §f" + reason));
 
-                // Title & Subtitle (Send Animation Packet First)
-                target.connection.send(new ClientboundSetTitlesAnimationPacket(10, 70, 20)); // FadeIn, Stay, FadeOut
-                target.connection.send(new ClientboundSetTitleTextPacket(
-                        Component.literal("§c§l" + LanguageHelper.getText("warn.title", target))));
-                target.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal("§e" + reason)));
-
-                // Sound
-                target.playNotifySound(SoundEvents.ANVIL_LAND, SoundSource.PLAYERS, 1.0f, 1.0f);
+                com.arcadia.lib.text.MessageHelper.sendTitle(target,
+                        Component.literal("§c§l" + LanguageHelper.getText("warn.title", target)),
+                        Component.literal("§e" + reason),
+                        10, 70, 20);
+                com.arcadia.lib.util.SoundHelper.error(target);
             }
             return targets.size();
         } catch (Exception e) {
@@ -177,11 +165,11 @@ public class AdminPanelCommand {
         try {
             String targetName = StringArgumentType.getString(context, "target");
             CommandSourceStack source = context.getSource();
-            ServerPlayer admin = source.getEntity() instanceof ServerPlayer ? (ServerPlayer) source.getEntity() : null;
+            ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
 
             UUID targetUUID = resolveUUID(source, targetName);
             if (targetUUID == null) {
-                source.sendFailure(Component.literal("§c" + LanguageHelper.getText("error.invalid_target", admin)));
+                source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
                 return 0;
             }
 
@@ -189,10 +177,9 @@ public class AdminPanelCommand {
                 WarnListMenu.open(admin, targetUUID, targetName);
             } else {
                 var warns = WarnManager.getInstance().getWarns(targetUUID);
-                source.sendSuccess(() -> Component.literal("§eWarnings for " + targetName + ": " + warns.size()),
-                        false);
+                source.sendSuccess(() -> ArcadiaMessages.info("Warnings for " + targetName + ": " + warns.size()), false);
                 for (var w : warns) {
-                    source.sendSuccess(() -> Component.literal(" - [" + w.by() + "] " + w.reason()), false);
+                    source.sendSuccess(() -> Component.literal(" §8- §7[" + w.by() + "] §f" + w.reason()), false);
                 }
             }
             return 1;
@@ -205,7 +192,7 @@ public class AdminPanelCommand {
     private static int executeCheckWarn(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
         if (!(source.getEntity() instanceof ServerPlayer player)) {
-            source.sendFailure(Component.literal("§cOnly players can check their own warnings."));
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.player_only", (ServerPlayer) null)));
             return 0;
         }
         WarnListMenu.open(player, player.getUUID(), player.getName().getString());
@@ -217,23 +204,43 @@ public class AdminPanelCommand {
             String targetName = StringArgumentType.getString(context, "target");
             int index = IntegerArgumentType.getInteger(context, "index");
             CommandSourceStack source = context.getSource();
-            ServerPlayer admin = source.getEntity() instanceof ServerPlayer ? (ServerPlayer) source.getEntity() : null;
+            ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
 
             UUID targetUUID = resolveUUID(source, targetName);
             if (targetUUID == null) {
-                source.sendFailure(Component.literal("§c" + LanguageHelper.getText("error.invalid_target", admin)));
+                source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
                 return 0;
             }
 
             boolean success = WarnManager.getInstance().removeWarn(targetUUID, index);
             if (success) {
-                source.sendSuccess(
-                        () -> Component.literal(
-                                "§a" + String.format(LanguageHelper.getText("warn.deleted", admin), index, targetName)),
-                        true);
+                source.sendSuccess(() -> ArcadiaMessages.success(
+                        String.format(LanguageHelper.getText("warn.deleted", admin), index, targetName)), true);
             } else {
-                source.sendFailure(Component.literal("§c" + LanguageHelper.getText("error.invalid_index", admin)));
+                source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_index", admin)));
             }
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private static int executeClearWarns(CommandContext<CommandSourceStack> context) {
+        try {
+            String targetName = StringArgumentType.getString(context, "target");
+            CommandSourceStack source = context.getSource();
+            ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+
+            UUID targetUUID = resolveUUID(source, targetName);
+            if (targetUUID == null) {
+                source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+                return 0;
+            }
+
+            int count = WarnManager.getInstance().clearWarns(targetUUID);
+            source.sendSuccess(() -> ArcadiaMessages.success(
+                    String.format(LanguageHelper.getText("warn.cleared", admin), targetName, count)), true);
             return 1;
         } catch (Exception e) {
             e.printStackTrace();
@@ -243,15 +250,12 @@ public class AdminPanelCommand {
 
     private static UUID resolveUUID(CommandSourceStack source, String targetName) {
         ServerPlayer onlineTarget = source.getServer().getPlayerList().getPlayerByName(targetName);
-        if (onlineTarget != null) {
-            return onlineTarget.getUUID();
+        if (onlineTarget != null) return onlineTarget.getUUID();
+        for (var entry : OfflinePlayerManager.getInstance().getCache().entrySet()) {
+            if (entry.getValue().name().equalsIgnoreCase(targetName)) return entry.getKey();
         }
-        var cache = OfflinePlayerManager.getInstance().getCache();
-        for (var entry : cache.entrySet()) {
-            if (entry.getValue().name().equalsIgnoreCase(targetName)) {
-                return entry.getKey();
-            }
-        }
-        return null; // Not found
+        return null;
     }
+
+    private AdminPanelCommand() {}
 }

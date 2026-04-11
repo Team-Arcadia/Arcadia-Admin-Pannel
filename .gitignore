@@ -33,3 +33,10 @@ debug/
 # OS specific files
 .DS_Store
 Thumbs.db
+
+# Claude Code
+.claude/
+CLAUDE.md
+
+# Libs (local dependency JARs)
+libs/

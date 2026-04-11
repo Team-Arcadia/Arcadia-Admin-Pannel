@@ -1,32 +1,33 @@
 package com.vyrriox.arcadiaadminpanel.gui;
 
+import com.arcadia.lib.ArcadiaMessages;
+import com.arcadia.lib.item.ItemBuilder;
+import com.arcadia.lib.text.MessageHelper;
+import com.arcadia.lib.util.SoundHelper;
 import com.vyrriox.arcadiaadminpanel.event.ChatListener;
 import com.vyrriox.arcadiaadminpanel.util.FTBDataReader;
 import com.vyrriox.arcadiaadminpanel.util.LanguageHelper;
 import com.vyrriox.arcadiaadminpanel.util.SkullCache;
-import net.minecraft.core.component.DataComponents;
+import com.vyrriox.arcadiaadminpanel.util.WarnManager;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.MenuProvider;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.SimpleMenuProvider;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.ChestMenu;
 import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemLore;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.*;
-import com.mojang.brigadier.tree.CommandNode;
-import net.minecraft.commands.CommandSourceStack;
 
 /**
- * Player Detail Menu - V3 (Stats + History + Language)
- * 
+ * Player detail menu — stats, homes, actions.
+ *
  * @author vyrriox
  */
 public class PlayerDetailMenu extends ChestMenu {
@@ -36,20 +37,26 @@ public class PlayerDetailMenu extends ChestMenu {
     private final String targetName;
     private final boolean isOnline;
     private int homePage = 0;
-    private static final int HOMES_PER_PAGE = 27; // Slots 9-35
-    private boolean confirmClear = false; // State for confirmation
+    private boolean confirmClear = false;
+    private static final int HOMES_PER_PAGE = 27;
 
     public static void open(ServerPlayer admin, UUID targetUUID, String targetName, boolean isOnline) {
-        MenuProvider provider = new SimpleMenuProvider(
-                (id, playerInv, player) -> new PlayerDetailMenu(id, playerInv, (ServerPlayer) player, targetUUID,
-                        targetName, isOnline),
-                Component.literal(String.format(LanguageHelper.getText("detail.title", admin), targetName)));
-        admin.openMenu(provider);
+        admin.openMenu(new SimpleMenuProvider(
+                (id, playerInv, player) -> new PlayerDetailMenu(id, playerInv, (ServerPlayer) player,
+                        targetUUID, targetName, isOnline),
+                Component.literal(String.format(LanguageHelper.getText("detail.title", admin), targetName))
+        ), buf -> {
+            buf.writeUtf(targetName);
+            buf.writeLong(targetUUID.getMostSignificantBits());
+            buf.writeLong(targetUUID.getLeastSignificantBits());
+            buf.writeBoolean(isOnline);
+        });
     }
 
-    public PlayerDetailMenu(int id, Inventory playerInv, ServerPlayer admin, UUID targetUUID, String targetName,
-            boolean isOnline) {
-        super(MenuType.GENERIC_9x6, id, playerInv, new net.minecraft.world.SimpleContainer(54), 6);
+    /** Server constructor. */
+    public PlayerDetailMenu(int id, Inventory playerInv, ServerPlayer admin,
+                            UUID targetUUID, String targetName, boolean isOnline) {
+        super(ModMenuTypes.PLAYER_DETAIL.get(), id, playerInv, new SimpleContainer(54), 6);
         this.admin = admin;
         this.targetUUID = targetUUID;
         this.targetName = targetName;
@@ -57,229 +64,171 @@ public class PlayerDetailMenu extends ChestMenu {
         buildMenu();
     }
 
+    /** Client constructor (minimal, items sync from server). */
+    public PlayerDetailMenu(int id, Inventory playerInv, UUID targetUUID, String targetName, boolean isOnline) {
+        super(ModMenuTypes.PLAYER_DETAIL.get(), id, playerInv, new SimpleContainer(54), 6);
+        this.admin = null;
+        this.targetUUID = targetUUID;
+        this.targetName = targetName;
+        this.isOnline = isOnline;
+    }
+
+    /** Client fallback constructor. */
+    public PlayerDetailMenu(int id, Inventory playerInv) {
+        super(ModMenuTypes.PLAYER_DETAIL.get(), id, playerInv, new SimpleContainer(54), 6);
+        this.admin = null;
+        this.targetUUID = UUID.randomUUID();
+        this.targetName = "Unknown";
+        this.isOnline = false;
+    }
+
     private void buildMenu() {
-        // Fill background
-        ItemStack filler = new ItemStack(Items.GRAY_STAINED_GLASS_PANE);
-        filler.set(DataComponents.CUSTOM_NAME, Component.literal(" "));
+        if (admin == null) return;
+
+        var filler = ItemBuilder.of(Items.GRAY_STAINED_GLASS_PANE).name(Component.literal(" ")).build();
         for (int i = 0; i < 54; i++) {
-            this.getContainer().setItem(i, filler);
+            this.getContainer().setItem(i, filler.copy());
         }
 
-        // Header (Row 1)
-        ItemStack skull = SkullCache.createSkull(targetUUID, targetName);
-        skull.set(DataComponents.CUSTOM_NAME, Component.literal("§e" + targetName));
-        skull.set(DataComponents.LORE, new ItemLore(List.of(
-                Component.literal(isOnline ? "§a" + LanguageHelper.getText("player.online", admin)
-                        : "§c" + LanguageHelper.getText("player.offline", admin)),
-                Component.literal("§7UUID: " + targetUUID))));
+        // Header — player skull (slot 4)
+        var skull = SkullCache.createSkull(targetUUID, targetName);
+        skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
+                Component.literal("§e" + targetName));
+        skull.set(net.minecraft.core.component.DataComponents.LORE,
+                new net.minecraft.world.item.component.ItemLore(List.of(
+                        Component.literal(isOnline
+                                ? "§a" + LanguageHelper.getText("player.online", admin)
+                                : "§c" + LanguageHelper.getText("player.offline", admin)),
+                        Component.literal("§7UUID: " + targetUUID),
+                        Component.literal("§7Warns: §e" + WarnManager.getInstance().getWarnCount(targetUUID))
+                )));
         this.getContainer().setItem(4, skull);
 
-        // Reset Progress (Slot 2) - Exp Bottle
+        // Reset progress (slot 2)
         if (canUseCommand("advancement")) {
-            ItemStack reset = new ItemStack(Items.EXPERIENCE_BOTTLE);
-            reset.set(DataComponents.CUSTOM_NAME,
-                    Component.literal("§e" + LanguageHelper.getText("action.resetprog", admin)));
-            this.getContainer().setItem(2, reset);
+            this.getContainer().setItem(2, ItemBuilder.of(Items.EXPERIENCE_BOTTLE)
+                    .name(Component.literal("§e" + LanguageHelper.getText("action.resetprog", admin))).build());
         }
 
-        // InvSee (Slot 6) - Chest
-        if (canUseCommand("invsee")) { // Requires a mod/plugin providing /invsee
-            ItemStack invsee = new ItemStack(Items.CHEST);
-            invsee.set(DataComponents.CUSTOM_NAME,
-                    Component.literal("§6" + LanguageHelper.getText("action.invsee", admin)));
-            this.getContainer().setItem(6, invsee);
+        // InvSee (slot 6)
+        if (canUseCommand("invsee")) {
+            this.getContainer().setItem(6, ItemBuilder.of(Items.CHEST)
+                    .name(Component.literal("§6" + LanguageHelper.getText("action.invsee", admin))).build());
         }
 
-        // Info Book (Slot 8)
-        ItemStack infoBook = new ItemStack(Items.BOOK);
-        infoBook.set(DataComponents.CUSTOM_NAME, Component.literal("§b" + LanguageHelper.getText("info.full", admin)));
-        this.getContainer().setItem(8, infoBook);
+        // Info book (slot 8)
+        this.getContainer().setItem(8, ItemBuilder.of(Items.BOOK)
+                .name(Component.literal("§b" + LanguageHelper.getText("info.full", admin))).build());
 
+        // Homes (slots 9-35)
         FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
 
-        // Homes (Rows 2-4: Slots 9-35)
         if (ftbData != null && !ftbData.homes.isEmpty()) {
             List<Map.Entry<String, FTBDataReader.HomeLocation>> homes = new ArrayList<>(ftbData.homes.entrySet());
-            // Sort homes?
             homes.sort(Map.Entry.comparingByKey());
-
             int start = homePage * HOMES_PER_PAGE;
             int end = Math.min(start + HOMES_PER_PAGE, homes.size());
-
             for (int i = start; i < end; i++) {
                 int slot = 9 + (i - start);
-                Map.Entry<String, FTBDataReader.HomeLocation> entry = homes.get(i);
-
-                ItemStack bed = new ItemStack(getDimensionIcon(entry.getValue().dimension));
-                bed.set(DataComponents.CUSTOM_NAME, Component.literal("§e" + entry.getKey()));
-
-                List<Component> lore = new ArrayList<>();
-                lore.add(Component.literal("§7Dim: §f" + entry.getValue().getShortDimension()));
-                lore.add(Component.literal("§7Pos: §f" + entry.getValue().getFormattedCoords()));
-                lore.add(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)));
-                bed.set(DataComponents.LORE, new ItemLore(lore));
-
-                this.getContainer().setItem(slot, bed);
+                var entry = homes.get(i);
+                this.getContainer().setItem(slot, ItemBuilder.of(getDimensionIcon(entry.getValue().dimension))
+                        .name(Component.literal("§e" + entry.getKey()))
+                        .addLore(Component.literal("§7Dim: §f" + entry.getValue().getShortDimension()))
+                        .addLore(Component.literal("§7Pos: §f" + entry.getValue().getFormattedCoords()))
+                        .addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)))
+                        .build());
             }
-        } else {
-            // Maybe show "No Homes" barrier?
-            if (homePage == 0) {
-                ItemStack noHomes = new ItemStack(Items.BARRIER);
-                noHomes.set(DataComponents.CUSTOM_NAME,
-                        Component.literal("§c" + LanguageHelper.getText("homes.none", admin)));
-                this.getContainer().setItem(22, noHomes);
-            }
+        } else if (homePage == 0) {
+            this.getContainer().setItem(22, ItemBuilder.of(Items.BARRIER)
+                    .name(Component.literal("§c" + LanguageHelper.getText("homes.none", admin))).build());
         }
 
-        // Teleport History (Row 5: Slots 36-44)
-        if (ftbData != null && ftbData.teleportHistory != null && !ftbData.teleportHistory.isEmpty()) {
-            List<FTBDataReader.TeleportRecord> history = ftbData.teleportHistory;
-            for (int i = 0; i < Math.min(history.size(), 9); i++) {
-                FTBDataReader.TeleportRecord record = history.get(i);
-                ItemStack icon = new ItemStack(Items.CHORUS_FRUIT);
-                icon.set(DataComponents.CUSTOM_NAME,
-                        Component.literal("§d" + LanguageHelper.getText("detail.tp_history", admin) + " #" + (i + 1)));
-
-                List<Component> lore = new ArrayList<>();
-                lore.add(Component.literal("§7Dim: §f" + record.getShortDimension()));
-                lore.add(Component.literal("§7Pos: §f" + record.getFormattedCoords()));
-                // Time formatting could be complex, omitting for now or just raw?
-                // lore.add(Component.literal("§8" + new Date(record.time).toString()));
-                lore.add(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)));
-
-                icon.set(DataComponents.LORE, new ItemLore(lore));
-                this.getContainer().setItem(36 + i, icon);
+        // Teleport history (slots 36-44)
+        if (ftbData != null && ftbData.teleportHistory != null) {
+            for (int i = 0; i < Math.min(ftbData.teleportHistory.size(), 9); i++) {
+                FTBDataReader.TeleportRecord record = ftbData.teleportHistory.get(i);
+                this.getContainer().setItem(36 + i, ItemBuilder.of(Items.CHORUS_FRUIT)
+                        .name(Component.literal("§d" + LanguageHelper.getText("detail.tp_history", admin) + " #" + (i + 1)))
+                        .addLore(Component.literal("§7Dim: §f" + record.getShortDimension()))
+                        .addLore(Component.literal("§7Pos: §f" + record.getFormattedCoords()))
+                        .addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)))
+                        .build());
             }
         }
 
-        // Action Bar (Row 6)
+        // ── Action bar (row 6) ──────────────────────────────────────────────
 
-        // TP Here (Slot 47) - Only if online AND has permission
-        if (isOnline && canUseCommand("tp")) {
-            ItemStack tpHere = new ItemStack(Items.ENDER_EYE);
-            tpHere.set(DataComponents.CUSTOM_NAME,
-                    Component.literal("§d" + LanguageHelper.getText("action.tp_here", admin)));
-            this.getContainer().setItem(47, tpHere);
-        }
-
-        // Clear Inventory (Slot 46) - Lava Bucket
+        // Clear inventory (slot 46)
         if (canUseCommand("clear")) {
-            ItemStack clear = new ItemStack(confirmClear ? Items.REDSTONE_BLOCK : Items.LAVA_BUCKET);
-            clear.set(DataComponents.CUSTOM_NAME, Component.literal((confirmClear ? "§c§l" : "§c") +
-                    (confirmClear ? LanguageHelper.getText("misc.confirm", admin)
-                            : LanguageHelper.getText("action.clearinv", admin))));
-            this.getContainer().setItem(46, clear);
+            this.getContainer().setItem(46, ItemBuilder.of(confirmClear ? Items.REDSTONE_BLOCK : Items.LAVA_BUCKET)
+                    .name(Component.literal((confirmClear ? "§c§l" : "§c") +
+                            (confirmClear ? LanguageHelper.getText("misc.confirm", admin)
+                                    : LanguageHelper.getText("action.clearinv", admin))))
+                    .build());
         }
 
-        // TP / Last Loc (Slot 48)
+        // TP here (slot 47)
+        if (isOnline && canUseCommand("tp")) {
+            this.getContainer().setItem(47, ItemBuilder.of(Items.ENDER_EYE)
+                    .name(Component.literal("§d" + LanguageHelper.getText("action.tp_here", admin))).build());
+        }
+
+        // TP to / last location (slot 48)
         if (canUseCommand("tp")) {
             if (isOnline) {
-                ItemStack tp = new ItemStack(Items.ENDER_PEARL);
-                tp.set(DataComponents.CUSTOM_NAME,
-                        Component.literal("§a" + LanguageHelper.getText("action.tp", admin)));
-                this.getContainer().setItem(48, tp);
+                this.getContainer().setItem(48, ItemBuilder.of(Items.ENDER_PEARL)
+                        .name(Component.literal("§a" + LanguageHelper.getText("action.tp", admin))).build());
             } else if (ftbData != null && ftbData.lastSeen != null) {
-                ItemStack lastLoc = new ItemStack(Items.COMPASS);
-                lastLoc.set(DataComponents.CUSTOM_NAME,
-                        Component.literal("§6" + LanguageHelper.getText("action.tp_last", admin)));
-                List<Component> lore = new ArrayList<>();
-                lore.add(Component.literal("§7Dim: §f" + ftbData.lastSeen.getShortDimension()));
-                lore.add(Component.literal("§7Pos: §f" + ftbData.lastSeen.getFormattedCoords()));
-                lastLoc.set(DataComponents.LORE, new ItemLore(lore));
-                this.getContainer().setItem(48, lastLoc);
+                this.getContainer().setItem(48, ItemBuilder.of(Items.COMPASS)
+                        .name(Component.literal("§6" + LanguageHelper.getText("action.tp_last", admin)))
+                        .addLore(Component.literal("§7Dim: §f" + ftbData.lastSeen.getShortDimension()))
+                        .addLore(Component.literal("§7Pos: §f" + ftbData.lastSeen.getFormattedCoords()))
+                        .build());
             }
         }
 
-        // Kick (Slot 49)
-        if (canUseCommand("kick")) {
-            ItemStack kick = new ItemStack(Items.IRON_BOOTS);
-            kick.set(DataComponents.CUSTOM_NAME,
-                    Component.literal("§c" + LanguageHelper.getText("action.kick", admin)));
-            this.getContainer().setItem(49, kick);
+        // Kick (slot 49)
+        if (isOnline && canUseCommand("kick")) {
+            this.getContainer().setItem(49, ItemBuilder.of(Items.IRON_BOOTS)
+                    .name(Component.literal("§c" + LanguageHelper.getText("action.kick", admin))).build());
         }
 
-        // Ban/Unban (Slot 50)
+        // Ban/Unban (slot 50)
         if (canUseCommand("ban") || canUseCommand("pardon")) {
-            com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
+            var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
             boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
-
-            ItemStack ban = new ItemStack(isBanned ? Items.LIME_DYE : Items.RED_DYE); // Lime to Unban, Red to Ban
-            ban.set(DataComponents.CUSTOM_NAME,
-                    Component.literal(isBanned ? "§a" + LanguageHelper.getText("action.unban", admin)
-                            : "§c" + LanguageHelper.getText("action.ban", admin)));
-            this.getContainer().setItem(50, ban);
+            this.getContainer().setItem(50, ItemBuilder.of(isBanned ? Items.LIME_DYE : Items.RED_DYE)
+                    .name(Component.literal(isBanned
+                            ? "§a" + LanguageHelper.getText("action.unban", admin)
+                            : "§c" + LanguageHelper.getText("action.ban", admin)))
+                    .build());
         }
 
-        // Warn (Slot 51)
-        if (canUseCommand("arcadiaadmin")) {
-            ItemStack warn = new ItemStack(Items.TNT);
-            warn.set(DataComponents.CUSTOM_NAME,
-                    Component.literal("§c" + LanguageHelper.getText("action.warn", admin)));
-            this.getContainer().setItem(51, warn);
+        // Warn (slot 51)
+        this.getContainer().setItem(51, ItemBuilder.of(Items.TNT)
+                .name(Component.literal("§c" + LanguageHelper.getText("action.warn", admin))).build());
 
-            // View Warns (Slot 52)
-            ItemStack viewWarns = new ItemStack(Items.WRITABLE_BOOK);
-            viewWarns.set(DataComponents.CUSTOM_NAME,
-                    Component.literal("§e" + LanguageHelper.getText("action.warn_list", admin)));
-            this.getContainer().setItem(52, viewWarns);
-        }
+        // View warns (slot 52)
+        this.getContainer().setItem(52, ItemBuilder.of(Items.WRITABLE_BOOK)
+                .name(Component.literal("§e" + LanguageHelper.getText("action.warn_list", admin)))
+                .addLore(Component.literal("§7" + WarnManager.getInstance().getWarnCount(targetUUID) + " warn(s)"))
+                .build());
 
-        // Back (Slot 53)
-        ItemStack back = new ItemStack(Items.ARROW);
-        back.set(DataComponents.CUSTOM_NAME, Component.literal("§e" + LanguageHelper.getText("action.back", admin)));
-        this.getContainer().setItem(53, back);
+        // Back (slot 53)
+        this.getContainer().setItem(53, ItemBuilder.of(Items.ARROW)
+                .name(Component.literal("§e" + LanguageHelper.getText("action.back", admin))).build());
     }
 
-    /**
-     * Checks if the admin has permission to use a specific command.
-     * Compatible with LuckPerms and permission levels.
-     */
     private boolean canUseCommand(String commandLiteral) {
+        if (admin == null) return false;
         try {
-            CommandNode<CommandSourceStack> node = admin.getServer().getCommands().getDispatcher().getRoot()
-                    .getChild(commandLiteral);
-            if (node == null)
-                return false;
-            return node.canUse(admin.createCommandSourceStack());
+            var node = admin.getServer().getCommands().getDispatcher().getRoot().getChild(commandLiteral);
+            return node != null && node.canUse(admin.createCommandSourceStack());
         } catch (Exception e) {
-            return false; // Fail safe
+            return false;
         }
     }
 
-    private void showDetailedInfo() {
-        admin.sendSystemMessage(Component.literal("§8§m--------------------------------"));
-        admin.sendSystemMessage(Component.literal(
-                String.format("§6§l%s: §e%s", LanguageHelper.getText("detail.title", admin).replace("%s", ""),
-                        targetName)));
-        admin.sendSystemMessage(Component.literal("§7UUID: §f" + targetUUID));
-        admin.sendSystemMessage(
-                Component.literal("§7" + (isOnline ? "§a" + LanguageHelper.getText("player.online", admin)
-                        : "§c" + LanguageHelper.getText("player.offline", admin))));
-
-        com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
-        boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
-        boolean isWhitelisted = admin.getServer().getPlayerList().isWhiteListed(profile);
-
-        admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.banned", admin) + ": "
-                + (isBanned ? "§c" + LanguageHelper.getText("misc.yes", admin)
-                        : "§a" + LanguageHelper.getText("misc.no", admin))));
-        admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.whitelisted", admin) + ": "
-                + (isWhitelisted ? "§a" + LanguageHelper.getText("misc.yes", admin)
-                        : "§c" + LanguageHelper.getText("misc.no", admin))));
-
-        if (!isOnline) {
-            FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
-            if (ftbData != null && ftbData.lastSeen != null) {
-                admin.sendSystemMessage(Component.literal(
-                        "§7" + LanguageHelper.getText("info.last_seen", admin) + ": §e"
-                                + ftbData.lastSeen.getFormattedCoords()
-                                + " §7in §e" + ftbData.lastSeen.getShortDimension()));
-            }
-        }
-        admin.sendSystemMessage(Component.literal("§8§m--------------------------------"));
-    }
-
-    // Execute Teleport
     private void executeTeleport(String dimensionId, double x, double y, double z) {
         ServerLevel level = null;
         for (ServerLevel w : admin.getServer().getAllLevels()) {
@@ -288,158 +237,173 @@ public class PlayerDetailMenu extends ChestMenu {
                 break;
             }
         }
-
-        if (level == null) {
-            // Try to match short id or default
-            // Fallback to current level if unknown
-            admin.sendSystemMessage(
-                    Component.literal("§cUnknown dimension: " + dimensionId + ". Teleporting in current world."));
-            level = admin.serverLevel();
-        }
-
+        if (level == null) level = admin.serverLevel();
         admin.teleportTo(level, x, y, z, admin.getYRot(), admin.getXRot());
-        admin.sendSystemMessage(Component.literal("§aTeleported to " + String.format("%.0f, %.0f, %.0f", x, y, z)));
+        admin.sendSystemMessage(ArcadiaMessages.success(
+                String.format("Teleported to %.0f, %.0f, %.0f", x, y, z)));
+        SoundHelper.playAt(admin, SoundHelper.TELEPORT);
     }
 
     private net.minecraft.world.item.Item getDimensionIcon(String dim) {
-        if (dim.contains("nether"))
-            return Items.NETHERRACK;
-        if (dim.contains("end"))
-            return Items.END_STONE;
-        if (dim.contains("mining"))
-            return Items.IRON_PICKAXE;
+        if (dim.contains("nether")) return Items.NETHERRACK;
+        if (dim.contains("end")) return Items.END_STONE;
+        if (dim.contains("mining")) return Items.IRON_PICKAXE;
         return Items.GRASS_BLOCK;
+    }
+
+    private void showDetailedInfo() {
+        admin.sendSystemMessage(Component.literal("§8§m" + "─".repeat(40)));
+        admin.sendSystemMessage(Component.literal(
+                String.format("§6§l%s §e%s", LanguageHelper.getText("detail.title", admin).replace("%s", ""), targetName)));
+        admin.sendSystemMessage(Component.literal("§7UUID: §f" + targetUUID));
+        admin.sendSystemMessage(Component.literal("§7" + (isOnline
+                ? "§a" + LanguageHelper.getText("player.online", admin)
+                : "§c" + LanguageHelper.getText("player.offline", admin))));
+
+        var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
+        boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
+        boolean isWhitelisted = admin.getServer().getPlayerList().isWhiteListed(profile);
+
+        admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.banned", admin) + ": "
+                + (isBanned ? "§c" + LanguageHelper.getText("misc.yes", admin) : "§a" + LanguageHelper.getText("misc.no", admin))));
+        admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.whitelisted", admin) + ": "
+                + (isWhitelisted ? "§a" + LanguageHelper.getText("misc.yes", admin) : "§c" + LanguageHelper.getText("misc.no", admin))));
+
+        int warnCount = WarnManager.getInstance().getWarnCount(targetUUID);
+        admin.sendSystemMessage(Component.literal("§7Warns: §e" + warnCount));
+
+        if (!isOnline) {
+            FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+            if (ftbData != null && ftbData.lastSeen != null) {
+                admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.last_seen", admin)
+                        + ": §e" + ftbData.lastSeen.getFormattedCoords()
+                        + " §7in §e" + ftbData.lastSeen.getShortDimension()));
+            }
+        }
+        admin.sendSystemMessage(Component.literal("§8§m" + "─".repeat(40)));
     }
 
     @Override
     public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
-        if (!(player instanceof ServerPlayer serverPlayer))
-            return;
-        ItemStack clicked = this.getContainer().getItem(slotId);
-        if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE))
-            return;
+        if (!(player instanceof ServerPlayer sp)) return;
+        var clicked = this.getContainer().getItem(slotId);
+        if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE)) return;
 
-        // Back (53)
-        if (slotId == 53) {
-            serverPlayer.closeContainer();
-            AdminPanelMenu.open(serverPlayer);
-            return;
-        }
-
-        // Info (8)
-        if (slotId == 8) {
-            showDetailedInfo();
-            serverPlayer.closeContainer();
-            return;
-        }
-
-        // Reset Progress (Slot 2)
-        if (slotId == 2 && canUseCommand("advancement")) {
-            admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                    "advancement revoke " + targetName + " everything");
-            admin.closeContainer();
-            return;
-        }
-
-        // InvSee (Slot 6)
-        if (slotId == 6 && canUseCommand("invsee")) {
-            admin.closeContainer(); // Close FIRST, then open new one
-            admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                    "invsee " + targetName);
-            return;
-        }
-
-        // Reset Confirmation if clicking anything else
+        // Reset confirmation state on other click
         if (slotId != 46 && confirmClear) {
             confirmClear = false;
-            buildMenu(); // Rebuild to reset icon
+            buildMenu();
             return;
         }
 
-        // Clear Inventory (Slot 46)
-        if (slotId == 46 && canUseCommand("clear")) {
-            if (!confirmClear) {
-                confirmClear = true;
-                admin.playNotifySound(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(),
-                        net.minecraft.sounds.SoundSource.MASTER, 1.0f, 1.0f);
-                buildMenu(); // Update icon
-            } else {
-                admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                        "clear " + targetName);
-                admin.sendSystemMessage(Component
-                        .literal("§a" + String.format(LanguageHelper.getText("msg.inv_cleared", admin), targetName)));
+        switch (slotId) {
+            case 53 -> { // Back
+                sp.closeContainer();
+                AdminPanelMenu.open(sp);
+            }
+            case 8 -> { // Info
+                showDetailedInfo();
+                sp.closeContainer();
+            }
+            case 2 -> { // Reset progress
+                if (canUseCommand("advancement")) {
+                    admin.getServer().getCommands().performPrefixedCommand(
+                            admin.createCommandSourceStack(), "advancement revoke " + targetName + " everything");
+                    admin.closeContainer();
+                }
+            }
+            case 6 -> { // InvSee
+                if (canUseCommand("invsee")) {
+                    admin.closeContainer();
+                    admin.getServer().getCommands().performPrefixedCommand(
+                            admin.createCommandSourceStack(), "invsee " + targetName);
+                }
+            }
+            case 46 -> { // Clear inventory
+                if (canUseCommand("clear")) {
+                    if (!confirmClear) {
+                        confirmClear = true;
+                        SoundHelper.playAt(admin, SoundHelper.CLICK);
+                        buildMenu();
+                    } else {
+                        admin.getServer().getCommands().performPrefixedCommand(
+                                admin.createCommandSourceStack(), "clear " + targetName);
+                        admin.sendSystemMessage(ArcadiaMessages.success(
+                                String.format(LanguageHelper.getText("msg.inv_cleared", admin), targetName)));
+                        admin.closeContainer();
+                    }
+                }
+            }
+            case 47 -> { // TP here
+                if (isOnline && canUseCommand("tp")) {
+                    admin.getServer().getCommands().performPrefixedCommand(
+                            admin.createCommandSourceStack(), "tp " + targetName + " " + admin.getName().getString());
+                    admin.closeContainer();
+                }
+            }
+            case 48 -> { // TP to / last loc
+                if (isOnline) {
+                    admin.getServer().getCommands().performPrefixedCommand(
+                            admin.createCommandSourceStack(), "tp " + targetName);
+                } else {
+                    FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+                    if (ftbData != null && ftbData.lastSeen != null) {
+                        executeTeleport(ftbData.lastSeen.dimension,
+                                ftbData.lastSeen.x, ftbData.lastSeen.y, ftbData.lastSeen.z);
+                    }
+                }
                 admin.closeContainer();
             }
-            return;
-        }
-
-        // Actions
-        if (slotId == 47 && isOnline) { // TP Here
-            admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                    "tp " + targetName + " " + admin.getName().getString());
-            admin.closeContainer();
-        }
-
-        if (slotId == 48) { // TP / Last Loc
-            if (isOnline) {
-                admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                        "tp " + targetName);
-            } else {
-                FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
-                if (ftbData != null && ftbData.lastSeen != null) {
-                    executeTeleport(ftbData.lastSeen.dimension, ftbData.lastSeen.x, ftbData.lastSeen.y,
-                            ftbData.lastSeen.z);
-                }
-            }
-            admin.closeContainer();
-        } else if (slotId == 49) { // Kick
-            admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                    "kick " + targetName + " Admin Action");
-            admin.closeContainer();
-        } else if (slotId == 50) { // Ban/Unban
-            com.mojang.authlib.GameProfile profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
-            boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
-            if (isBanned) {
-                admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                        "pardon " + targetName);
-            } else {
-                admin.getServer().getCommands().performPrefixedCommand(admin.createCommandSourceStack(),
-                        "ban " + targetName + " Admin Action");
-            }
-            admin.closeContainer();
-            open(admin, targetUUID, targetName, isOnline);
-        } else if (slotId == 51) { // Warn
-            admin.closeContainer();
-            ChatListener.startWarnSession(admin, targetUUID, targetName);
-        } else if (slotId == 52) { // View Warns
-            admin.closeContainer();
-            WarnListMenu.open(admin, targetUUID, targetName);
-        }
-
-        // Homes (9-35)
-        if (slotId >= 9 && slotId <= 35) {
-            FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
-            if (ftbData != null) {
-                List<Map.Entry<String, FTBDataReader.HomeLocation>> homes = new ArrayList<>(ftbData.homes.entrySet());
-                homes.sort(Map.Entry.comparingByKey());
-                int index = (homePage * HOMES_PER_PAGE) + (slotId - 9);
-                if (index < homes.size()) {
-                    FTBDataReader.HomeLocation home = homes.get(index).getValue();
-                    executeTeleport(home.dimension, home.x, home.y, home.z);
+            case 49 -> { // Kick
+                if (isOnline && canUseCommand("kick")) {
+                    admin.getServer().getCommands().performPrefixedCommand(
+                            admin.createCommandSourceStack(), "kick " + targetName + " Admin Action");
                     admin.closeContainer();
                 }
             }
-        }
-
-        // History (36-44)
-        if (slotId >= 36 && slotId <= 44) {
-            FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
-            if (ftbData != null && ftbData.teleportHistory != null) {
-                int index = slotId - 36;
-                if (index < ftbData.teleportHistory.size()) {
-                    FTBDataReader.TeleportRecord record = ftbData.teleportHistory.get(index);
-                    executeTeleport(record.dimension, record.x, record.y, record.z);
-                    admin.closeContainer();
+            case 50 -> { // Ban/Unban
+                var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
+                boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
+                admin.getServer().getCommands().performPrefixedCommand(
+                        admin.createCommandSourceStack(),
+                        isBanned ? "pardon " + targetName : "ban " + targetName + " Admin Action");
+                admin.closeContainer();
+                open(admin, targetUUID, targetName, isOnline);
+            }
+            case 51 -> { // Warn (chat mode)
+                admin.closeContainer();
+                ChatListener.startWarnSession(admin, targetUUID, targetName);
+            }
+            case 52 -> { // View warns
+                admin.closeContainer();
+                WarnListMenu.open(admin, targetUUID, targetName);
+            }
+            default -> {
+                // Homes (9-35)
+                if (slotId >= 9 && slotId <= 35) {
+                    FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+                    if (ftbData != null) {
+                        var homes = new ArrayList<>(ftbData.homes.entrySet());
+                        homes.sort(Map.Entry.comparingByKey());
+                        int index = (homePage * HOMES_PER_PAGE) + (slotId - 9);
+                        if (index < homes.size()) {
+                            var home = homes.get(index).getValue();
+                            executeTeleport(home.dimension, home.x, home.y, home.z);
+                            admin.closeContainer();
+                        }
+                    }
+                }
+                // History (36-44)
+                if (slotId >= 36 && slotId <= 44) {
+                    FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+                    if (ftbData != null && ftbData.teleportHistory != null) {
+                        int index = slotId - 36;
+                        if (index < ftbData.teleportHistory.size()) {
+                            var record = ftbData.teleportHistory.get(index);
+                            executeTeleport(record.dimension, record.x, record.y, record.z);
+                            admin.closeContainer();
+                        }
+                    }
                 }
             }
         }
