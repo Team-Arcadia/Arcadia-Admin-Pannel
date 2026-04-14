@@ -48,14 +48,15 @@ public class AdminPanelMod {
             // Register database tables for multi-server warn sync
             DatabaseManager.registerTables(new WarnTableDefinition());
 
-            // Register hub card (visible in Arcadia Hub via L key)
+            // Register hub card (visible in Arcadia Hub via L key, row 2)
             ArcadiaModRegistry.registerCard(new ArcadiaModCard(
                     "adminpanel",
                     "\u2699",
                     "Admin Panel",
                     "Server Management",
                     0xB87333,
-                    90,
+                    0,
+                    2,
                     true,
                     "arcadia.staff.mod"
             ));
