@@ -1,5 +1,6 @@
 package com.arcadia.adminpanel.command;
 
+import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.lib.ArcadiaMessages;
 import com.arcadia.lib.staff.StaffActions;
 import com.arcadia.lib.staff.StaffChatService;
@@ -171,6 +172,42 @@ public final class AdminPanelCommand {
                                             StaffActions.unmute(target.getUUID(), sp);
                                             return 1;
                                         })))
+
+                        // ── Jail commands ────────────────────────────────────────
+
+                        // /arcadia_adminpanel setjail
+                        .then(Commands.literal("setjail")
+                                .requires(source -> source.hasPermission(2))
+                                .executes(ctx -> {
+                                    if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
+                                    JailManager.getInstance().setJailLocation(sp);
+                                    sp.sendSystemMessage(ArcadiaMessages.success(
+                                            LanguageHelper.getText("jail.location.set", sp)));
+                                    return 1;
+                                }))
+
+                        // /arcadia_adminpanel jail <player> <minutes> [reason]
+                        // minutes = 0 for permanent
+                        .then(Commands.literal("jail")
+                                .requires(source -> source.hasPermission(2))
+                                .then(Commands.argument("target", EntityArgument.player())
+                                        .then(Commands.argument("minutes", LongArgumentType.longArg(0))
+                                                .executes(ctx -> executeJail(ctx, null))
+                                                .then(Commands.argument("reason", StringArgumentType.greedyString())
+                                                        .executes(ctx -> executeJail(ctx,
+                                                                StringArgumentType.getString(ctx, "reason")))))))
+
+                        // /arcadia_adminpanel unjail <target>
+                        .then(Commands.literal("unjail")
+                                .requires(source -> source.hasPermission(2))
+                                .then(Commands.argument("target", StringArgumentType.string())
+                                        .suggests(PLAYER_SUGGESTIONS)
+                                        .executes(AdminPanelCommand::executeUnjail)))
+
+                        // /arcadia_adminpanel jaillist
+                        .then(Commands.literal("jaillist")
+                                .requires(source -> source.hasPermission(2))
+                                .executes(AdminPanelCommand::executeJailList))
         );
     }
 
@@ -332,6 +369,124 @@ public final class AdminPanelCommand {
             e.printStackTrace();
             return 0;
         }
+    }
+
+    private static int executeJail(CommandContext<CommandSourceStack> ctx, String reason) {
+        try {
+            CommandSourceStack source = ctx.getSource();
+            if (!(source.getEntity() instanceof ServerPlayer sp)) return 0;
+            ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
+            long mins = LongArgumentType.getLong(ctx, "minutes");
+            String r = reason != null ? reason : "Admin Action";
+            ServerPlayer admin = sp;
+
+            if (!JailManager.getInstance().hasJailLocation()) {
+                source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("jail.no_location", admin)));
+                return 0;
+            }
+
+            JailManager.getInstance().jail(target.getUUID(), r, sp.getName().getString(),
+                    mins > 0 ? mins * 60_000L : 0);
+
+            // Teleport to jail
+            JailManager.getInstance().teleportToJail(target, source.getServer());
+
+            // Notify target
+            if (mins > 0) {
+                target.sendSystemMessage(ArcadiaMessages.error(
+                        LanguageHelper.getText("jail.notify", target)
+                                .replace("%time%", TextFormatter.formatMs(mins * 60_000L))
+                                .replace("%reason%", r)));
+            } else {
+                target.sendSystemMessage(ArcadiaMessages.error(
+                        LanguageHelper.getText("jail.notify.permanent", target)
+                                .replace("%reason%", r)));
+            }
+
+            // Notify admin
+            source.sendSuccess(() -> ArcadiaMessages.success(
+                    LanguageHelper.getText("jail.success", admin)
+                            .replace("%player%", target.getName().getString())
+                            .replace("%time%", mins > 0 ? TextFormatter.formatMs(mins * 60_000L) : "permanent")), true);
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private static int executeUnjail(CommandContext<CommandSourceStack> context) {
+        try {
+            String targetName = StringArgumentType.getString(context, "target");
+            CommandSourceStack source = context.getSource();
+            ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+
+            UUID targetUUID = resolveUUID(source, targetName);
+            if (targetUUID == null) {
+                source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+                return 0;
+            }
+
+            boolean success = JailManager.getInstance().unjail(targetUUID);
+            if (success) {
+                source.sendSuccess(() -> ArcadiaMessages.success(
+                        LanguageHelper.getText("jail.unjail.success", admin)
+                                .replace("%player%", targetName)), true);
+
+                // Notify target if online
+                ServerPlayer target = source.getServer().getPlayerList().getPlayer(targetUUID);
+                if (target != null) {
+                    target.sendSystemMessage(ArcadiaMessages.success(
+                            LanguageHelper.getText("jail.released", target)));
+                }
+            } else {
+                source.sendFailure(ArcadiaMessages.error(
+                        LanguageHelper.getText("jail.not_jailed", admin)
+                                .replace("%player%", targetName)));
+            }
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    private static int executeJailList(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        var jailed = JailManager.getInstance().getAllJailed();
+
+        if (jailed.isEmpty()) {
+            source.sendSuccess(() -> ArcadiaMessages.info(
+                    LanguageHelper.getText("jail.list.empty", admin)), false);
+            return 1;
+        }
+
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("jail.list.header", admin)
+                        .replace("%count%", String.valueOf(jailed.size()))), false);
+
+        for (var entry : jailed.entrySet()) {
+            UUID uuid = entry.getKey();
+            JailManager.JailEntry jail = entry.getValue();
+            // Resolve name
+            String name = uuid.toString().substring(0, 8);
+            ServerPlayer online = source.getServer().getPlayerList().getPlayer(uuid);
+            if (online != null) name = online.getName().getString();
+            else {
+                var cached = OfflinePlayerManager.getInstance().getCache().get(uuid);
+                if (cached != null) name = cached.name();
+            }
+
+            String remaining = jail.durationMs() > 0
+                    ? TextFormatter.formatMs(jail.getRemainingMs())
+                    : "permanent";
+            String finalName = name;
+            source.sendSuccess(() -> Component.literal(
+                    " §8- §e" + finalName + " §7(" + remaining + ") §8by §7" + jail.jailedBy()
+                            + " §8— §7" + jail.reason()), false);
+        }
+        return 1;
     }
 
     private static UUID resolveUUID(CommandSourceStack source, String targetName) {

@@ -10,6 +10,7 @@ import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
 import com.arcadia.adminpanel.event.ChatListener;
 import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.SkullCache;
 import com.arcadia.adminpanel.util.WarnManager;
@@ -102,6 +103,28 @@ public class PlayerDetailMenu extends ChestMenu {
                         Component.literal("§7Warns: §e" + WarnManager.getInstance().getWarnCount(targetUUID))
                 )));
         this.getContainer().setItem(4, skull);
+
+        // Jail/Unjail (slot 0)
+        if (isOnline && JailManager.getInstance().hasJailLocation()) {
+            boolean isJailed = JailManager.getInstance().isJailed(targetUUID);
+            if (isJailed) {
+                JailManager.JailEntry jail = JailManager.getInstance().getJailEntry(targetUUID);
+                String remaining = jail != null && jail.durationMs() > 0
+                        ? TextFormatter.formatMs(jail.getRemainingMs())
+                        : LanguageHelper.getText("jail.permanent", admin);
+                this.getContainer().setItem(0, ItemBuilder.of(Items.IRON_DOOR)
+                        .name(Component.literal("§a" + LanguageHelper.getText("action.unjail", admin)))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("jail.remaining", admin) + " §e" + remaining))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("jail.reason.label", admin) + " §c"
+                                + (jail != null ? jail.reason() : "N/A")))
+                        .build());
+            } else {
+                this.getContainer().setItem(0, ItemBuilder.of(Items.IRON_BARS)
+                        .name(Component.literal("§c" + LanguageHelper.getText("action.jail", admin)))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("jail.hint", admin)))
+                        .build());
+            }
+        }
 
         // Reset progress (slot 2)
         if (canUseCommand("advancement")) {
@@ -317,6 +340,44 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         switch (slotId) {
+            case 0 -> { // Jail/Unjail
+                if (isOnline && JailManager.getInstance().hasJailLocation()) {
+                    boolean isJailed = JailManager.getInstance().isJailed(targetUUID);
+                    if (isJailed) {
+                        JailManager.getInstance().unjail(targetUUID);
+                        ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                        if (target != null) {
+                            target.sendSystemMessage(ArcadiaMessages.success(
+                                    LanguageHelper.getText("jail.released", target)));
+                        }
+                        admin.sendSystemMessage(ArcadiaMessages.success(
+                                LanguageHelper.getText("jail.unjail.success", admin)
+                                        .replace("%player%", targetName)));
+                        SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
+                    } else {
+                        // Default jail: 30 minutes
+                        JailManager.getInstance().jail(targetUUID, "Admin Panel",
+                                admin.getName().getString(), 30 * 60_000L);
+                        JailManager.getInstance().teleportToJail(
+                                admin.getServer().getPlayerList().getPlayer(targetUUID),
+                                admin.getServer());
+                        ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                        if (target != null) {
+                            target.sendSystemMessage(ArcadiaMessages.error(
+                                    LanguageHelper.getText("jail.notify", target)
+                                            .replace("%time%", TextFormatter.formatMs(30 * 60_000L))
+                                            .replace("%reason%", "Admin Panel")));
+                        }
+                        admin.sendSystemMessage(ArcadiaMessages.success(
+                                LanguageHelper.getText("jail.success", admin)
+                                        .replace("%player%", targetName)
+                                        .replace("%time%", "30m")));
+                        SoundHelper.playAt(admin, SoundHelper.CLICK);
+                    }
+                    admin.closeContainer();
+                    admin.getServer().execute(() -> open(admin, targetUUID, targetName, isOnline));
+                }
+            }
             case 53 -> { // Back
                 sp.closeContainer();
                 AdminPanelMenu.open(sp);

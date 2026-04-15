@@ -9,14 +9,17 @@ import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.gui.PlayerDetailMenu;
+import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.EventPriority;
 import net.neoforged.bus.api.SubscribeEvent;
+import net.neoforged.neoforge.event.CommandEvent;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
+import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.Map;
 import java.util.UUID;
@@ -130,6 +133,54 @@ public class ChatListener {
             String searchQuery = message.trim();
             player.getServer().execute(() -> AdminPanelMenu.open(player, searchQuery));
             return;
+        }
+    }
+
+    // ── Jail: block commands ────────────────────────────────────────────────
+
+    @SubscribeEvent(priority = EventPriority.HIGHEST)
+    public void onCommand(CommandEvent event) {
+        if (!(event.getParseResults().getContext().getSource().getEntity() instanceof ServerPlayer sp)) return;
+        if (!JailManager.getInstance().isJailed(sp.getUUID())) return;
+
+        String command = event.getParseResults().getReader().getString();
+        if (!JailManager.getInstance().isCommandAllowed(command)) {
+            event.setCanceled(true);
+            sp.sendSystemMessage(ArcadiaMessages.error(LanguageHelper.getText("jail.blocked.command", sp)));
+        }
+    }
+
+    // ── Jail: teleport to jail on login ──────────────────────────────────────
+
+    @SubscribeEvent
+    public void onJoin(PlayerEvent.PlayerLoggedInEvent event) {
+        if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+        if (JailManager.getInstance().isJailed(sp.getUUID())) {
+            sp.getServer().execute(() -> {
+                JailManager.getInstance().teleportToJail(sp, sp.getServer());
+                JailManager.JailEntry entry = JailManager.getInstance().getJailEntry(sp.getUUID());
+                if (entry != null) {
+                    String remaining = entry.durationMs() > 0
+                            ? TextFormatter.formatMs(entry.getRemainingMs())
+                            : LanguageHelper.getText("jail.permanent", sp);
+                    sp.sendSystemMessage(ArcadiaMessages.error(
+                            LanguageHelper.getText("jail.login.reminder", sp)
+                                    .replace("%time%", remaining)
+                                    .replace("%reason%", entry.reason())));
+                }
+            });
+        }
+    }
+
+    // ── Jail: tick expiry check (every 20 ticks = 1 second) ──────────────────
+
+    private int tickCounter = 0;
+
+    @SubscribeEvent
+    public void onServerTick(ServerTickEvent.Post event) {
+        if (++tickCounter >= 20) {
+            tickCounter = 0;
+            JailManager.getInstance().tickExpiry(event.getServer());
         }
     }
 

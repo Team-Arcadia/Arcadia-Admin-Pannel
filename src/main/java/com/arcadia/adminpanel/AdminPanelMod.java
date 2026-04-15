@@ -8,6 +8,7 @@ import com.arcadia.adminpanel.data.WarnTableDefinition;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.event.ChatListener;
 import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.neoforged.bus.api.IEventBus;
@@ -85,6 +86,7 @@ public class AdminPanelMod {
 
         // Initialize warn manager (loads from DB or JSON)
         WarnManager.getInstance().init();
+        JailManager.getInstance().init();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {

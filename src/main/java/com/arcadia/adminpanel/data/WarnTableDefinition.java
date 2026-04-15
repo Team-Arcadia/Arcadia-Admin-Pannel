@@ -5,7 +5,7 @@ import com.arcadia.lib.data.TableDefinition;
 import java.util.List;
 
 /**
- * SQL table definition for multi-server warn synchronization.
+ * SQL table definitions for admin panel (warns + jail).
  *
  * @author vyrriox
  */
@@ -28,6 +28,17 @@ public final class WarnTableDefinition implements TableDefinition {
                     server_id VARCHAR(64) NOT NULL DEFAULT 'server1',
                     timestamp BIGINT NOT NULL,
                     INDEX idx_player (player_uuid),
+                    INDEX idx_server (server_id)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+                """,
+                """
+                CREATE TABLE IF NOT EXISTS arcadia_admin_jail (
+                    player_uuid VARCHAR(36) PRIMARY KEY,
+                    reason TEXT NOT NULL,
+                    jailed_by VARCHAR(64) NOT NULL,
+                    server_id VARCHAR(64) NOT NULL DEFAULT 'server1',
+                    timestamp BIGINT NOT NULL,
+                    duration_ms BIGINT NOT NULL DEFAULT 0,
                     INDEX idx_server (server_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """
