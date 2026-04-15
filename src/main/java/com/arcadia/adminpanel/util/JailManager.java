@@ -2,17 +2,14 @@ package com.arcadia.adminpanel.util;
 
 import com.arcadia.lib.ServerContext;
 import com.arcadia.lib.data.DatabaseManager;
+import com.arcadia.lib.scheduler.SchedulerService;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
 import com.mojang.logging.LogUtils;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.level.Level;
 import net.neoforged.fml.loading.FMLPaths;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
@@ -88,6 +85,31 @@ public final class JailManager {
         } else {
             loadFromJson();
         }
+        // Re-schedule releases for existing timed jails
+        for (var entry : jailCache.entrySet()) {
+            JailEntry jail = entry.getValue();
+            if (jail.durationMs() > 0 && !jail.isExpired()) {
+                long remainingMs = jail.getRemainingMs();
+                int delayTicks = Math.max(1, (int) (remainingMs / 50L));
+                UUID uuid = entry.getKey();
+                SchedulerService.delayed(delayTicks, () -> {
+                    if (jailCache.containsKey(uuid) && jailCache.get(uuid).isExpired()) {
+                        jailCache.remove(uuid);
+                        if (isDatabaseMode()) {
+                            DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
+                        } else {
+                            saveToJson();
+                        }
+                        var player = com.arcadia.lib.player.PlayerManager.getPlayer(uuid);
+                        if (player != null) {
+                            player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
+                                    LanguageHelper.getText("jail.released", player)));
+                        }
+                    }
+                });
+            }
+        }
+
         LOGGER.info("[AdminPanel] JailManager initialized ({} mode, {} jailed, location {})",
                 isDatabaseMode() ? "database" : "json",
                 jailCache.size(),
@@ -142,6 +164,29 @@ public final class JailManager {
             DatabaseManager.executeAsync(() -> insertJailDb(targetUUID, entry));
         } else {
             saveToJson();
+        }
+
+        // Schedule auto-release (no tick polling)
+        if (durationMs > 0) {
+            int delayTicks = (int) (durationMs / 50L); // ms -> ticks
+            SchedulerService.delayed(delayTicks, () -> {
+                if (jailCache.containsKey(targetUUID) && isJailed(targetUUID)
+                        && jailCache.get(targetUUID).isExpired()) {
+                    jailCache.remove(targetUUID);
+                    if (isDatabaseMode()) {
+                        DatabaseManager.executeAsync(() -> deleteJailDb(targetUUID));
+                    } else {
+                        saveToJson();
+                    }
+                    // Notify player if online
+                    var player = com.arcadia.lib.player.PlayerManager.getPlayer(targetUUID);
+                    if (player != null) {
+                        player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
+                                LanguageHelper.getText("jail.released", player)));
+                    }
+                    LOGGER.info("[AdminPanel] Jail expired for {}", targetUUID);
+                }
+            });
         }
     }
 
@@ -200,27 +245,6 @@ public final class JailManager {
         player.teleportTo(level, jailLocation.x(), jailLocation.y(), jailLocation.z(),
                 jailLocation.yaw(), jailLocation.pitch());
         return true;
-    }
-
-    /** Check and release expired jails. Called periodically. */
-    public void tickExpiry(MinecraftServer server) {
-        for (var it = jailCache.entrySet().iterator(); it.hasNext(); ) {
-            var entry = it.next();
-            if (entry.getValue().isExpired()) {
-                it.remove();
-                ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
-                if (player != null) {
-                    player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
-                            LanguageHelper.getText("jail.released", player)));
-                }
-                if (isDatabaseMode()) {
-                    UUID uuid = entry.getKey();
-                    DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
-                } else {
-                    saveToJson();
-                }
-            }
-        }
     }
 
     // ── Allowed commands for jailed players ──────────────────────────────────

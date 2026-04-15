@@ -19,7 +19,6 @@ import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.CommandEvent;
 import net.neoforged.neoforge.event.ServerChatEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerEvent;
-import net.neoforged.neoforge.event.tick.ServerTickEvent;
 
 import java.util.Map;
 import java.util.UUID;
@@ -169,18 +168,6 @@ public class ChatListener {
                                     .replace("%reason%", entry.reason())));
                 }
             });
-        }
-    }
-
-    // ── Jail: tick expiry check (every 20 ticks = 1 second) ──────────────────
-
-    private int tickCounter = 0;
-
-    @SubscribeEvent
-    public void onServerTick(ServerTickEvent.Post event) {
-        if (++tickCounter >= 20) {
-            tickCounter = 0;
-            JailManager.getInstance().tickExpiry(event.getServer());
         }
     }
 
