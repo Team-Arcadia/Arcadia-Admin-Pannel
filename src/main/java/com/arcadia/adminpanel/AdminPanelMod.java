@@ -64,13 +64,15 @@ public class AdminPanelMod {
                     "adminpanel:open"   // serverActionId
             ));
 
-            // Register click handler — sends command to server (bypasses tab system)
-            ArcadiaModRegistry.registerCardClickHandler("adminpanel", () -> {
-                var player = net.minecraft.client.Minecraft.getInstance().player;
-                if (player != null) {
-                    player.connection.sendCommand("arcadia_adminpanel panel");
-                }
-            });
+            // Register click handler — client-only (sends command to server)
+            if (net.neoforged.fml.loading.FMLEnvironment.dist.isClient()) {
+                ArcadiaModRegistry.registerCardClickHandler("adminpanel", () -> {
+                    var player = net.minecraft.client.Minecraft.getInstance().player;
+                    if (player != null) {
+                        player.connection.sendCommand("arcadia_adminpanel panel");
+                    }
+                });
+            }
 
             // Register server action so other mods can open the admin panel
             ArcadiaModRegistry.registerServerAction("adminpanel:open",
