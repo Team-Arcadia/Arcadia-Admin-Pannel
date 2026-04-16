@@ -33,12 +33,12 @@ public class AdminPanelScreen extends ThemedContainerScreen {
         int searchY = this.topPos - 16;
 
         searchBox = new EditBox(this.font, searchX, searchY, searchWidth, 14,
-                Component.literal("Search..."));
+                Component.translatable("arcadiaadminpanel.search.placeholder"));
         searchBox.setMaxLength(32);
         searchBox.setBordered(true);
         searchBox.setVisible(true);
         searchBox.setTextColor(ArcadiaTheme.TEXT_PRIMARY);
-        searchBox.setHint(Component.literal("Search..."));
+        searchBox.setHint(Component.translatable("arcadiaadminpanel.search.placeholder"));
         searchBox.setResponder(query -> searchQuery = query.toLowerCase());
 
         this.addRenderableWidget(searchBox);

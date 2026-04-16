@@ -104,6 +104,18 @@ public final class LanguageHelper {
         en.put("nav.next", "Next");
         en.put("reload.start", "Reloading admin panel data...");
         en.put("reload.done", "Reload complete!");
+        en.put("error.open_panel", "Failed to open admin panel: %s");
+        en.put("warn.reason_prefix", "Reason:");
+        en.put("warn.list_console", "Warnings for %s: %d");
+        en.put("misc.admin_action", "Admin Action");
+        en.put("misc.unknown", "Unknown");
+        en.put("misc.dim", "Dim:");
+        en.put("misc.pos", "Pos:");
+        en.put("misc.server", "Server:");
+        en.put("misc.warns_label", "Warns:");
+        en.put("misc.warn_count", "%d warn(s)");
+        en.put("tp.success", "Teleported to %.0f, %.0f, %.0f");
+        en.put("search.placeholder", "Search...");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -173,20 +185,20 @@ public final class LanguageHelper {
         fr.put("staff.online", "Staff en ligne (%d) :");
         fr.put("staff.none_online", "Aucun staff en ligne.");
         fr.put("action.jail", "Emprisonner");
-        fr.put("action.unjail", "Liberer");
+        fr.put("action.unjail", "Libérer");
         fr.put("jail.hint", "Cliquez pour emprisonner 30 minutes");
         fr.put("jail.remaining", "Temps restant :");
         fr.put("jail.reason.label", "Raison :");
         fr.put("jail.permanent", "Permanent");
-        fr.put("jail.location.set", "Position de la prison definie a votre position !");
-        fr.put("jail.no_location", "Aucune prison definie ! Utilisez /arcadia_adminpanel setjail d'abord.");
-        fr.put("jail.success", "%player% emprisonne pour %time%.");
-        fr.put("jail.unjail.success", "%player% libere de prison.");
+        fr.put("jail.location.set", "Position de la prison définie à votre position !");
+        fr.put("jail.no_location", "Aucune prison définie ! Utilisez /arcadia_adminpanel setjail d'abord.");
+        fr.put("jail.success", "%player% emprisonné pour %time%.");
+        fr.put("jail.unjail.success", "%player% libéré de prison.");
         fr.put("jail.not_jailed", "%player% n'est pas en prison.");
-        fr.put("jail.notify", "Vous avez ete emprisonne ! Duree : %time% — Raison : %reason%");
-        fr.put("jail.notify.permanent", "Vous avez ete emprisonne definitivement ! Raison : %reason%");
-        fr.put("jail.released", "Vous avez ete libere de prison !");
-        fr.put("jail.login.reminder", "Vous etes toujours en prison. Restant : %time% — Raison : %reason%");
+        fr.put("jail.notify", "Vous avez été emprisonné ! Durée : %time% — Raison : %reason%");
+        fr.put("jail.notify.permanent", "Vous avez été emprisonné définitivement ! Raison : %reason%");
+        fr.put("jail.released", "Vous avez été libéré de prison !");
+        fr.put("jail.login.reminder", "Vous êtes toujours en prison. Restant : %time% — Raison : %reason%");
         fr.put("jail.blocked.command", "Vous ne pouvez pas utiliser de commandes en prison.");
         fr.put("jail.list.empty", "Aucun joueur en prison.");
         fr.put("jail.list.header", "Joueurs en prison (%count%) :");
@@ -194,6 +206,18 @@ public final class LanguageHelper {
         fr.put("nav.next", "Suivant");
         fr.put("reload.start", "Rechargement des données admin...");
         fr.put("reload.done", "Rechargement terminé !");
+        fr.put("error.open_panel", "Erreur d'ouverture du panneau admin : %s");
+        fr.put("warn.reason_prefix", "Raison :");
+        fr.put("warn.list_console", "Avertissements pour %s : %d");
+        fr.put("misc.admin_action", "Action Admin");
+        fr.put("misc.unknown", "Inconnu");
+        fr.put("misc.dim", "Dim :");
+        fr.put("misc.pos", "Pos :");
+        fr.put("misc.server", "Serveur :");
+        fr.put("misc.warns_label", "Avertissements :");
+        fr.put("misc.warn_count", "%d avertissement(s)");
+        fr.put("tp.success", "Téléporté à %.0f, %.0f, %.0f");
+        fr.put("search.placeholder", "Rechercher...");
         translations.put("fr", fr);
     }
 

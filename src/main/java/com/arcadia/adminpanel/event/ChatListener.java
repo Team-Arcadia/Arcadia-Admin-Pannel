@@ -107,7 +107,8 @@ public class ChatListener {
                 target.sendSystemMessage(ArcadiaMessages.error(
                         String.format(LanguageHelper.getText("warn.notification", target),
                                 player.getName().getString())));
-                target.sendSystemMessage(Component.literal("§cReason: §f" + message));
+                target.sendSystemMessage(Component.literal("§c" +
+                        LanguageHelper.getText("warn.reason_prefix", target) + " §f" + message));
 
                 MessageHelper.sendTitle(target,
                         Component.literal("§c§l" + LanguageHelper.getText("warn.title", target)),

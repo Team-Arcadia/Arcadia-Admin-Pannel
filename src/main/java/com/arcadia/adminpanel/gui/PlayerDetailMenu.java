@@ -78,7 +78,7 @@ public class PlayerDetailMenu extends ChestMenu {
         super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.targetUUID = UUID.randomUUID();
-        this.targetName = "Unknown";
+        this.targetName = "unknown";
         this.isOnline = false;
     }
 
@@ -100,7 +100,8 @@ public class PlayerDetailMenu extends ChestMenu {
                                 ? "§a" + LanguageHelper.getText("player.online", admin)
                                 : "§c" + LanguageHelper.getText("player.offline", admin)),
                         Component.literal("§7UUID: " + targetUUID),
-                        Component.literal("§7Warns: §e" + WarnManager.getInstance().getWarnCount(targetUUID))
+                        Component.literal("§7" + LanguageHelper.getText("misc.warns_label", admin)
+                                + " §e" + WarnManager.getInstance().getWarnCount(targetUUID))
                 )));
         this.getContainer().setItem(4, skull);
 
@@ -155,8 +156,8 @@ public class PlayerDetailMenu extends ChestMenu {
                 var entry = homes.get(i);
                 this.getContainer().setItem(slot, ItemBuilder.of(getDimensionIcon(entry.getValue().dimension))
                         .name(Component.literal("§e" + entry.getKey()))
-                        .addLore(Component.literal("§7Dim: §f" + entry.getValue().getShortDimension()))
-                        .addLore(Component.literal("§7Pos: §f" + entry.getValue().getFormattedCoords()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.dim", admin) + " §f" + entry.getValue().getShortDimension()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.pos", admin) + " §f" + entry.getValue().getFormattedCoords()))
                         .addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)))
                         .build());
             }
@@ -171,8 +172,8 @@ public class PlayerDetailMenu extends ChestMenu {
                 FTBDataReader.TeleportRecord record = ftbData.teleportHistory.get(i);
                 this.getContainer().setItem(36 + i, ItemBuilder.of(Items.CHORUS_FRUIT)
                         .name(Component.literal("§d" + LanguageHelper.getText("detail.tp_history", admin) + " #" + (i + 1)))
-                        .addLore(Component.literal("§7Dim: §f" + record.getShortDimension()))
-                        .addLore(Component.literal("§7Pos: §f" + record.getFormattedCoords()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.dim", admin) + " §f" + record.getShortDimension()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.pos", admin) + " §f" + record.getFormattedCoords()))
                         .addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)))
                         .build());
             }
@@ -224,8 +225,8 @@ public class PlayerDetailMenu extends ChestMenu {
             } else if (ftbData != null && ftbData.lastSeen != null) {
                 this.getContainer().setItem(48, ItemBuilder.of(Items.COMPASS)
                         .name(Component.literal("§6" + LanguageHelper.getText("action.tp_last", admin)))
-                        .addLore(Component.literal("§7Dim: §f" + ftbData.lastSeen.getShortDimension()))
-                        .addLore(Component.literal("§7Pos: §f" + ftbData.lastSeen.getFormattedCoords()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.dim", admin) + " §f" + ftbData.lastSeen.getShortDimension()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.pos", admin) + " §f" + ftbData.lastSeen.getFormattedCoords()))
                         .build());
             }
         }
@@ -254,7 +255,8 @@ public class PlayerDetailMenu extends ChestMenu {
         // View warns (slot 52)
         this.getContainer().setItem(52, ItemBuilder.of(Items.WRITABLE_BOOK)
                 .name(Component.literal("§e" + LanguageHelper.getText("action.warn_list", admin)))
-                .addLore(Component.literal("§7" + WarnManager.getInstance().getWarnCount(targetUUID) + " warn(s)"))
+                .addLore(Component.literal("§7" + String.format(
+                        LanguageHelper.getText("misc.warn_count", admin), WarnManager.getInstance().getWarnCount(targetUUID))))
                 .build());
 
         // Back (slot 53)
@@ -283,7 +285,7 @@ public class PlayerDetailMenu extends ChestMenu {
         if (level == null) level = admin.serverLevel();
         admin.teleportTo(level, x, y, z, admin.getYRot(), admin.getXRot());
         admin.sendSystemMessage(ArcadiaMessages.success(
-                String.format("Teleported to %.0f, %.0f, %.0f", x, y, z)));
+                String.format(LanguageHelper.getText("tp.success", admin), x, y, z)));
         SoundHelper.playAt(admin, SoundHelper.TELEPORT);
     }
 
@@ -313,7 +315,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 + (isWhitelisted ? "§a" + LanguageHelper.getText("misc.yes", admin) : "§c" + LanguageHelper.getText("misc.no", admin))));
 
         int warnCount = WarnManager.getInstance().getWarnCount(targetUUID);
-        admin.sendSystemMessage(Component.literal("§7Warns: §e" + warnCount));
+        admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("misc.warns_label", admin) + " §e" + warnCount));
 
         if (!isOnline) {
             FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
@@ -356,7 +358,7 @@ public class PlayerDetailMenu extends ChestMenu {
                         SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
                     } else {
                         // Default jail: 30 minutes
-                        JailManager.getInstance().jail(targetUUID, "Admin Panel",
+                        JailManager.getInstance().jail(targetUUID, LanguageHelper.getText("misc.admin_action", admin),
                                 admin.getName().getString(), 30 * 60_000L);
                         JailManager.getInstance().teleportToJail(
                                 admin.getServer().getPlayerList().getPlayer(targetUUID),
@@ -366,7 +368,7 @@ public class PlayerDetailMenu extends ChestMenu {
                             target.sendSystemMessage(ArcadiaMessages.error(
                                     LanguageHelper.getText("jail.notify", target)
                                             .replace("%time%", TextFormatter.formatMs(30 * 60_000L))
-                                            .replace("%reason%", "Admin Panel")));
+                                            .replace("%reason%", LanguageHelper.getText("misc.admin_action", admin))));
                         }
                         admin.sendSystemMessage(ArcadiaMessages.success(
                                 LanguageHelper.getText("jail.success", admin)
@@ -443,7 +445,7 @@ public class PlayerDetailMenu extends ChestMenu {
                         SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
                     } else {
                         // Default mute: 10 minutes
-                        StaffActions.mute(targetUUID, admin, "Admin Panel", 10 * 60_000L);
+                        StaffActions.mute(targetUUID, admin, LanguageHelper.getText("misc.admin_action", admin), 10 * 60_000L);
                         SoundHelper.playAt(admin, SoundHelper.CLICK);
                     }
                     admin.closeContainer();
@@ -453,7 +455,8 @@ public class PlayerDetailMenu extends ChestMenu {
             case 49 -> { // Kick
                 if (isOnline && canUseCommand("kick")) {
                     admin.getServer().getCommands().performPrefixedCommand(
-                            admin.createCommandSourceStack(), "kick " + targetName + " Admin Action");
+                            admin.createCommandSourceStack(), "kick " + targetName + " " +
+                                    LanguageHelper.getText("misc.admin_action", admin));
                     admin.closeContainer();
                 }
             }
@@ -462,7 +465,8 @@ public class PlayerDetailMenu extends ChestMenu {
                 boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
                 admin.getServer().getCommands().performPrefixedCommand(
                         admin.createCommandSourceStack(),
-                        isBanned ? "pardon " + targetName : "ban " + targetName + " Admin Action");
+                        isBanned ? "pardon " + targetName : "ban " + targetName + " " +
+                                LanguageHelper.getText("misc.admin_action", admin));
                 admin.closeContainer();
                 open(admin, targetUUID, targetName, isOnline);
             }

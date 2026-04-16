@@ -64,7 +64,7 @@ public class WarnListMenu extends ChestMenu {
         super(net.minecraft.world.inventory.MenuType.GENERIC_9x6, id, playerInv, new SimpleContainer(54), 6);
         this.admin = null;
         this.targetUUID = UUID.randomUUID();
-        this.targetName = "Unknown";
+        this.targetName = "unknown";
     }
 
     private void buildMenu() {
@@ -104,7 +104,7 @@ public class WarnListMenu extends ChestMenu {
 
                 // Show server origin if multi-server
                 if (warn.serverId() != null && !warn.serverId().isEmpty()) {
-                    builder.addLore(Component.literal("§8Server: " + warn.serverId()));
+                    builder.addLore(Component.literal("§8" + LanguageHelper.getText("misc.server", admin) + " " + warn.serverId()));
                 }
 
                 // Delete hint for admins

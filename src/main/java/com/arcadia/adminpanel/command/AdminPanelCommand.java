@@ -234,7 +234,8 @@ public final class AdminPanelCommand {
             AdminPanelMenu.open(player, filter);
             return 1;
         } catch (Exception e) {
-            source.sendFailure(ArcadiaMessages.error("Failed to open admin panel: " + e.getMessage()));
+            source.sendFailure(ArcadiaMessages.error(
+                    String.format(LanguageHelper.getText("error.open_panel", player), e.getMessage())));
             return 0;
         }
     }
@@ -269,7 +270,8 @@ public final class AdminPanelCommand {
 
                 target.sendSystemMessage(ArcadiaMessages.error(
                         String.format(LanguageHelper.getText("warn.notification", target), by)));
-                target.sendSystemMessage(Component.literal("§cReason: §f" + reason));
+                target.sendSystemMessage(Component.literal("§c" +
+                        LanguageHelper.getText("warn.reason_prefix", target) + " §f" + reason));
 
                 com.arcadia.lib.text.MessageHelper.sendTitle(target,
                         Component.literal("§c§l" + LanguageHelper.getText("warn.title", target)),
@@ -300,7 +302,8 @@ public final class AdminPanelCommand {
                 WarnListMenu.open(admin, targetUUID, targetName);
             } else {
                 var warns = WarnManager.getInstance().getWarns(targetUUID);
-                source.sendSuccess(() -> ArcadiaMessages.info("Warnings for " + targetName + ": " + warns.size()), false);
+                source.sendSuccess(() -> ArcadiaMessages.info(
+                        String.format(LanguageHelper.getText("warn.list_console", admin), targetName, warns.size())), false);
                 for (var w : warns) {
                     source.sendSuccess(() -> Component.literal(" §8- §7[" + w.by() + "] §f" + w.reason()), false);
                 }
@@ -377,7 +380,7 @@ public final class AdminPanelCommand {
             if (!(source.getEntity() instanceof ServerPlayer sp)) return 0;
             ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
             long mins = LongArgumentType.getLong(ctx, "minutes");
-            String r = reason != null ? reason : "Admin Action";
+            String r = reason != null ? reason : LanguageHelper.getText("misc.admin_action", sp);
             ServerPlayer admin = sp;
 
             if (!JailManager.getInstance().hasJailLocation()) {
@@ -407,7 +410,8 @@ public final class AdminPanelCommand {
             source.sendSuccess(() -> ArcadiaMessages.success(
                     LanguageHelper.getText("jail.success", admin)
                             .replace("%player%", target.getName().getString())
-                            .replace("%time%", mins > 0 ? TextFormatter.formatMs(mins * 60_000L) : "permanent")), true);
+                            .replace("%time%", mins > 0 ? TextFormatter.formatMs(mins * 60_000L)
+                                    : LanguageHelper.getText("jail.permanent", admin))), true);
             return 1;
         } catch (Exception e) {
             e.printStackTrace();
@@ -480,7 +484,7 @@ public final class AdminPanelCommand {
 
             String remaining = jail.durationMs() > 0
                     ? TextFormatter.formatMs(jail.getRemainingMs())
-                    : "permanent";
+                    : LanguageHelper.getText("jail.permanent", admin);
             String finalName = name;
             source.sendSuccess(() -> Component.literal(
                     " §8- §e" + finalName + " §7(" + remaining + ") §8by §7" + jail.jailedBy()
