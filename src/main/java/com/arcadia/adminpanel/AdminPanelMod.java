@@ -60,7 +60,8 @@ public class AdminPanelMod {
                     2,                  // row (third row)
                     -1,                 // tabIndex (-1 = click handler)
                     true,               // available
-                    "arcadia.staff.mod" // permission
+                    "arcadia.staff.mod",// permission
+                    "adminpanel:open"   // serverActionId
             ));
 
             // Register click handler — sends command to server (bypasses tab system)
