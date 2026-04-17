@@ -32,23 +32,27 @@ public class SkullCache {
      */
     public static ItemStack createSkull(GameProfile profile) {
         ItemStack skull = new ItemStack(Items.PLAYER_HEAD);
-
-        // Set the profile on the skull
         skull.set(DataComponents.PROFILE, new ResolvableProfile(profile));
-
         return skull;
     }
 
     /**
-     * Create a player skull with UUID and name
-     * Uses Name-only profile to ensure skin loads even on offline servers
+     * Create a player skull with UUID and name.
+     * Uses {@link ResolvableProfile}'s name+UUID constructor so the client
+     * asks Mojang's session server to fill in the skin textures automatically.
      */
     public static ItemStack createSkull(UUID uuid, String name) {
-        // Reverting to using UUID to prevent "Profile ID must not be null" crash
-        // If UUID is null for some reason, generate one from name to be safe
-        UUID safeUUID = uuid != null ? uuid : UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes());
-        GameProfile profile = getProfile(safeUUID, name);
-        return createSkull(profile);
+        ItemStack skull = new ItemStack(Items.PLAYER_HEAD);
+        UUID safeUUID = uuid != null ? uuid
+                : UUID.nameUUIDFromBytes(("OfflinePlayer:" + name).getBytes());
+        // Optional name + Optional UUID signals the client to resolve textures from Mojang.
+        ResolvableProfile resolvable = new ResolvableProfile(
+                java.util.Optional.of(name),
+                java.util.Optional.of(safeUUID),
+                new com.mojang.authlib.properties.PropertyMap()
+        );
+        skull.set(DataComponents.PROFILE, resolvable);
+        return skull;
     }
 
     /**
