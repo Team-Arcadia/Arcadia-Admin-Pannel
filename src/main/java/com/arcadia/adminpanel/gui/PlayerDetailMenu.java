@@ -346,7 +346,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 if (isOnline && JailManager.getInstance().hasJailLocation()) {
                     boolean isJailed = JailManager.getInstance().isJailed(targetUUID);
                     if (isJailed) {
-                        JailManager.getInstance().unjail(targetUUID);
+                        JailManager.getInstance().unjail(targetUUID, admin.getServer());
                         ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
                         if (target != null) {
                             target.sendSystemMessage(ArcadiaMessages.success(
@@ -358,12 +358,14 @@ public class PlayerDetailMenu extends ChestMenu {
                         SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
                     } else {
                         // Default jail: 30 minutes
-                        JailManager.getInstance().jail(targetUUID, LanguageHelper.getText("misc.admin_action", admin),
-                                admin.getName().getString(), 30 * 60_000L);
-                        JailManager.getInstance().teleportToJail(
-                                admin.getServer().getPlayerList().getPlayer(targetUUID),
-                                admin.getServer());
                         ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                        if (target != null) {
+                            JailManager.getInstance().jail(target,
+                                    LanguageHelper.getText("misc.admin_action", admin),
+                                    admin.getName().getString(),
+                                    30 * 60_000L,
+                                    admin.getServer());
+                        }
                         if (target != null) {
                             target.sendSystemMessage(ArcadiaMessages.error(
                                     LanguageHelper.getText("jail.notify", target)

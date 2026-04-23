@@ -47,7 +47,7 @@ public final class JailManager {
     private volatile JailLocation jailLocation = null;
 
     public record JailEntry(String reason, String jailedBy, long timestamp, long durationMs,
-                            String serverId) {
+                            String serverId, @Nullable PreviousLocation previousLocation) {
         public boolean isExpired() {
             if (durationMs <= 0) return false; // Permanent
             return System.currentTimeMillis() >= timestamp + durationMs;
@@ -61,6 +61,14 @@ public final class JailManager {
 
     public record JailLocation(String dimension, double x, double y, double z,
                                 float yaw, float pitch) {}
+
+    /**
+     * Player's position captured at the moment they were jailed, restored on release.
+     * May be {@code null} on entries created before this feature was added — in that
+     * case release is silent (no teleport).
+     */
+    public record PreviousLocation(String dimension, double x, double y, double z,
+                                    float yaw, float pitch) {}
 
     private JailManager() {
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("arcadia/arcadiaadminpanel");
@@ -155,9 +163,35 @@ public final class JailManager {
 
     // ── Jail operations ─────────────────────────────────────────────────────
 
+    /**
+     * Jails a player and teleports them to the jail location. Captures their current
+     * position so {@link #unjail} (or auto-expiry) can put them back where they were.
+     *
+     * <p>Call this variant whenever the target is online — it is the only code path
+     * that records {@link PreviousLocation}. The legacy UUID-only overload is kept for
+     * callers that have just a UUID (e.g. offline target) and silently stores a
+     * {@code null} previous location.</p>
+     */
+    public void jail(ServerPlayer target, String reason, String jailedBy, long durationMs,
+                     MinecraftServer server) {
+        PreviousLocation prev = new PreviousLocation(
+                target.serverLevel().dimension().location().toString(),
+                target.getX(), target.getY(), target.getZ(),
+                target.getYRot(), target.getXRot()
+        );
+        jailInternal(target.getUUID(), reason, jailedBy, durationMs, prev);
+        teleportToJail(target, server);
+    }
+
+    /** Back-compat overload — no previous location is recorded (no teleport on release). */
     public void jail(UUID targetUUID, String reason, String jailedBy, long durationMs) {
+        jailInternal(targetUUID, reason, jailedBy, durationMs, null);
+    }
+
+    private void jailInternal(UUID targetUUID, String reason, String jailedBy, long durationMs,
+                              @Nullable PreviousLocation prev) {
         JailEntry entry = new JailEntry(reason, jailedBy, System.currentTimeMillis(),
-                durationMs, ServerContext.SERVER_ID);
+                durationMs, ServerContext.SERVER_ID, prev);
         jailCache.put(targetUUID, entry);
 
         if (isDatabaseMode()) {
@@ -170,17 +204,19 @@ public final class JailManager {
         if (durationMs > 0) {
             int delayTicks = (int) (durationMs / 50L); // ms -> ticks
             SchedulerService.delayed(delayTicks, () -> {
-                if (jailCache.containsKey(targetUUID) && isJailed(targetUUID)
-                        && jailCache.get(targetUUID).isExpired()) {
+                JailEntry current = jailCache.get(targetUUID);
+                if (current != null && current.isExpired()) {
                     jailCache.remove(targetUUID);
                     if (isDatabaseMode()) {
                         DatabaseManager.executeAsync(() -> deleteJailDb(targetUUID));
                     } else {
                         saveToJson();
                     }
-                    // Notify player if online
                     var player = com.arcadia.lib.player.PlayerManager.getPlayer(targetUUID);
                     if (player != null) {
+                        if (current.previousLocation() != null) {
+                            teleportToPrevious(player, current.previousLocation(), player.getServer());
+                        }
                         player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
                                 LanguageHelper.getText("jail.released", player)));
                     }
@@ -190,7 +226,11 @@ public final class JailManager {
         }
     }
 
-    public boolean unjail(UUID targetUUID) {
+    /**
+     * Releases a jailed player. If {@code server} is provided and the player is online
+     * and the entry has a stored previous location, teleports them back there.
+     */
+    public boolean unjail(UUID targetUUID, @Nullable MinecraftServer server) {
         JailEntry removed = jailCache.remove(targetUUID);
         if (removed == null) return false;
 
@@ -199,7 +239,31 @@ public final class JailManager {
         } else {
             saveToJson();
         }
+
+        if (server != null && removed.previousLocation() != null) {
+            ServerPlayer target = server.getPlayerList().getPlayer(targetUUID);
+            if (target != null) teleportToPrevious(target, removed.previousLocation(), server);
+        }
         return true;
+    }
+
+    /** Back-compat overload — no server context, so no teleport-back. */
+    public boolean unjail(UUID targetUUID) {
+        return unjail(targetUUID, null);
+    }
+
+    /** Teleports a player back to their pre-jail position. Best-effort: falls back to overworld if the dimension is gone. */
+    private void teleportToPrevious(ServerPlayer player, PreviousLocation loc, MinecraftServer server) {
+        if (server == null) return;
+        ServerLevel level = null;
+        for (ServerLevel w : server.getAllLevels()) {
+            if (w.dimension().location().toString().equals(loc.dimension())) {
+                level = w;
+                break;
+            }
+        }
+        if (level == null) level = server.overworld();
+        player.teleportTo(level, loc.x(), loc.y(), loc.z(), loc.yaw(), loc.pitch());
     }
 
     public boolean isJailed(UUID uuid) {
@@ -289,18 +353,29 @@ public final class JailManager {
     // ── Database backend ────────────────────────────────────────────────────
 
     private void loadFromDatabase() {
+        migrateJailSchema();
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                     "SELECT player_uuid, reason, jailed_by, server_id, timestamp, duration_ms FROM arcadia_admin_jail")) {
+                     "SELECT player_uuid, reason, jailed_by, server_id, timestamp, duration_ms, "
+                   + "prev_dimension, prev_x, prev_y, prev_z, prev_yaw, prev_pitch "
+                   + "FROM arcadia_admin_jail")) {
             ResultSet rs = ps.executeQuery();
             while (rs.next()) {
                 UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                String prevDim = rs.getString("prev_dimension");
+                PreviousLocation prev = null;
+                if (prevDim != null) {
+                    prev = new PreviousLocation(prevDim,
+                            rs.getDouble("prev_x"), rs.getDouble("prev_y"), rs.getDouble("prev_z"),
+                            rs.getFloat("prev_yaw"), rs.getFloat("prev_pitch"));
+                }
                 JailEntry entry = new JailEntry(
                         rs.getString("reason"),
                         rs.getString("jailed_by"),
                         rs.getLong("timestamp"),
                         rs.getLong("duration_ms"),
-                        rs.getString("server_id")
+                        rs.getString("server_id"),
+                        prev
                 );
                 if (!entry.isExpired()) {
                     jailCache.put(uuid, entry);
@@ -311,16 +386,66 @@ public final class JailManager {
         }
     }
 
+    /**
+     * Adds the {@code prev_*} columns to existing {@code arcadia_admin_jail} tables
+     * created before 1.2.1. Safe to run on fresh installs: if the column already
+     * exists (or the table was just created with them), MySQL returns error 1060
+     * "Duplicate column name" which we swallow.
+     */
+    private void migrateJailSchema() {
+        String[] alters = new String[]{
+                "ALTER TABLE arcadia_admin_jail ADD COLUMN prev_dimension VARCHAR(128) NULL",
+                "ALTER TABLE arcadia_admin_jail ADD COLUMN prev_x DOUBLE NULL",
+                "ALTER TABLE arcadia_admin_jail ADD COLUMN prev_y DOUBLE NULL",
+                "ALTER TABLE arcadia_admin_jail ADD COLUMN prev_z DOUBLE NULL",
+                "ALTER TABLE arcadia_admin_jail ADD COLUMN prev_yaw FLOAT NULL",
+                "ALTER TABLE arcadia_admin_jail ADD COLUMN prev_pitch FLOAT NULL"
+        };
+        try (Connection conn = DatabaseManager.getConnection();
+             java.sql.Statement stmt = conn.createStatement()) {
+            for (String sql : alters) {
+                try { stmt.executeUpdate(sql); }
+                catch (java.sql.SQLException e) {
+                    // 1060 = "Duplicate column name" — column already present, fine.
+                    if (e.getErrorCode() != 1060) {
+                        LOGGER.warn("[AdminPanel] Jail schema migration step failed: {}", sql, e);
+                    }
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.error("[AdminPanel] Jail schema migration failed to open connection", e);
+        }
+    }
+
     private void insertJailDb(UUID targetUUID, JailEntry entry) {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                     "REPLACE INTO arcadia_admin_jail (player_uuid, reason, jailed_by, server_id, timestamp, duration_ms) VALUES (?, ?, ?, ?, ?, ?)")) {
+                     "REPLACE INTO arcadia_admin_jail "
+                   + "(player_uuid, reason, jailed_by, server_id, timestamp, duration_ms, "
+                   + "prev_dimension, prev_x, prev_y, prev_z, prev_yaw, prev_pitch) "
+                   + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")) {
             ps.setString(1, targetUUID.toString());
             ps.setString(2, entry.reason());
             ps.setString(3, entry.jailedBy());
             ps.setString(4, entry.serverId());
             ps.setLong(5, entry.timestamp());
             ps.setLong(6, entry.durationMs());
+            PreviousLocation prev = entry.previousLocation();
+            if (prev != null) {
+                ps.setString(7, prev.dimension());
+                ps.setDouble(8, prev.x());
+                ps.setDouble(9, prev.y());
+                ps.setDouble(10, prev.z());
+                ps.setFloat(11, prev.yaw());
+                ps.setFloat(12, prev.pitch());
+            } else {
+                ps.setNull(7, java.sql.Types.VARCHAR);
+                ps.setNull(8, java.sql.Types.DOUBLE);
+                ps.setNull(9, java.sql.Types.DOUBLE);
+                ps.setNull(10, java.sql.Types.DOUBLE);
+                ps.setNull(11, java.sql.Types.FLOAT);
+                ps.setNull(12, java.sql.Types.FLOAT);
+            }
             ps.executeUpdate();
         } catch (Exception e) {
             LOGGER.error("[AdminPanel] Failed to insert jail into database", e);

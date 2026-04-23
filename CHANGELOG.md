@@ -4,6 +4,18 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
+## [1.2.1] - 2026-04-23 (latest)
+
+### Added
+
+- **Jail returns players to their pre-jail location on release** — Jailing a player now captures their dimension, x/y/z and yaw/pitch before the teleport to the jail point. On manual unjail, on expiry of a timed jail, or on auto-expiry at server restart, the player is teleported back to where they were when the admin jailed them (falls back to overworld if the original dimension is gone). Stored per-entry in JSON and MySQL (`prev_dimension`, `prev_x`, `prev_y`, `prev_z`, `prev_yaw`, `prev_pitch`). Schema auto-migrates — the new columns are added to existing `arcadia_admin_jail` tables on first start of 1.2.1, entries created before 1.2.1 simply have no recorded location and release silently as before.
+
+### Ajouts
+
+- **Le jail ramène les joueurs à leur position d'avant-jail à la libération** — Jail un joueur capture désormais sa dimension, x/y/z et yaw/pitch avant le téléport vers le point de jail. Au unjail manuel, à l'expiration d'un jail temporaire, ou à l'auto-expiration au redémarrage du serveur, le joueur est téléporté à l'endroit où il était au moment du jail (repli sur l'overworld si la dimension originale a disparu). Stocké par entrée en JSON et MySQL (`prev_dimension`, `prev_x`, `prev_y`, `prev_z`, `prev_yaw`, `prev_pitch`). Migration auto du schéma — les nouvelles colonnes sont ajoutées aux tables `arcadia_admin_jail` existantes au premier démarrage de 1.2.1, les entrées créées avant 1.2.1 n'ont simplement aucune position enregistrée et libèrent silencieusement comme avant.
+
+---
+
 ## [1.2.0] - 2026-04-11
 
 ### Added

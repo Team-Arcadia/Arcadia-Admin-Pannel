@@ -39,6 +39,12 @@ public final class WarnTableDefinition implements TableDefinition {
                     server_id VARCHAR(64) NOT NULL DEFAULT 'server1',
                     timestamp BIGINT NOT NULL,
                     duration_ms BIGINT NOT NULL DEFAULT 0,
+                    prev_dimension VARCHAR(128) NULL,
+                    prev_x DOUBLE NULL,
+                    prev_y DOUBLE NULL,
+                    prev_z DOUBLE NULL,
+                    prev_yaw FLOAT NULL,
+                    prev_pitch FLOAT NULL,
                     INDEX idx_server (server_id)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
                 """

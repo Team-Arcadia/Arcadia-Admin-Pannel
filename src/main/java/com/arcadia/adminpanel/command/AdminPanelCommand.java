@@ -388,11 +388,8 @@ public final class AdminPanelCommand {
                 return 0;
             }
 
-            JailManager.getInstance().jail(target.getUUID(), r, sp.getName().getString(),
-                    mins > 0 ? mins * 60_000L : 0);
-
-            // Teleport to jail
-            JailManager.getInstance().teleportToJail(target, source.getServer());
+            JailManager.getInstance().jail(target, r, sp.getName().getString(),
+                    mins > 0 ? mins * 60_000L : 0, source.getServer());
 
             // Notify target
             if (mins > 0) {
@@ -431,7 +428,7 @@ public final class AdminPanelCommand {
                 return 0;
             }
 
-            boolean success = JailManager.getInstance().unjail(targetUUID);
+            boolean success = JailManager.getInstance().unjail(targetUUID, source.getServer());
             if (success) {
                 source.sendSuccess(() -> ArcadiaMessages.success(
                         LanguageHelper.getText("jail.unjail.success", admin)
