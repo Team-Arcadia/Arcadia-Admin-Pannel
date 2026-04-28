@@ -74,9 +74,16 @@ public class AdminPanelMod {
                 });
             }
 
-            // Register server action so other mods can open the admin panel
+            // Register server action so other mods can open the admin panel.
+            // Defense-in-depth: even if some caller (e.g. carousel navigation) reaches
+            // this action without checking the card permission, we re-verify here so
+            // unauthorized players can't open the panel by spamming the dashboard arrows.
             ArcadiaModRegistry.registerServerAction("adminpanel:open",
-                    player -> AdminPanelMenu.open(player));
+                    player -> {
+                        if (com.arcadia.lib.permissions.PermissionService.hasPermission(player, "arcadia.staff.mod")) {
+                            AdminPanelMenu.open(player);
+                        }
+                    });
         });
     }
 

@@ -10,7 +10,7 @@ tasks.named('wrapper', Wrapper).configure {
     gradleVersion = '8.7'
 }
 
-version = '1.2.1'
+version = '1.2.2'
 group = 'com.arcadia.adminpanel'
 
 repositories {
@@ -65,7 +65,7 @@ neoForge {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-    implementation files("libs/arcadia-lib-1.2.0.jar")
+    implementation files("libs/arcadia-lib-1.2.6.jar")
 }
 
 tasks.withType(JavaCompile).configureEach {
