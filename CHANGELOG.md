@@ -4,7 +4,19 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.1] - 2026-04-23 (latest)
+## [1.2.2] - 2026-04-28 (latest)
+
+### Fixed
+
+- **`adminpanel:open` server action now re-checks `arcadia.staff.mod`** — Defense-in-depth fix paired with arcadia-prestige 1.2.4 / arcadia-lib 1.2.6. Even if a caller (e.g. carousel navigation arrows in an older Prestige, or a third-party mod) reaches the registered server action without first checking the card permission, the action itself now re-validates `arcadia.staff.mod` before opening `AdminPanelMenu`. Closes the bypass where unauthorized players could reach the admin GUI by spamming the dashboard's prev/next arrows.
+
+### Correctifs
+
+- **Le server action `adminpanel:open` revérifie désormais `arcadia.staff.mod`** — Correction defense-in-depth couplée à arcadia-prestige 1.2.4 / arcadia-lib 1.2.6. Même si un appelant (ex. flèches de navigation du carousel d'un Prestige plus ancien, ou un mod tiers) atteint le server action enregistré sans vérifier d'abord la permission de la carte, l'action elle-même revalide maintenant `arcadia.staff.mod` avant d'ouvrir `AdminPanelMenu`. Ferme le bypass qui permettait aux joueurs non autorisés d'atteindre le GUI admin en spammant les flèches prev/next du dashboard.
+
+---
+
+## [1.2.1] - 2026-04-23
 
 ### Added
 
