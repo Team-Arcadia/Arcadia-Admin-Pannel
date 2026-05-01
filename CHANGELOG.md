@@ -4,7 +4,19 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.2] - 2026-04-28 (latest)
+## [1.2.3] - 2026-05-01 (latest)
+
+### Fixed
+
+- **Admin Panel reachable by any player when LuckPerms wasn't bound (carousel + L-key hub)** — Two paths exposed the admin GUI to non-staff players on servers where LuckPerms was missing or hadn't initialized. (1) The dashboard carousel arrows in any sub-menu (cosmetics, pets, daily, AH) routed players through `executeServerAction("adminpanel:open")`, which gated on `PermissionService.hasPermission("arcadia.staff.mod")` — but with no real perm backend that call returns `true` for everyone via the NOOP fallback. (2) The L-key Arcadia Hub screen always rendered the Admin Panel card because client-side filtering had no synced view of the server's permission state. Two-front fix (paired with arcadia-lib 1.2.9): the registered `adminpanel:open` action now requires either vanilla OP level &gt;= 2 OR `arcadia.staff.mod` via the new strict perm check (which fails closed when LuckPerms isn't bound), and the hub card is hidden client-side via `S2CHubPermissions` synced at login. Slash command `/arcadia_adminpanel panel` was already correctly gated on `hasPermission(2)` and is unaffected. Bumps lib dependency 1.2.6 → 1.2.9.
+
+### Correctifs
+
+- **Admin Panel accessible à tous quand LuckPerms n'était pas branché (carousel + hub touche L)** — Deux chemins exposaient le GUI admin aux joueurs non staff sur les serveurs où LuckPerms manquait ou n'était pas initialisé. (1) Les flèches du carousel dans n'importe quel sous-menu (cosmétiques, pets, daily, HDV) routaient les joueurs via `executeServerAction("adminpanel:open")`, qui filtrait sur `PermissionService.hasPermission("arcadia.staff.mod")` — mais sans vrai backend de perms cet appel renvoie `true` pour tout le monde via le fallback NOOP. (2) L'écran Arcadia Hub (touche L) affichait toujours la carte Admin Panel car le filtrage côté client n'avait aucune vue synchronisée de l'état des permissions du serveur. Correction sur deux fronts (couplée à arcadia-lib 1.2.9) : l'action `adminpanel:open` exige maintenant soit OP level &gt;= 2 vanilla SOIT `arcadia.staff.mod` via le nouveau check strict (qui échoue en fermé quand LuckPerms n'est pas branché), et la carte du hub est cachée côté client via `S2CHubPermissions` synchronisé à la connexion. La commande slash `/arcadia_adminpanel panel` était déjà correctement filtrée sur `hasPermission(2)` et n'est pas affectée. Bump dépendance lib 1.2.6 → 1.2.9.
+
+---
+
+## [1.2.2] - 2026-04-28
 
 ### Fixed
 

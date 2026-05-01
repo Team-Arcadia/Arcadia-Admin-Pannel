@@ -75,12 +75,20 @@ public class AdminPanelMod {
             }
 
             // Register server action so other mods can open the admin panel.
-            // Defense-in-depth: even if some caller (e.g. carousel navigation) reaches
-            // this action without checking the card permission, we re-verify here so
-            // unauthorized players can't open the panel by spamming the dashboard arrows.
+            // Hardened access check (1.2.3) — the previous defense-in-depth call relied solely on
+            // PermissionService.hasPermission, which uses a NOOP fallback that returns TRUE for every
+            // node when LuckPerms isn't loaded/initialized yet. On servers where LuckPerms had not
+            // bound the arcadia.staff.mod node (or had failed to start), any player could navigate
+            // the dashboard carousel into Admin Panel and the action would happily open it.
+            //
+            // Now: require OP level 2 (vanilla "permission level >= 2", set via /op or server.properties)
+            // AND, if the player isn't OP, also require the LuckPerms node arcadia.staff.mod through a
+            // strict check that ignores the NOOP fallback. The slash command uses hasPermission(2) and
+            // is therefore unaffected — this just brings the carousel/serverAction path up to the same
+            // bar.
             ArcadiaModRegistry.registerServerAction("adminpanel:open",
                     player -> {
-                        if (com.arcadia.lib.permissions.PermissionService.hasPermission(player, "arcadia.staff.mod")) {
+                        if (canOpenAdminPanel(player)) {
                             AdminPanelMenu.open(player);
                         }
                     });
@@ -103,5 +111,19 @@ public class AdminPanelMod {
     private void onServerStopping(ServerStoppingEvent event) {
         // Clear caches on server stop
         FTBDataReader.clearCache();
+    }
+
+    /**
+     * Strict admin-panel access check. The player must pass at least one of:
+     * <ol>
+     *   <li>Vanilla OP level &gt;= 2 (set via /op or server.properties — immune to perm-backend state).</li>
+     *   <li>{@code arcadia.staff.mod} via {@link com.arcadia.lib.permissions.PermissionService#hasPermissionStrict}
+     *       — strict means the NOOP fallback returns false instead of true, so a server without a
+     *       real perm plugin fails closed.</li>
+     * </ol>
+     */
+    private static boolean canOpenAdminPanel(net.minecraft.server.level.ServerPlayer player) {
+        if (player.hasPermissions(2)) return true;
+        return com.arcadia.lib.permissions.PermissionService.hasPermissionStrict(player, "arcadia.staff.mod");
     }
 }
