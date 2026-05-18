@@ -150,11 +150,15 @@ public class ChatListener {
         }
     }
 
-    // ── Jail: teleport to jail on login ──────────────────────────────────────
+    // ── Jail: teleport to jail on login + record login timestamp ────────────
 
     @SubscribeEvent
     public void onJoin(PlayerEvent.PlayerLoggedInEvent event) {
         if (!(event.getEntity() instanceof ServerPlayer sp)) return;
+
+        // Record connection time for the admin-panel "last login" display.
+        com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogin(sp);
+
         if (JailManager.getInstance().isJailed(sp.getUUID())) {
             sp.getServer().execute(() -> {
                 JailManager.getInstance().teleportToJail(sp, sp.getServer());
@@ -181,5 +185,6 @@ public class ChatListener {
         warnSessions.remove(uuid);
         searchSessions.remove(uuid);
         StaffChatService.onDisconnect(uuid);
+        com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogout(sp);
     }
 }

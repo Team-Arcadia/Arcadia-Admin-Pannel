@@ -16,6 +16,7 @@ import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.gui.WarnListMenu;
 import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
 import com.arcadia.adminpanel.util.WarnManager;
@@ -248,6 +249,7 @@ public final class AdminPanelCommand {
 
         OfflinePlayerManager.getInstance().reload(source.getServer());
         FTBDataReader.clearCache();
+        FTBTeamsReader.clearCache();
         WarnManager.getInstance().reload();
 
         source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);

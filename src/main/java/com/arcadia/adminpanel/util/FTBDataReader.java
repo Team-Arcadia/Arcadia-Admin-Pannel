@@ -1,8 +1,10 @@
 package com.arcadia.adminpanel.util;
 
+import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.TagParser;
 import org.jetbrains.annotations.Nullable;
+import org.slf4j.Logger;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -12,11 +14,12 @@ import java.util.concurrent.ConcurrentHashMap;
 /**
  * Reads FTB Essentials player data from .snbt files
  * Optimized with Caching (30s TTL) and Manual Parsing for Robustness
- * 
+ *
  * @author vyrriox
  */
 public class FTBDataReader {
 
+    private static final Logger LOGGER = LogUtils.getLogger();
     private static Path ftbDataPath = null;
 
     // Cache System
@@ -27,7 +30,7 @@ public class FTBDataReader {
     }
 
     public static void clearCache() {
-        System.out.println("[ArcadiaAdmin] Clearing FTB Data Cache...");
+        LOGGER.info("[AdminPanel] Clearing FTB Data Cache ({} entries)", dataCache.size());
         dataCache.clear();
     }
 

@@ -42,6 +42,8 @@ Arcadia Admin Panel is a lightweight, optimized server management tool designed 
 | **Bilingual** | Automatic language detection (English/French) based on client settings |
 | **Multi-Server** | Warns sync across servers via shared MySQL database (Arcadia Lib) |
 | **FTB Integration** | View player homes, last seen location, teleport history (FTB Essentials) |
+| **Login Tracking** | Per-player last login / last logout / first seen timestamps surfaced in the GUI |
+| **FTB Teams Browser** | Browse all parties + server teams, view members, TP to a member's last-known position |
 | **Permission-Aware** | Action buttons hidden based on permissions. Compatible with LuckPerms |
 | **Optimized** | Thread-safe collections, async database operations, atomic file writes, tick-friendly |
 
@@ -83,7 +85,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 ### Steps
 1. Download the latest release from the [Releases](https://github.com/laforetbrut/Arcadia-Admin-Pannel/releases) page
 2. Place `arcadia-lib-1.2.0.jar` in your `mods/` folder
-3. Place `arcadia-admin-panel-1.2.3.jar` in your `mods/` folder
+3. Place `arcadia-admin-panel-1.2.4.jar` in your `mods/` folder
 4. Start the server
 
 ### Client Installation (Optional)
@@ -128,10 +130,16 @@ com.arcadia.adminpanel
   |   +-- AdminPanelMenu.java       Main player list menu
   |   +-- PlayerDetailMenu.java     Player actions menu
   |   +-- WarnListMenu.java         Warning list menu
+  |   +-- TeamListMenu.java         FTB Teams browser
+  |   +-- TeamDetailMenu.java       FTB Team members + TP
   +-- util/
       +-- WarnManager.java          Dual storage (MySQL + JSON)
+      +-- JailManager.java          Jail (atomic expiry, MySQL + JSON)
       +-- OfflinePlayerManager.java Async offline player scanner
       +-- FTBDataReader.java        FTB Essentials SNBT parser
+      +-- FTBTeamsReader.java       FTB Teams SNBT parser (no runtime dep)
+      +-- LoginTracker.java         Last login / logout / first-seen persistence
+      +-- TimeFormat.java           Absolute + relative timestamp helpers
       +-- LanguageHelper.java       EN/FR localization
       +-- SkullCache.java           Player head texture cache
 ```
@@ -191,6 +199,8 @@ Arcadia Admin Panel est un outil de gestion serveur leger et optimise concu pour
 | **Bilingue** | Detection automatique de la langue (Anglais/Francais) selon le client |
 | **Multi-Serveur** | Avertissements synchronises entre serveurs via MySQL partagee (Arcadia Lib) |
 | **Integration FTB** | Voir les homes, derniere position, historique de teleportation (FTB Essentials) |
+| **Suivi des Connexions** | Horodatages derniere connexion / derniere deconnexion / premiere fois vu par joueur |
+| **Navigateur FTB Teams** | Parcourir toutes les parties + teams serveur, voir les membres, TP a la derniere position d'un membre |
 | **Permissions** | Boutons d'action caches selon les permissions. Compatible LuckPerms |
 | **Optimise** | Collections thread-safe, operations DB async, ecriture atomique, tick-friendly |
 
@@ -232,7 +242,7 @@ Toutes les commandes utilisent le prefixe `/arcadia_adminpanel`.
 ### Etapes
 1. Telecharger la derniere release depuis [Releases](https://github.com/laforetbrut/Arcadia-Admin-Pannel/releases)
 2. Placer `arcadia-lib-1.2.0.jar` dans le dossier `mods/`
-3. Placer `arcadia-admin-panel-1.2.3.jar` dans le dossier `mods/`
+3. Placer `arcadia-admin-panel-1.2.4.jar` dans le dossier `mods/`
 4. Demarrer le serveur
 
 ### Installation Client (Optionnel)

@@ -16,7 +16,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 
-import java.text.SimpleDateFormat;
+import java.time.Instant;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 /**
@@ -31,7 +33,9 @@ public class WarnListMenu extends ChestMenu {
     private final String targetName;
     private int page = 0;
     private static final int ITEMS_PER_PAGE = 45;
-    private static final SimpleDateFormat DATE_FORMAT = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+    // java.time formatters are thread-safe — unlike SimpleDateFormat which we used previously.
+    private static final DateTimeFormatter DATE_FORMAT =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm").withZone(ZoneId.systemDefault());
 
     public static void open(ServerPlayer admin, UUID targetUUID, String targetName) {
         admin.openMenu(new SimpleMenuProvider(
@@ -97,7 +101,7 @@ public class WarnListMenu extends ChestMenu {
                                 LanguageHelper.getText("warn.item.by", admin), "§e" + warn.by())))
                         .addLore(Component.literal("§7" + String.format(
                                 LanguageHelper.getText("warn.item.date", admin),
-                                "§f" + DATE_FORMAT.format(new Date(warn.timestamp())))))
+                                "§f" + DATE_FORMAT.format(Instant.ofEpochMilli(warn.timestamp())))))
                         .addLore(Component.literal(" "))
                         .addLore(Component.literal("§7" + String.format(
                                 LanguageHelper.getText("warn.item.reason", admin), "§c" + warn.reason())));
@@ -140,7 +144,15 @@ public class WarnListMenu extends ChestMenu {
         var clicked = this.getContainer().getItem(slotId);
         if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE)) return;
 
+        // Players viewing their OWN warns (via /checkwarn) are read-only — fine for navigation slots
+        // (45/53/49). Anything else requires staff to prevent privilege escalation if this menu
+        // is ever opened by a non-staff path.
+        boolean isSelfView = sp.getUUID().equals(targetUUID);
+        boolean isStaff = com.arcadia.adminpanel.AdminPanelMod.canOpenAdminPanel(sp);
+        if (!isSelfView && !isStaff) return;
+
         if (slotId == 49) {
+            if (!isStaff) return; // Back-to-PlayerDetailMenu is staff-only.
             boolean online = sp.getServer().getPlayerList().getPlayer(targetUUID) != null;
             sp.closeContainer();
             PlayerDetailMenu.open(sp, targetUUID, targetName, online);
@@ -158,8 +170,8 @@ public class WarnListMenu extends ChestMenu {
             return;
         }
 
-        // Delete warn on click (admin only)
-        if (!sp.getUUID().equals(targetUUID) && slotId >= 0 && slotId < ITEMS_PER_PAGE) {
+        // Delete warn on click — strictly staff-only.
+        if (isStaff && !isSelfView && slotId >= 0 && slotId < ITEMS_PER_PAGE) {
             List<WarnManager.WarnEntry> warns = WarnManager.getInstance().getWarns(targetUUID);
             List<WarnManager.WarnEntry> sortedWarns = new ArrayList<>(warns);
             sortedWarns.sort((w1, w2) -> Long.compare(w2.timestamp(), w1.timestamp()));

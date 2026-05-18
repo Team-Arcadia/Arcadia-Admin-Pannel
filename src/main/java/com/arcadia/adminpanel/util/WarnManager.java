@@ -95,18 +95,21 @@ public final class WarnManager {
         List<WarnEntry> warns = warnCache.get(targetUUID);
         if (warns == null || warns.isEmpty()) return false;
 
-        List<WarnEntry> sortedWarns;
+        WarnEntry toRemove;
+        boolean nowEmpty;
+        // Snapshot, sort, lookup AND remove must happen atomically — otherwise a concurrent
+        // addWarn() between the snapshot and the remove can shift indices and we delete the
+        // wrong entry.
         synchronized (warns) {
-            sortedWarns = new ArrayList<>(warns);
+            List<WarnEntry> sortedWarns = new ArrayList<>(warns);
+            sortedWarns.sort((w1, w2) -> Long.compare(w2.timestamp(), w1.timestamp()));
+            if (index < 1 || index > sortedWarns.size()) return false;
+            toRemove = sortedWarns.get(index - 1);
+            warns.remove(toRemove);
+            nowEmpty = warns.isEmpty();
         }
-        sortedWarns.sort((w1, w2) -> Long.compare(w2.timestamp(), w1.timestamp()));
 
-        if (index < 1 || index > sortedWarns.size()) return false;
-
-        WarnEntry toRemove = sortedWarns.get(index - 1);
-        warns.remove(toRemove);
-
-        if (warns.isEmpty()) {
+        if (nowEmpty) {
             warnCache.remove(targetUUID);
         }
 

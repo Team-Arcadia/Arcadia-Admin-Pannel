@@ -116,6 +116,24 @@ public final class LanguageHelper {
         en.put("misc.warn_count", "%d warn(s)");
         en.put("tp.success", "Teleported to %.0f, %.0f, %.0f");
         en.put("search.placeholder", "Search...");
+        en.put("info.last_login", "Last login:");
+        en.put("info.last_logout", "Last logout:");
+        en.put("info.first_seen", "First seen:");
+        en.put("team.browse", "Browse Teams");
+        en.put("team.browse.hint", "View all FTB Teams (parties + server teams)");
+        en.put("team.list.title", "FTB Teams");
+        en.put("team.list.empty", "No teams found.");
+        en.put("team.detail.title", "Team Details");
+        en.put("team.not_found", "Team not found (data may be stale, reload).");
+        en.put("team.unavailable", "FTB Teams not detected");
+        en.put("team.unavailable.hint", "The ftbteams data dir was not found on this server.");
+        en.put("team.view", "View Team");
+        en.put("team.name", "Name:");
+        en.put("team.type", "Type:");
+        en.put("team.members", "Members:");
+        en.put("team.rank", "Rank:");
+        en.put("team.click.view", "Click to view members");
+        en.put("team.click.tp", "Right-click: TP to last-seen position");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -218,6 +236,24 @@ public final class LanguageHelper {
         fr.put("misc.warn_count", "%d avertissement(s)");
         fr.put("tp.success", "Téléporté à %.0f, %.0f, %.0f");
         fr.put("search.placeholder", "Rechercher...");
+        fr.put("info.last_login", "Dernière connexion :");
+        fr.put("info.last_logout", "Dernière déconnexion :");
+        fr.put("info.first_seen", "Première fois vu :");
+        fr.put("team.browse", "Parcourir les Teams");
+        fr.put("team.browse.hint", "Voir toutes les FTB Teams (parties + teams serveur)");
+        fr.put("team.list.title", "FTB Teams");
+        fr.put("team.list.empty", "Aucune team trouvée.");
+        fr.put("team.detail.title", "Détails de la Team");
+        fr.put("team.not_found", "Team introuvable (données obsolètes, rechargez).");
+        fr.put("team.unavailable", "FTB Teams non détecté");
+        fr.put("team.unavailable.hint", "Le dossier ftbteams est introuvable sur ce serveur.");
+        fr.put("team.view", "Voir la Team");
+        fr.put("team.name", "Nom :");
+        fr.put("team.type", "Type :");
+        fr.put("team.members", "Membres :");
+        fr.put("team.rank", "Rang :");
+        fr.put("team.click.view", "Cliquez pour voir les membres");
+        fr.put("team.click.tp", "Clic droit : TP à la dernière position");
         translations.put("fr", fr);
     }
 

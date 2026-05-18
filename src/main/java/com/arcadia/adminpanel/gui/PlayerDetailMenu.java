@@ -10,11 +10,13 @@ import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
 import com.arcadia.adminpanel.event.ChatListener;
 import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.LoginTracker;
 import com.arcadia.adminpanel.util.SkullCache;
+import com.arcadia.adminpanel.util.TimeFormat;
 import com.arcadia.adminpanel.util.WarnManager;
-import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -90,20 +92,57 @@ public class PlayerDetailMenu extends ChestMenu {
             this.getContainer().setItem(i, filler.copy());
         }
 
-        // Header — player skull (slot 4)
+        // Header — player skull (slot 4) — login info merged in lore so we don't burn an extra slot.
         var skull = SkullCache.createSkull(targetUUID, targetName);
         skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
                 Component.literal("§e" + targetName));
+
+        boolean french = isFrench(admin);
+        LoginTracker.LoginRecord login = LoginTracker.getInstance().get(targetUUID);
+        long lastLoginMs = login != null ? login.lastLoginMs() : 0L;
+        long firstSeenMs = login != null ? login.firstSeenMs() : 0L;
+        long lastLogoutMs = login != null ? login.lastLogoutMs() : 0L;
+
+        List<Component> lore = new ArrayList<>();
+        lore.add(Component.literal(isOnline
+                ? "§a" + LanguageHelper.getText("player.online", admin)
+                : "§c" + LanguageHelper.getText("player.offline", admin)));
+        lore.add(Component.literal("§7UUID: §8" + targetUUID));
+        lore.add(Component.literal("§7" + LanguageHelper.getText("misc.warns_label", admin)
+                + " §e" + WarnManager.getInstance().getWarnCount(targetUUID)));
+        if (lastLoginMs > 0) {
+            lore.add(Component.literal("§7" + LanguageHelper.getText("info.last_login", admin)
+                    + " §f" + TimeFormat.absolute(lastLoginMs)
+                    + " §8(" + TimeFormat.relative(lastLoginMs, french) + ")"));
+        }
+        if (!isOnline && lastLogoutMs > 0 && lastLogoutMs >= lastLoginMs) {
+            lore.add(Component.literal("§7" + LanguageHelper.getText("info.last_logout", admin)
+                    + " §f" + TimeFormat.absolute(lastLogoutMs)
+                    + " §8(" + TimeFormat.relative(lastLogoutMs, french) + ")"));
+        }
+        if (firstSeenMs > 0) {
+            lore.add(Component.literal("§7" + LanguageHelper.getText("info.first_seen", admin)
+                    + " §f" + TimeFormat.absolute(firstSeenMs)));
+        }
         skull.set(net.minecraft.core.component.DataComponents.LORE,
-                new net.minecraft.world.item.component.ItemLore(List.of(
-                        Component.literal(isOnline
-                                ? "§a" + LanguageHelper.getText("player.online", admin)
-                                : "§c" + LanguageHelper.getText("player.offline", admin)),
-                        Component.literal("§7UUID: " + targetUUID),
-                        Component.literal("§7" + LanguageHelper.getText("misc.warns_label", admin)
-                                + " §e" + WarnManager.getInstance().getWarnCount(targetUUID))
-                )));
+                new net.minecraft.world.item.component.ItemLore(lore));
         this.getContainer().setItem(4, skull);
+
+        // Team button (slot 5) — only if FTB Teams data is loaded AND the player belongs somewhere.
+        if (FTBTeamsReader.isAvailable()) {
+            FTBTeamsReader.Team team = FTBTeamsReader.getEffectiveTeamFor(targetUUID);
+            if (team != null) {
+                this.getContainer().setItem(5, ItemBuilder.of(Items.WHITE_BANNER)
+                        .name(Component.literal("§b" + LanguageHelper.getText("team.view", admin)))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("team.name", admin)
+                                + " §f" + team.displayName))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("team.type", admin)
+                                + " §f" + team.type.name().toLowerCase()))
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("team.members", admin)
+                                + " §e" + team.memberCount()))
+                        .build());
+            }
+        }
 
         // Jail/Unjail (slot 0)
         if (isOnline && JailManager.getInstance().hasJailLocation()) {
@@ -264,6 +303,34 @@ public class PlayerDetailMenu extends ChestMenu {
                 .name(Component.literal("§e" + LanguageHelper.getText("action.back", admin))).build());
     }
 
+    /**
+     * Vanilla Minecraft usernames are constrained to {@code [a-zA-Z0-9_]} with length 3–16. Any
+     * value falling outside this set indicates either an offline-mode server with weird names OR a
+     * crafted name designed to inject arguments into the command string. We reject everything that
+     * doesn't conform — defense in depth so the {@code performPrefixedCommand} concatenations in
+     * this menu cannot be weaponized as command injection.
+     */
+    private static boolean isSafePlayerName(String name) {
+        if (name == null || name.isEmpty() || name.length() > 16) return false;
+        for (int i = 0; i < name.length(); i++) {
+            char c = name.charAt(i);
+            boolean ok = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')
+                    || (c >= '0' && c <= '9') || c == '_';
+            if (!ok) return false;
+        }
+        return true;
+    }
+
+    private static boolean isFrench(ServerPlayer p) {
+        if (p == null) return false;
+        try {
+            String lang = p.clientInformation() != null ? p.clientInformation().language() : null;
+            return lang != null && lang.toLowerCase().startsWith("fr");
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private boolean canUseCommand(String commandLiteral) {
         if (admin == null) return false;
         try {
@@ -317,6 +384,27 @@ public class PlayerDetailMenu extends ChestMenu {
         int warnCount = WarnManager.getInstance().getWarnCount(targetUUID);
         admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("misc.warns_label", admin) + " §e" + warnCount));
 
+        // Login/logout times — pulled from our own tracker rather than FTB's last_seen.time
+        // (which updates on any teleport, not specifically on connect/disconnect).
+        LoginTracker.LoginRecord login = LoginTracker.getInstance().get(targetUUID);
+        boolean french = isFrench(admin);
+        if (login != null) {
+            if (login.lastLoginMs() > 0) {
+                admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.last_login", admin)
+                        + " §f" + TimeFormat.absolute(login.lastLoginMs())
+                        + " §8(" + TimeFormat.relative(login.lastLoginMs(), french) + ")"));
+            }
+            if (!isOnline && login.lastLogoutMs() > 0 && login.lastLogoutMs() >= login.lastLoginMs()) {
+                admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.last_logout", admin)
+                        + " §f" + TimeFormat.absolute(login.lastLogoutMs())
+                        + " §8(" + TimeFormat.relative(login.lastLogoutMs(), french) + ")"));
+            }
+            if (login.firstSeenMs() > 0) {
+                admin.sendSystemMessage(Component.literal("§7" + LanguageHelper.getText("info.first_seen", admin)
+                        + " §f" + TimeFormat.absolute(login.firstSeenMs())));
+            }
+        }
+
         if (!isOnline) {
             FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
             if (ftbData != null && ftbData.lastSeen != null) {
@@ -331,8 +419,20 @@ public class PlayerDetailMenu extends ChestMenu {
     @Override
     public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
         if (!(player instanceof ServerPlayer sp)) return;
+
+        // Defense in depth (1.2.4): every server action triggered by this menu re-checks
+        // arcadia.staff.mod / OP. Open-time gating already exists in AdminPanelMod.canOpenAdminPanel,
+        // but a crafted Container Click packet could re-enter here after the open path; the strict
+        // re-check ensures sensitive actions (ban/kick/clear/tp/invsee/jail/mute/warn) cannot fire
+        // without staff perms even if the open-time guard were ever bypassed.
+        if (!com.arcadia.adminpanel.AdminPanelMod.canOpenAdminPanel(sp)) return;
+
         var clicked = this.getContainer().getItem(slotId);
         if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE)) return;
+
+        // Refuse to build any command involving the target if the cached name is not a vanilla-shaped
+        // identifier — prevents argument injection via crafted offline-mode names.
+        boolean nameSafeForCommands = isSafePlayerName(targetName);
 
         // Reset confirmation state on other click
         if (slotId != 46 && confirmClear) {
@@ -382,6 +482,15 @@ public class PlayerDetailMenu extends ChestMenu {
                     admin.getServer().execute(() -> open(admin, targetUUID, targetName, isOnline));
                 }
             }
+            case 5 -> { // Team view
+                if (FTBTeamsReader.isAvailable()) {
+                    FTBTeamsReader.Team team = FTBTeamsReader.getEffectiveTeamFor(targetUUID);
+                    if (team != null) {
+                        sp.closeContainer();
+                        TeamDetailMenu.open(sp, team.id);
+                    }
+                }
+            }
             case 53 -> { // Back
                 sp.closeContainer();
                 AdminPanelMenu.open(sp);
@@ -391,21 +500,21 @@ public class PlayerDetailMenu extends ChestMenu {
                 sp.closeContainer();
             }
             case 2 -> { // Reset progress
-                if (canUseCommand("advancement")) {
+                if (canUseCommand("advancement") && nameSafeForCommands) {
                     admin.getServer().getCommands().performPrefixedCommand(
                             admin.createCommandSourceStack(), "advancement revoke " + targetName + " everything");
                     admin.closeContainer();
                 }
             }
             case 6 -> { // InvSee
-                if (canUseCommand("invsee")) {
+                if (canUseCommand("invsee") && nameSafeForCommands) {
                     admin.closeContainer();
                     admin.getServer().getCommands().performPrefixedCommand(
                             admin.createCommandSourceStack(), "invsee " + targetName);
                 }
             }
             case 46 -> { // Clear inventory
-                if (canUseCommand("clear")) {
+                if (canUseCommand("clear") && nameSafeForCommands) {
                     if (!confirmClear) {
                         confirmClear = true;
                         SoundHelper.playAt(admin, SoundHelper.CLICK);
@@ -419,17 +528,23 @@ public class PlayerDetailMenu extends ChestMenu {
                     }
                 }
             }
-            case 47 -> { // TP here
+            case 47 -> { // TP here — teleport programmatically (avoid command-string concatenation entirely).
                 if (isOnline && canUseCommand("tp")) {
-                    admin.getServer().getCommands().performPrefixedCommand(
-                            admin.createCommandSourceStack(), "tp " + targetName + " " + admin.getName().getString());
-                    admin.closeContainer();
+                    ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                    if (target != null) {
+                        target.teleportTo(admin.serverLevel(), admin.getX(), admin.getY(), admin.getZ(),
+                                admin.getYRot(), admin.getXRot());
+                        admin.closeContainer();
+                    }
                 }
             }
-            case 48 -> { // TP to / last loc
+            case 48 -> { // TP to / last loc — programmatic for online; FTB last-seen for offline.
                 if (isOnline) {
-                    admin.getServer().getCommands().performPrefixedCommand(
-                            admin.createCommandSourceStack(), "tp " + targetName);
+                    ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                    if (target != null) {
+                        admin.teleportTo(target.serverLevel(), target.getX(), target.getY(), target.getZ(),
+                                admin.getYRot(), admin.getXRot());
+                    }
                 } else {
                     FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
                     if (ftbData != null && ftbData.lastSeen != null) {
@@ -454,23 +569,36 @@ public class PlayerDetailMenu extends ChestMenu {
                     admin.getServer().execute(() -> open(admin, targetUUID, targetName, isOnline));
                 }
             }
-            case 49 -> { // Kick
+            case 49 -> { // Kick — programmatic; avoids command-string injection via crafted names.
                 if (isOnline && canUseCommand("kick")) {
-                    admin.getServer().getCommands().performPrefixedCommand(
-                            admin.createCommandSourceStack(), "kick " + targetName + " " +
-                                    LanguageHelper.getText("misc.admin_action", admin));
-                    admin.closeContainer();
+                    ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                    if (target != null) {
+                        target.connection.disconnect(Component.literal(
+                                LanguageHelper.getText("misc.admin_action", admin)));
+                        admin.closeContainer();
+                    }
                 }
             }
-            case 50 -> { // Ban/Unban
-                var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
-                boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
-                admin.getServer().getCommands().performPrefixedCommand(
-                        admin.createCommandSourceStack(),
-                        isBanned ? "pardon " + targetName : "ban " + targetName + " " +
-                                LanguageHelper.getText("misc.admin_action", admin));
-                admin.closeContainer();
-                open(admin, targetUUID, targetName, isOnline);
+            case 50 -> { // Ban/Unban — programmatic via PlayerList API.
+                if (canUseCommand("ban") || canUseCommand("pardon")) {
+                    var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
+                    var bans = admin.getServer().getPlayerList().getBans();
+                    boolean wasBanned = bans.isBanned(profile);
+                    if (wasBanned) {
+                        bans.remove(profile);
+                    } else {
+                        bans.add(new net.minecraft.server.players.UserBanListEntry(profile, null,
+                                admin.getName().getString(), null,
+                                LanguageHelper.getText("misc.admin_action", admin)));
+                        ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                        if (target != null) {
+                            target.connection.disconnect(Component.literal(
+                                    LanguageHelper.getText("misc.admin_action", admin)));
+                        }
+                    }
+                    admin.closeContainer();
+                    open(admin, targetUUID, targetName, isOnline);
+                }
             }
             case 51 -> { // Warn (chat mode)
                 admin.closeContainer();

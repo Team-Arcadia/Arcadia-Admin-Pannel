@@ -1,6 +1,7 @@
 package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
+import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
 import com.arcadia.adminpanel.util.SkullCache;
@@ -117,6 +118,14 @@ public class AdminPanelMenu extends ChestMenu {
                 .addLore(Component.literal("§7" + LanguageHelper.getText("action.search.hint", admin)))
                 .build());
 
+        // Teams browser (slot 46) — only if FTB Teams data exists on this server.
+        if (FTBTeamsReader.isAvailable()) {
+            this.getContainer().setItem(46, ItemBuilder.of(Items.WHITE_BANNER)
+                    .name(Component.literal("§b" + LanguageHelper.getText("team.browse", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("team.browse.hint", admin)))
+                    .build());
+        }
+
         // Filter toggle (slot 49)
         this.getContainer().setItem(49, ItemBuilder.of(showOffline ? Items.LIME_DYE : Items.GRAY_DYE)
                 .name(Component.literal("§6" + (showOffline
@@ -142,6 +151,8 @@ public class AdminPanelMenu extends ChestMenu {
     @Override
     public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
         if (!(player instanceof ServerPlayer sp)) return;
+        // Defense in depth (1.2.4): re-check staff perms on every click.
+        if (!com.arcadia.adminpanel.AdminPanelMod.canOpenAdminPanel(sp)) return;
         var clicked = this.getContainer().getItem(slotId);
         if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE)) return;
 
@@ -177,6 +188,13 @@ public class AdminPanelMenu extends ChestMenu {
         if (slotId == 47) {
             sp.closeContainer();
             com.arcadia.adminpanel.event.ChatListener.startSearchSession(sp);
+            return;
+        }
+
+        // Teams browser (46)
+        if (slotId == 46 && FTBTeamsReader.isAvailable()) {
+            sp.closeContainer();
+            TeamListMenu.open(sp);
             return;
         }
 

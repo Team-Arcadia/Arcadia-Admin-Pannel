@@ -8,7 +8,9 @@ import com.arcadia.adminpanel.data.WarnTableDefinition;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.event.ChatListener;
 import com.arcadia.adminpanel.util.FTBDataReader;
+import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
+import com.arcadia.adminpanel.util.LoginTracker;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.neoforged.bus.api.IEventBus;
@@ -106,11 +108,13 @@ public class AdminPanelMod {
         // Initialize warn manager (loads from DB or JSON)
         WarnManager.getInstance().init();
         JailManager.getInstance().init();
+        LoginTracker.getInstance().init();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {
         // Clear caches on server stop
         FTBDataReader.clearCache();
+        FTBTeamsReader.clearCache();
     }
 
     /**
@@ -122,7 +126,8 @@ public class AdminPanelMod {
      *       real perm plugin fails closed.</li>
      * </ol>
      */
-    private static boolean canOpenAdminPanel(net.minecraft.server.level.ServerPlayer player) {
+    public static boolean canOpenAdminPanel(net.minecraft.server.level.ServerPlayer player) {
+        if (player == null) return false;
         if (player.hasPermissions(2)) return true;
         return com.arcadia.lib.permissions.PermissionService.hasPermissionStrict(player, "arcadia.staff.mod");
     }

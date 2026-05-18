@@ -93,26 +93,29 @@ public final class JailManager {
         } else {
             loadFromJson();
         }
-        // Re-schedule releases for existing timed jails
+        // Re-schedule releases for existing timed jails. Atomic remove(key, value) ensures the
+        // expiry lambda only fires once even if the entry is mutated/re-jailed in between.
         for (var entry : jailCache.entrySet()) {
             JailEntry jail = entry.getValue();
             if (jail.durationMs() > 0 && !jail.isExpired()) {
                 long remainingMs = jail.getRemainingMs();
                 int delayTicks = Math.max(1, (int) (remainingMs / 50L));
                 UUID uuid = entry.getKey();
+                JailEntry scheduledEntry = jail;
                 SchedulerService.delayed(delayTicks, () -> {
-                    if (jailCache.containsKey(uuid) && jailCache.get(uuid).isExpired()) {
-                        jailCache.remove(uuid);
-                        if (isDatabaseMode()) {
-                            DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
-                        } else {
-                            saveToJson();
+                    if (!jailCache.remove(uuid, scheduledEntry)) return;
+                    if (isDatabaseMode()) {
+                        DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
+                    } else {
+                        saveToJson();
+                    }
+                    var player = com.arcadia.lib.player.PlayerManager.getPlayer(uuid);
+                    if (player != null) {
+                        if (scheduledEntry.previousLocation() != null) {
+                            teleportToPrevious(player, scheduledEntry.previousLocation(), player.getServer());
                         }
-                        var player = com.arcadia.lib.player.PlayerManager.getPlayer(uuid);
-                        if (player != null) {
-                            player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
-                                    LanguageHelper.getText("jail.released", player)));
-                        }
+                        player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
+                                LanguageHelper.getText("jail.released", player)));
                     }
                 });
             }
@@ -200,28 +203,29 @@ public final class JailManager {
             saveToJson();
         }
 
-        // Schedule auto-release (no tick polling)
+        // Schedule auto-release (no tick polling). Use remove(key, value) so we only fire side
+        // effects (DB delete, teleport-back, release message) when WE are the one that evicted
+        // this specific entry — protects against duplicate firing if isJailed() raced and already
+        // cleared it, or if the player was re-jailed in the meantime (different JailEntry value).
         if (durationMs > 0) {
             int delayTicks = (int) (durationMs / 50L); // ms -> ticks
+            JailEntry scheduledEntry = entry;
             SchedulerService.delayed(delayTicks, () -> {
-                JailEntry current = jailCache.get(targetUUID);
-                if (current != null && current.isExpired()) {
-                    jailCache.remove(targetUUID);
-                    if (isDatabaseMode()) {
-                        DatabaseManager.executeAsync(() -> deleteJailDb(targetUUID));
-                    } else {
-                        saveToJson();
-                    }
-                    var player = com.arcadia.lib.player.PlayerManager.getPlayer(targetUUID);
-                    if (player != null) {
-                        if (current.previousLocation() != null) {
-                            teleportToPrevious(player, current.previousLocation(), player.getServer());
-                        }
-                        player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
-                                LanguageHelper.getText("jail.released", player)));
-                    }
-                    LOGGER.info("[AdminPanel] Jail expired for {}", targetUUID);
+                if (!jailCache.remove(targetUUID, scheduledEntry)) return;
+                if (isDatabaseMode()) {
+                    DatabaseManager.executeAsync(() -> deleteJailDb(targetUUID));
+                } else {
+                    saveToJson();
                 }
+                var player = com.arcadia.lib.player.PlayerManager.getPlayer(targetUUID);
+                if (player != null) {
+                    if (scheduledEntry.previousLocation() != null) {
+                        teleportToPrevious(player, scheduledEntry.previousLocation(), player.getServer());
+                    }
+                    player.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
+                            LanguageHelper.getText("jail.released", player)));
+                }
+                LOGGER.info("[AdminPanel] Jail expired for {}", targetUUID);
             });
         }
     }
@@ -267,24 +271,32 @@ public final class JailManager {
     }
 
     public boolean isJailed(UUID uuid) {
-        JailEntry entry = jailCache.get(uuid);
-        if (entry == null) return false;
-        if (entry.isExpired()) {
-            jailCache.remove(uuid);
+        // Atomic check-and-remove: if the entry is expired, computeIfPresent returns null and
+        // performs the removal in one step. Avoids the get+remove race that could let two threads
+        // both observe the same expired entry and trigger duplicate side effects (double DB delete,
+        // double "released" message, double teleport back).
+        JailEntry survivor = jailCache.computeIfPresent(uuid,
+                (k, e) -> e.isExpired() ? null : e);
+        if (survivor == null && jailCache.containsKey(uuid)) {
+            // computeIfPresent returned null AND key is gone — we were the one that evicted it.
+            // Defer DB cleanup; the scheduled expiry lambda also handles this case so we just
+            // ensure JSON state is flushed.
             if (isDatabaseMode()) {
                 DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
             } else {
                 saveToJson();
             }
-            return false;
         }
-        return true;
+        return survivor != null;
     }
 
     @Nullable
     public JailEntry getJailEntry(UUID uuid) {
-        if (!isJailed(uuid)) return null;
-        return jailCache.get(uuid);
+        // Single read — do not re-check via isJailed() which would race with concurrent expiry
+        // and could return null after isJailed() already said true (caller-visible inconsistency).
+        JailEntry entry = jailCache.get(uuid);
+        if (entry == null || entry.isExpired()) return null;
+        return entry;
     }
 
     public Map<UUID, JailEntry> getAllJailed() {
