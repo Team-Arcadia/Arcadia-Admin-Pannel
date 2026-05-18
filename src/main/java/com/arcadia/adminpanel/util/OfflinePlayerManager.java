@@ -76,6 +76,13 @@ public class OfflinePlayerManager {
                         } else {
                             LOGGER.info("[AdminPanel] No FTB Teams data dir at {} (mod not installed?)", teamsDir);
                         }
+                        Path chunksDir = worldDir.resolve("ftbchunks");
+                        if (Files.isDirectory(chunksDir)) {
+                            FTBChunksReader.setBasePath(chunksDir);
+                            LOGGER.info("[AdminPanel] Found FTB Chunks data at: {}", chunksDir);
+                        } else {
+                            LOGGER.info("[AdminPanel] No FTB Chunks data dir at {} (mod not installed?)", chunksDir);
+                        }
                     }
                 } else {
                     LOGGER.warn("[AdminPanel] Could not find FTB Essentials data directory under {} — checked server root, ./world, server.properties level-name, and getWorldPath. Are FTB Essentials installed and the world loaded?", rootPath);

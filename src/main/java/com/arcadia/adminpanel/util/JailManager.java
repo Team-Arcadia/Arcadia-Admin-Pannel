@@ -364,6 +364,88 @@ public final class JailManager {
 
     // ── Database backend ────────────────────────────────────────────────────
 
+    /**
+     * Async per-player refresh from the database. Use on {@code PlayerLoggedInEvent} so a jail
+     * created on another server (different {@code server_id}) propagates here without waiting for
+     * a full restart or {@code /reload}. Runs on the DB pool; the callback re-enters the main
+     * thread before teleporting.
+     *
+     * <p>If the DB row is missing or expired but we have a stale cache entry, we drop the cache
+     * entry too — covers the case where an admin on another server runs {@code /unjail} between
+     * this player's logout and login.</p>
+     */
+    public void refreshFromDatabaseAsync(UUID uuid, Runnable afterApply) {
+        if (!isDatabaseMode()) return;
+        DatabaseManager.executeAsync(() -> {
+            JailEntry fresh = fetchOne(uuid);
+            if (fresh == null) {
+                // No active row in the DB — clear any stale cache entry (cross-server unjail).
+                if (jailCache.remove(uuid) != null) {
+                    LOGGER.info("[AdminPanel] Cross-server unjail synced for {}", uuid);
+                }
+            } else {
+                JailEntry existing = jailCache.get(uuid);
+                if (existing == null || existing.timestamp() != fresh.timestamp()) {
+                    jailCache.put(uuid, fresh);
+                    LOGGER.info("[AdminPanel] Cross-server jail synced for {} (from {})",
+                            uuid, fresh.serverId());
+                    // Schedule auto-release on THIS server if the timer is still ticking.
+                    if (fresh.durationMs() > 0 && !fresh.isExpired()) {
+                        long remainingMs = fresh.getRemainingMs();
+                        int delayTicks = Math.max(1, (int) (remainingMs / 50L));
+                        JailEntry scheduled = fresh;
+                        SchedulerService.delayed(delayTicks, () -> {
+                            if (!jailCache.remove(uuid, scheduled)) return;
+                            DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
+                            var p = com.arcadia.lib.player.PlayerManager.getPlayer(uuid);
+                            if (p != null) {
+                                if (scheduled.previousLocation() != null) {
+                                    teleportToPrevious(p, scheduled.previousLocation(), p.getServer());
+                                }
+                                p.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
+                                        LanguageHelper.getText("jail.released", p)));
+                            }
+                        });
+                    }
+                }
+            }
+            if (afterApply != null) afterApply.run();
+        });
+    }
+
+    @Nullable
+    private JailEntry fetchOne(UUID uuid) {
+        try (Connection conn = DatabaseManager.getConnection();
+             PreparedStatement ps = conn.prepareStatement(
+                     "SELECT reason, jailed_by, server_id, timestamp, duration_ms, "
+                   + "prev_dimension, prev_x, prev_y, prev_z, prev_yaw, prev_pitch "
+                   + "FROM arcadia_admin_jail WHERE player_uuid = ?")) {
+            ps.setString(1, uuid.toString());
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                String prevDim = rs.getString("prev_dimension");
+                PreviousLocation prev = null;
+                if (prevDim != null) {
+                    prev = new PreviousLocation(prevDim,
+                            rs.getDouble("prev_x"), rs.getDouble("prev_y"), rs.getDouble("prev_z"),
+                            rs.getFloat("prev_yaw"), rs.getFloat("prev_pitch"));
+                }
+                JailEntry entry = new JailEntry(
+                        rs.getString("reason"),
+                        rs.getString("jailed_by"),
+                        rs.getLong("timestamp"),
+                        rs.getLong("duration_ms"),
+                        rs.getString("server_id"),
+                        prev
+                );
+                return entry.isExpired() ? null : entry;
+            }
+        } catch (Exception e) {
+            LOGGER.error("[AdminPanel] Failed to fetch jail for {}", uuid, e);
+            return null;
+        }
+    }
+
     private void loadFromDatabase() {
         migrateJailSchema();
         try (Connection conn = DatabaseManager.getConnection();

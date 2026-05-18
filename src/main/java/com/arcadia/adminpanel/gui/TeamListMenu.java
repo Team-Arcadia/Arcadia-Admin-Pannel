@@ -1,6 +1,7 @@
 package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
+import com.arcadia.adminpanel.util.FTBChunksReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import net.minecraft.network.chat.Component;
@@ -84,16 +85,27 @@ public class TeamListMenu extends ChestMenu {
             FTBTeamsReader.Team team = teams.get(i);
             var banner = team.type == FTBTeamsReader.TeamType.SERVER
                     ? Items.PURPLE_BANNER : Items.WHITE_BANNER;
-            this.getContainer().setItem(i - start, ItemBuilder.of(banner)
+            var builder = ItemBuilder.of(banner)
                     .name(Component.literal((team.type == FTBTeamsReader.TeamType.SERVER ? "§5" : "§b")
                             + team.displayName))
                     .addLore(Component.literal("§7" + LanguageHelper.getText("team.type", admin)
                             + " §f" + team.type.name().toLowerCase()))
                     .addLore(Component.literal("§7" + LanguageHelper.getText("team.members", admin)
-                            + " §e" + team.memberCount()))
-                    .addLore(Component.literal("§8" + team.id.toString().substring(0, 8)))
-                    .addLore(Component.literal("§e" + LanguageHelper.getText("team.click.view", admin)))
-                    .build());
+                            + " §e" + team.memberCount()));
+            if (FTBChunksReader.isAvailable()) {
+                FTBChunksReader.ClaimStats st = FTBChunksReader.getStatsFor(team.id);
+                if (st != null) {
+                    builder.addLore(Component.literal("§7" + LanguageHelper.getText("team.claims", admin)
+                            + " §e" + st.totalClaims()
+                            + (st.maxClaims() > 0 ? " §8/ §7" + st.maxClaims() : "")));
+                    builder.addLore(Component.literal("§7" + LanguageHelper.getText("team.force_loaded", admin)
+                            + " §e" + st.forceLoaded()
+                            + (st.maxForceLoaded() > 0 ? " §8/ §7" + st.maxForceLoaded() : "")));
+                }
+            }
+            builder.addLore(Component.literal("§8" + team.id.toString().substring(0, 8)));
+            builder.addLore(Component.literal("§e" + LanguageHelper.getText("team.click.view", admin)));
+            this.getContainer().setItem(i - start, builder.build());
         }
 
         if (teams.isEmpty()) {

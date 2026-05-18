@@ -143,6 +143,11 @@ public class ChatListener {
         if (!(event.getParseResults().getContext().getSource().getEntity() instanceof ServerPlayer sp)) return;
         if (!JailManager.getInstance().isJailed(sp.getUUID())) return;
 
+        // Staff bypass — an admin who jailed themselves (or got jailed by another admin as a prank)
+        // must be able to escape via /arcadia_adminpanel unjail or any other staff command.
+        // Without this, the only way out was a manual DB edit or restart.
+        if (com.arcadia.adminpanel.AdminPanelMod.canOpenAdminPanel(sp)) return;
+
         String command = event.getParseResults().getReader().getString();
         if (!JailManager.getInstance().isCommandAllowed(command)) {
             event.setCanceled(true);
@@ -159,20 +164,33 @@ public class ChatListener {
         // Record connection time for the admin-panel "last login" display.
         com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogin(sp);
 
-        if (JailManager.getInstance().isJailed(sp.getUUID())) {
-            sp.getServer().execute(() -> {
-                JailManager.getInstance().teleportToJail(sp, sp.getServer());
-                JailManager.JailEntry entry = JailManager.getInstance().getJailEntry(sp.getUUID());
-                if (entry != null) {
-                    String remaining = entry.durationMs() > 0
-                            ? TextFormatter.formatMs(entry.getRemainingMs())
-                            : LanguageHelper.getText("jail.permanent", sp);
-                    sp.sendSystemMessage(ArcadiaMessages.error(
-                            LanguageHelper.getText("jail.login.reminder", sp)
-                                    .replace("%time%", remaining)
-                                    .replace("%reason%", entry.reason())));
-                }
-            });
+        // Cross-server jail sync (DB mode only): pull the freshest jail row for this UUID before
+        // deciding whether to teleport. Covers the "jailed on server A, reconnect to B" case where
+        // B's in-memory cache was populated at startup and doesn't know about the new jail yet.
+        // Falls through to the local cache check for JSON-mode (single-server) installs.
+        if (JailManager.getInstance().isDatabaseMode()) {
+            JailManager.getInstance().refreshFromDatabaseAsync(sp.getUUID(),
+                    () -> sp.getServer().execute(() -> applyJailIfNeeded(sp)));
+        } else {
+            applyJailIfNeeded(sp);
+        }
+
+        // Surface active warns on join (configurable via WarnPolicy).
+        com.arcadia.adminpanel.util.WarnPolicy.notifyOnJoin(sp);
+    }
+
+    private static void applyJailIfNeeded(ServerPlayer sp) {
+        if (!JailManager.getInstance().isJailed(sp.getUUID())) return;
+        JailManager.getInstance().teleportToJail(sp, sp.getServer());
+        JailManager.JailEntry entry = JailManager.getInstance().getJailEntry(sp.getUUID());
+        if (entry != null) {
+            String remaining = entry.durationMs() > 0
+                    ? TextFormatter.formatMs(entry.getRemainingMs())
+                    : LanguageHelper.getText("jail.permanent", sp);
+            sp.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("jail.login.reminder", sp)
+                            .replace("%time%", remaining)
+                            .replace("%reason%", entry.reason())));
         }
     }
 
@@ -186,5 +204,6 @@ public class ChatListener {
         searchSessions.remove(uuid);
         StaffChatService.onDisconnect(uuid);
         com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogout(sp);
+        com.arcadia.adminpanel.util.AdminPermissions.invalidate(uuid);
     }
 }

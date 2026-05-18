@@ -3,6 +3,7 @@ package com.arcadia.adminpanel.gui;
 import com.arcadia.lib.ArcadiaMessages;
 import com.arcadia.lib.item.ItemBuilder;
 import com.arcadia.lib.util.SoundHelper;
+import com.arcadia.adminpanel.util.FTBChunksReader;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
@@ -125,14 +126,25 @@ public class TeamDetailMenu extends ChestMenu {
                     .name(Component.literal("§e" + LanguageHelper.getText("nav.next", admin) + " >>")).build());
         }
 
-        this.getContainer().setItem(47, ItemBuilder.of(
+        var headerBuilder = ItemBuilder.of(
                 team.type == FTBTeamsReader.TeamType.SERVER ? Items.PURPLE_BANNER : Items.WHITE_BANNER)
                 .name(Component.literal("§b" + team.displayName))
                 .addLore(Component.literal("§7" + LanguageHelper.getText("team.type", admin)
                         + " §f" + team.type.name().toLowerCase()))
                 .addLore(Component.literal("§7" + LanguageHelper.getText("team.members", admin)
-                        + " §e" + team.memberCount()))
-                .build());
+                        + " §e" + team.memberCount()));
+        if (FTBChunksReader.isAvailable()) {
+            FTBChunksReader.ClaimStats st = FTBChunksReader.getStatsFor(team.id);
+            if (st != null) {
+                headerBuilder.addLore(Component.literal("§7" + LanguageHelper.getText("team.claims", admin)
+                        + " §e" + st.totalClaims()
+                        + (st.maxClaims() > 0 ? " §8/ §7" + st.maxClaims() : "")));
+                headerBuilder.addLore(Component.literal("§7" + LanguageHelper.getText("team.force_loaded", admin)
+                        + " §e" + st.forceLoaded()
+                        + (st.maxForceLoaded() > 0 ? " §8/ §7" + st.maxForceLoaded() : "")));
+            }
+        }
+        this.getContainer().setItem(47, headerBuilder.build());
 
         this.getContainer().setItem(49, backButton());
     }

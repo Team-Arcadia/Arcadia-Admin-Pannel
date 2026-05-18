@@ -7,6 +7,9 @@ import com.arcadia.adminpanel.command.AdminPanelCommand;
 import com.arcadia.adminpanel.data.WarnTableDefinition;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.event.ChatListener;
+import com.arcadia.adminpanel.event.JailEnforcer;
+import com.arcadia.adminpanel.event.LoginQueue;
+import com.arcadia.adminpanel.util.AdminConfig;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
@@ -44,6 +47,8 @@ public class AdminPanelMod {
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
         NeoForge.EVENT_BUS.addListener(this::onServerStopping);
         NeoForge.EVENT_BUS.register(new ChatListener());
+        NeoForge.EVENT_BUS.register(new JailEnforcer());
+        NeoForge.EVENT_BUS.register(new LoginQueue());
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {
@@ -102,10 +107,13 @@ public class AdminPanelMod {
     }
 
     private void onServerStarted(ServerStartedEvent event) {
+        // Load operator config first — every other init may consult it (warn expiry, jail enforce…).
+        AdminConfig.init();
+
         // Initialize offline player manager (async scan)
         OfflinePlayerManager.getInstance().init(event.getServer(), Paths.get("").toAbsolutePath());
 
-        // Initialize warn manager (loads from DB or JSON)
+        // Initialize warn manager (loads from DB or JSON, runs configured purge).
         WarnManager.getInstance().init();
         JailManager.getInstance().init();
         LoginTracker.getInstance().init();
@@ -115,20 +123,23 @@ public class AdminPanelMod {
         // Clear caches on server stop
         FTBDataReader.clearCache();
         FTBTeamsReader.clearCache();
+        com.arcadia.adminpanel.util.FTBChunksReader.clearCache();
+        com.arcadia.adminpanel.util.AdminPermissions.invalidateAll();
     }
 
     /**
      * Strict admin-panel access check. The player must pass at least one of:
      * <ol>
      *   <li>Vanilla OP level &gt;= 2 (set via /op or server.properties — immune to perm-backend state).</li>
-     *   <li>{@code arcadia.staff.mod} via {@link com.arcadia.lib.permissions.PermissionService#hasPermissionStrict}
-     *       — strict means the NOOP fallback returns false instead of true, so a server without a
-     *       real perm plugin fails closed.</li>
+     *   <li>The new granular {@code arcadia.adminpanel.open} node (1.2.4+ permission rework).</li>
+     *   <li>Legacy {@code arcadia.staff.mod} — kept so existing LuckPerms groups don't lose access
+     *       on upgrade. New deployments should grant {@code arcadia.adminpanel.*} instead.</li>
      * </ol>
      */
     public static boolean canOpenAdminPanel(net.minecraft.server.level.ServerPlayer player) {
         if (player == null) return false;
         if (player.hasPermissions(2)) return true;
+        if (com.arcadia.adminpanel.util.AdminPermissions.OPEN.check(player)) return true;
         return com.arcadia.lib.permissions.PermissionService.hasPermissionStrict(player, "arcadia.staff.mod");
     }
 }

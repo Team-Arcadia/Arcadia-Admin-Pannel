@@ -15,6 +15,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.gui.WarnListMenu;
+import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
@@ -39,6 +40,21 @@ import java.util.stream.Stream;
  */
 public final class AdminPanelCommand {
 
+    /**
+     * Requires-predicate for a granular {@link AdminPermissions} node. Non-player sources (console,
+     * command blocks, functions) always pass — preserves automation. Player sources pass if they
+     * have OP level 2 (vanilla short-circuit) OR the granular node OR the legacy {@code arcadia.staff.mod}
+     * node (so existing LuckPerms groups don't lose access).
+     */
+    private static java.util.function.Predicate<CommandSourceStack> require(AdminPermissions perm) {
+        return source -> {
+            if (!(source.getEntity() instanceof ServerPlayer sp)) return source.hasPermission(2);
+            if (sp.hasPermissions(2)) return true;
+            if (perm.check(sp)) return true;
+            return com.arcadia.lib.permissions.PermissionService.hasPermissionStrict(sp, "arcadia.staff.mod");
+        };
+    }
+
     private static final SuggestionProvider<CommandSourceStack> PLAYER_SUGGESTIONS = (context, builder) -> {
         // Online players
         Stream<String> online = context.getSource().getOnlinePlayerNames().stream();
@@ -54,7 +70,7 @@ public final class AdminPanelCommand {
 
                         // /arcadia_adminpanel panel [filter]
                         .then(Commands.literal("panel")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.OPEN))
                                 .executes(ctx -> executePanel(ctx, ""))
                                 .then(Commands.argument("filter", StringArgumentType.greedyString())
                                         .executes(ctx -> executePanel(ctx,
@@ -62,19 +78,19 @@ public final class AdminPanelCommand {
 
                         // /arcadia_adminpanel reload
                         .then(Commands.literal("reload")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.RELOAD))
                                 .executes(AdminPanelCommand::executeReload))
 
                         // /arcadia_adminpanel warn <targets> <reason>
                         .then(Commands.literal("warn")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.WARN_EDIT))
                                 .then(Commands.argument("targets", EntityArgument.players())
                                         .then(Commands.argument("reason", StringArgumentType.greedyString())
                                                 .executes(AdminPanelCommand::executeWarn))))
 
                         // /arcadia_adminpanel warnlist <target>
                         .then(Commands.literal("warnlist")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.WARN_VIEW))
                                 .then(Commands.argument("target", StringArgumentType.string())
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .executes(AdminPanelCommand::executeWarnList)))
@@ -85,7 +101,7 @@ public final class AdminPanelCommand {
 
                         // /arcadia_adminpanel delwarn <target> <index>
                         .then(Commands.literal("delwarn")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.WARN_EDIT))
                                 .then(Commands.argument("target", StringArgumentType.string())
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .then(Commands.argument("index", IntegerArgumentType.integer(1))
@@ -102,7 +118,7 @@ public final class AdminPanelCommand {
 
                         // /arcadia_adminpanel clearwarns <target>
                         .then(Commands.literal("clearwarns")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.WARN_EDIT))
                                 .then(Commands.argument("target", StringArgumentType.string())
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .executes(AdminPanelCommand::executeClearWarns)))
@@ -178,7 +194,7 @@ public final class AdminPanelCommand {
 
                         // /arcadia_adminpanel setjail
                         .then(Commands.literal("setjail")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.SETJAIL))
                                 .executes(ctx -> {
                                     if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
                                     JailManager.getInstance().setJailLocation(sp);
@@ -190,7 +206,7 @@ public final class AdminPanelCommand {
                         // /arcadia_adminpanel jail <player> <minutes> [reason]
                         // minutes = 0 for permanent
                         .then(Commands.literal("jail")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.JAIL))
                                 .then(Commands.argument("target", EntityArgument.player())
                                         .then(Commands.argument("minutes", LongArgumentType.longArg(0))
                                                 .executes(ctx -> executeJail(ctx, null))
@@ -200,14 +216,14 @@ public final class AdminPanelCommand {
 
                         // /arcadia_adminpanel unjail <target>
                         .then(Commands.literal("unjail")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.JAIL))
                                 .then(Commands.argument("target", StringArgumentType.string())
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .executes(AdminPanelCommand::executeUnjail)))
 
                         // /arcadia_adminpanel jaillist
                         .then(Commands.literal("jaillist")
-                                .requires(source -> source.hasPermission(2))
+                                .requires(require(AdminPermissions.JAIL))
                                 .executes(AdminPanelCommand::executeJailList))
         );
     }
@@ -247,9 +263,12 @@ public final class AdminPanelCommand {
 
         source.sendSuccess(() -> ArcadiaMessages.info(LanguageHelper.getText("reload.start", admin)), true);
 
+        com.arcadia.adminpanel.util.AdminConfig.reload();
         OfflinePlayerManager.getInstance().reload(source.getServer());
         FTBDataReader.clearCache();
         FTBTeamsReader.clearCache();
+        com.arcadia.adminpanel.util.FTBChunksReader.clearCache();
+        AdminPermissions.invalidateAll();
         WarnManager.getInstance().reload();
 
         source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);

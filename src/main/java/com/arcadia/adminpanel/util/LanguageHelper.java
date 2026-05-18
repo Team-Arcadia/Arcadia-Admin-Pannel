@@ -134,6 +134,13 @@ public final class LanguageHelper {
         en.put("team.rank", "Rank:");
         en.put("team.click.view", "Click to view members");
         en.put("team.click.tp", "Right-click: TP to last-seen position");
+        en.put("team.claims", "Claims:");
+        en.put("team.force_loaded", "Force-loaded:");
+        en.put("warn.join.header", "You have %count% active warning(s):");
+        en.put("warn.join.expires", "expires in");
+        en.put("warn.join.more", "more — use /arcadia_adminpanel checkwarn to view all.");
+        en.put("warn.join.cmd_hint", "Use /arcadia_adminpanel checkwarn to view details.");
+        en.put("jail.blocked.teleport", "You cannot use teleport items or blocks while jailed.");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -254,6 +261,13 @@ public final class LanguageHelper {
         fr.put("team.rank", "Rang :");
         fr.put("team.click.view", "Cliquez pour voir les membres");
         fr.put("team.click.tp", "Clic droit : TP à la dernière position");
+        fr.put("team.claims", "Claims :");
+        fr.put("team.force_loaded", "Force-loaded :");
+        fr.put("warn.join.header", "Vous avez %count% avertissement(s) actif(s) :");
+        fr.put("warn.join.expires", "expire dans");
+        fr.put("warn.join.more", "de plus — tapez /arcadia_adminpanel checkwarn pour tout voir.");
+        fr.put("warn.join.cmd_hint", "Utilisez /arcadia_adminpanel checkwarn pour les détails.");
+        fr.put("jail.blocked.teleport", "Vous ne pouvez pas utiliser d'objets ou de blocs de téléportation en prison.");
         translations.put("fr", fr);
     }
 

@@ -115,5 +115,12 @@
   "arcadiaadminpanel.team.members": "Members:",
   "arcadiaadminpanel.team.rank": "Rank:",
   "arcadiaadminpanel.team.click.view": "Click to view members",
-  "arcadiaadminpanel.team.click.tp": "Right-click: TP to last-seen position"
+  "arcadiaadminpanel.team.click.tp": "Right-click: TP to last-seen position",
+  "arcadiaadminpanel.team.claims": "Claims:",
+  "arcadiaadminpanel.team.force_loaded": "Force-loaded:",
+  "arcadiaadminpanel.warn.join.header": "You have %count% active warning(s):",
+  "arcadiaadminpanel.warn.join.expires": "expires in",
+  "arcadiaadminpanel.warn.join.more": "more — use /arcadia_adminpanel checkwarn to view all.",
+  "arcadiaadminpanel.warn.join.cmd_hint": "Use /arcadia_adminpanel checkwarn to view details.",
+  "arcadiaadminpanel.jail.blocked.teleport": "You cannot use teleport items or blocks while jailed."
 }

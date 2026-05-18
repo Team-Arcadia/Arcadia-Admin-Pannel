@@ -57,20 +57,42 @@ public class AdminPanelScreen extends ThemedContainerScreen {
         }
     }
 
+    /**
+     * Returns true if {@code slot} should be hidden by the active search query. A slot is hidden
+     * when (1) the slot belongs to the player-head grid (index &lt; 45), (2) it actually holds a
+     * head, and (3) the name doesn't match. Filler glass panes and the bottom action row are
+     * unaffected. Centralised so render + tooltip + click stay in sync.
+     */
+    private boolean isFilteredOut(Slot slot) {
+        if (searchQuery.isEmpty()) return false;
+        if (slot.index >= 45) return false;
+        if (!slot.hasItem()) return false;
+        var stack = slot.getItem();
+        if (!stack.is(Items.PLAYER_HEAD)) return false;
+        String name = stack.getHoverName().getString().toLowerCase()
+                .replaceAll("§[0-9a-fk-or]", "");
+        return !name.contains(searchQuery);
+    }
+
     @Override
     protected void renderSlot(@NotNull GuiGraphics g, @NotNull Slot slot) {
-        super.renderSlot(g, slot);
-
-        if (!searchQuery.isEmpty() && slot.index < 45 && slot.hasItem()) {
-            var stack = slot.getItem();
-            if (stack.is(Items.PLAYER_HEAD)) {
-                String name = stack.getHoverName().getString().toLowerCase()
-                        .replaceAll("§[0-9a-fk-or]", "");
-                if (!name.contains(searchQuery)) {
-                    g.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0xCC0A0810);
-                }
-            }
+        if (isFilteredOut(slot)) {
+            // Skip rendering entirely — no head, no name overlay, no count. Paint a flat fill so
+            // the slot looks deliberately empty rather than darkened. Previously we drew a 0xCC
+            // overlay ON TOP of the still-visible head which was unreadable when many heads were
+            // filtered at once.
+            g.fill(slot.x, slot.y, slot.x + 16, slot.y + 16, 0xFF161018);
+            return;
         }
+        super.renderSlot(g, slot);
+    }
+
+    @Override
+    protected void renderTooltip(@NotNull GuiGraphics g, int mouseX, int mouseY) {
+        // Suppress the vanilla "hovered slot tooltip" when the slot is filtered out — otherwise
+        // the player's name floats over the blank square and looks broken.
+        if (this.hoveredSlot != null && isFilteredOut(this.hoveredSlot)) return;
+        super.renderTooltip(g, mouseX, mouseY);
     }
 
     @Override
@@ -95,17 +117,7 @@ public class AdminPanelScreen extends ThemedContainerScreen {
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (!searchQuery.isEmpty() && this.hoveredSlot != null && this.hoveredSlot.index < 45
-                && this.hoveredSlot.hasItem()) {
-            var stack = this.hoveredSlot.getItem();
-            if (stack.is(Items.PLAYER_HEAD)) {
-                String name = stack.getHoverName().getString().toLowerCase()
-                        .replaceAll("§[0-9a-fk-or]", "");
-                if (!name.contains(searchQuery)) {
-                    return false;
-                }
-            }
-        }
+        if (this.hoveredSlot != null && isFilteredOut(this.hoveredSlot)) return false;
         return super.mouseClicked(mouseX, mouseY, button);
     }
 }

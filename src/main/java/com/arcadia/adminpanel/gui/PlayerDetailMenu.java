@@ -9,6 +9,8 @@ import com.arcadia.lib.text.MessageHelper;
 import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
 import com.arcadia.adminpanel.event.ChatListener;
+import com.arcadia.adminpanel.util.AdminPermissions;
+import com.arcadia.adminpanel.util.FTBChunksReader;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
@@ -128,24 +130,37 @@ public class PlayerDetailMenu extends ChestMenu {
                 new net.minecraft.world.item.component.ItemLore(lore));
         this.getContainer().setItem(4, skull);
 
-        // Team button (slot 5) — only if FTB Teams data is loaded AND the player belongs somewhere.
-        if (FTBTeamsReader.isAvailable()) {
+        // Team button (slot 5) — only if FTB Teams data is loaded AND the player belongs somewhere
+        // AND the viewer has the TEAMS perm. Now also surfaces FTB Chunks claim count.
+        if (FTBTeamsReader.isAvailable() && AdminPermissions.TEAMS.check(admin)) {
             FTBTeamsReader.Team team = FTBTeamsReader.getEffectiveTeamFor(targetUUID);
             if (team != null) {
-                this.getContainer().setItem(5, ItemBuilder.of(Items.WHITE_BANNER)
+                var builder = ItemBuilder.of(Items.WHITE_BANNER)
                         .name(Component.literal("§b" + LanguageHelper.getText("team.view", admin)))
                         .addLore(Component.literal("§7" + LanguageHelper.getText("team.name", admin)
                                 + " §f" + team.displayName))
                         .addLore(Component.literal("§7" + LanguageHelper.getText("team.type", admin)
                                 + " §f" + team.type.name().toLowerCase()))
                         .addLore(Component.literal("§7" + LanguageHelper.getText("team.members", admin)
-                                + " §e" + team.memberCount()))
-                        .build());
+                                + " §e" + team.memberCount()));
+                if (FTBChunksReader.isAvailable()) {
+                    FTBChunksReader.ClaimStats st = FTBChunksReader.getStatsFor(team.id);
+                    if (st != null) {
+                        builder.addLore(Component.literal("§7" + LanguageHelper.getText("team.claims", admin)
+                                + " §e" + st.totalClaims()
+                                + (st.maxClaims() > 0 ? " §8/ §7" + st.maxClaims() : "")));
+                        builder.addLore(Component.literal("§7" + LanguageHelper.getText("team.force_loaded", admin)
+                                + " §e" + st.forceLoaded()
+                                + (st.maxForceLoaded() > 0 ? " §8/ §7" + st.maxForceLoaded() : "")));
+                    }
+                }
+                this.getContainer().setItem(5, builder.build());
             }
         }
 
-        // Jail/Unjail (slot 0)
-        if (isOnline && JailManager.getInstance().hasJailLocation()) {
+        // Jail/Unjail (slot 0). Visibility gate on the new JAIL node — moderators without it
+        // simply don't see the button.
+        if (isOnline && JailManager.getInstance().hasJailLocation() && AdminPermissions.JAIL.check(admin)) {
             boolean isJailed = JailManager.getInstance().isJailed(targetUUID);
             if (isJailed) {
                 JailManager.JailEntry jail = JailManager.getInstance().getJailEntry(targetUUID);
@@ -166,14 +181,14 @@ public class PlayerDetailMenu extends ChestMenu {
             }
         }
 
-        // Reset progress (slot 2)
-        if (canUseCommand("advancement")) {
+        // Reset progress (slot 2) — granular perm AND vanilla command availability.
+        if (canUseCommand("advancement") && AdminPermissions.RESET_PROGRESS.check(admin)) {
             this.getContainer().setItem(2, ItemBuilder.of(Items.EXPERIENCE_BOTTLE)
                     .name(Component.literal("§e" + LanguageHelper.getText("action.resetprog", admin))).build());
         }
 
         // InvSee (slot 6)
-        if (canUseCommand("invsee")) {
+        if (canUseCommand("invsee") && AdminPermissions.INVSEE.check(admin)) {
             this.getContainer().setItem(6, ItemBuilder.of(Items.CHEST)
                     .name(Component.literal("§6" + LanguageHelper.getText("action.invsee", admin))).build());
         }
@@ -220,8 +235,8 @@ public class PlayerDetailMenu extends ChestMenu {
 
         // ── Action bar (row 6) ──────────────────────────────────────────────
 
-        // Mute/Unmute (slot 45) — requires MOD staff role
-        if (isOnline && StaffService.getRole(admin).atLeast(StaffRole.MOD)) {
+        // Mute/Unmute (slot 45) — needs both vanilla staff role (lib gating) and granular perm.
+        if (isOnline && StaffService.getRole(admin).atLeast(StaffRole.MOD) && AdminPermissions.MUTE.check(admin)) {
             boolean isMuted = StaffActions.isMuted(targetUUID);
             if (isMuted) {
                 long remaining = StaffActions.getMuteRemaining(targetUUID);
@@ -242,7 +257,7 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         // Clear inventory (slot 46)
-        if (canUseCommand("clear")) {
+        if (canUseCommand("clear") && AdminPermissions.CLEAR_INV.check(admin)) {
             this.getContainer().setItem(46, ItemBuilder.of(confirmClear ? Items.REDSTONE_BLOCK : Items.LAVA_BUCKET)
                     .name(Component.literal((confirmClear ? "§c§l" : "§c") +
                             (confirmClear ? LanguageHelper.getText("misc.confirm", admin)
@@ -251,13 +266,13 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         // TP here (slot 47)
-        if (isOnline && canUseCommand("tp")) {
+        if (isOnline && canUseCommand("tp") && AdminPermissions.TELEPORT.check(admin)) {
             this.getContainer().setItem(47, ItemBuilder.of(Items.ENDER_EYE)
                     .name(Component.literal("§d" + LanguageHelper.getText("action.tp_here", admin))).build());
         }
 
         // TP to / last location (slot 48)
-        if (canUseCommand("tp")) {
+        if (canUseCommand("tp") && AdminPermissions.TELEPORT.check(admin)) {
             if (isOnline) {
                 this.getContainer().setItem(48, ItemBuilder.of(Items.ENDER_PEARL)
                         .name(Component.literal("§a" + LanguageHelper.getText("action.tp", admin))).build());
@@ -271,13 +286,13 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         // Kick (slot 49)
-        if (isOnline && canUseCommand("kick")) {
+        if (isOnline && canUseCommand("kick") && AdminPermissions.KICK.check(admin)) {
             this.getContainer().setItem(49, ItemBuilder.of(Items.IRON_BOOTS)
                     .name(Component.literal("§c" + LanguageHelper.getText("action.kick", admin))).build());
         }
 
         // Ban/Unban (slot 50)
-        if (canUseCommand("ban") || canUseCommand("pardon")) {
+        if ((canUseCommand("ban") || canUseCommand("pardon")) && AdminPermissions.BAN.check(admin)) {
             var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
             boolean isBanned = admin.getServer().getPlayerList().getBans().isBanned(profile);
             this.getContainer().setItem(50, ItemBuilder.of(isBanned ? Items.LIME_DYE : Items.RED_DYE)
@@ -288,15 +303,19 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         // Warn (slot 51)
-        this.getContainer().setItem(51, ItemBuilder.of(Items.TNT)
-                .name(Component.literal("§c" + LanguageHelper.getText("action.warn", admin))).build());
+        if (AdminPermissions.WARN_EDIT.check(admin)) {
+            this.getContainer().setItem(51, ItemBuilder.of(Items.TNT)
+                    .name(Component.literal("§c" + LanguageHelper.getText("action.warn", admin))).build());
+        }
 
-        // View warns (slot 52)
-        this.getContainer().setItem(52, ItemBuilder.of(Items.WRITABLE_BOOK)
-                .name(Component.literal("§e" + LanguageHelper.getText("action.warn_list", admin)))
-                .addLore(Component.literal("§7" + String.format(
-                        LanguageHelper.getText("misc.warn_count", admin), WarnManager.getInstance().getWarnCount(targetUUID))))
-                .build());
+        // View warns (slot 52) — view-only perm is enough.
+        if (AdminPermissions.WARN_VIEW.check(admin)) {
+            this.getContainer().setItem(52, ItemBuilder.of(Items.WRITABLE_BOOK)
+                    .name(Component.literal("§e" + LanguageHelper.getText("action.warn_list", admin)))
+                    .addLore(Component.literal("§7" + String.format(
+                            LanguageHelper.getText("misc.warn_count", admin), WarnManager.getInstance().getWarnCount(targetUUID))))
+                    .build());
+        }
 
         // Back (slot 53)
         this.getContainer().setItem(53, ItemBuilder.of(Items.ARROW)
@@ -420,11 +439,8 @@ public class PlayerDetailMenu extends ChestMenu {
     public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
         if (!(player instanceof ServerPlayer sp)) return;
 
-        // Defense in depth (1.2.4): every server action triggered by this menu re-checks
-        // arcadia.staff.mod / OP. Open-time gating already exists in AdminPanelMod.canOpenAdminPanel,
-        // but a crafted Container Click packet could re-enter here after the open path; the strict
-        // re-check ensures sensitive actions (ban/kick/clear/tp/invsee/jail/mute/warn) cannot fire
-        // without staff perms even if the open-time guard were ever bypassed.
+        // Open-panel gate first (cheap, cached). Every individual action additionally re-checks its
+        // own granular node below — so a packet-crafted click on slot 50 still has to pass BAN.
         if (!com.arcadia.adminpanel.AdminPanelMod.canOpenAdminPanel(sp)) return;
 
         var clicked = this.getContainer().getItem(slotId);
@@ -443,6 +459,7 @@ public class PlayerDetailMenu extends ChestMenu {
 
         switch (slotId) {
             case 0 -> { // Jail/Unjail
+                if (!AdminPermissions.JAIL.check(sp)) return;
                 if (isOnline && JailManager.getInstance().hasJailLocation()) {
                     boolean isJailed = JailManager.getInstance().isJailed(targetUUID);
                     if (isJailed) {
@@ -483,6 +500,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 5 -> { // Team view
+                if (!AdminPermissions.TEAMS.check(sp)) return;
                 if (FTBTeamsReader.isAvailable()) {
                     FTBTeamsReader.Team team = FTBTeamsReader.getEffectiveTeamFor(targetUUID);
                     if (team != null) {
@@ -500,6 +518,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 sp.closeContainer();
             }
             case 2 -> { // Reset progress
+                if (!AdminPermissions.RESET_PROGRESS.check(sp)) return;
                 if (canUseCommand("advancement") && nameSafeForCommands) {
                     admin.getServer().getCommands().performPrefixedCommand(
                             admin.createCommandSourceStack(), "advancement revoke " + targetName + " everything");
@@ -507,6 +526,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 6 -> { // InvSee
+                if (!AdminPermissions.INVSEE.check(sp)) return;
                 if (canUseCommand("invsee") && nameSafeForCommands) {
                     admin.closeContainer();
                     admin.getServer().getCommands().performPrefixedCommand(
@@ -514,6 +534,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 46 -> { // Clear inventory
+                if (!AdminPermissions.CLEAR_INV.check(sp)) return;
                 if (canUseCommand("clear") && nameSafeForCommands) {
                     if (!confirmClear) {
                         confirmClear = true;
@@ -529,6 +550,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 47 -> { // TP here — teleport programmatically (avoid command-string concatenation entirely).
+                if (!AdminPermissions.TELEPORT.check(sp)) return;
                 if (isOnline && canUseCommand("tp")) {
                     ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
                     if (target != null) {
@@ -539,6 +561,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 48 -> { // TP to / last loc — programmatic for online; FTB last-seen for offline.
+                if (!AdminPermissions.TELEPORT.check(sp)) return;
                 if (isOnline) {
                     ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
                     if (target != null) {
@@ -555,6 +578,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 admin.closeContainer();
             }
             case 45 -> { // Mute/Unmute
+                if (!AdminPermissions.MUTE.check(sp)) return;
                 if (isOnline && StaffService.getRole(admin).atLeast(StaffRole.MOD)) {
                     boolean isMuted = StaffActions.isMuted(targetUUID);
                     if (isMuted) {
@@ -570,6 +594,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 49 -> { // Kick — programmatic; avoids command-string injection via crafted names.
+                if (!AdminPermissions.KICK.check(sp)) return;
                 if (isOnline && canUseCommand("kick")) {
                     ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
                     if (target != null) {
@@ -580,6 +605,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 50 -> { // Ban/Unban — programmatic via PlayerList API.
+                if (!AdminPermissions.BAN.check(sp)) return;
                 if (canUseCommand("ban") || canUseCommand("pardon")) {
                     var profile = new com.mojang.authlib.GameProfile(targetUUID, targetName);
                     var bans = admin.getServer().getPlayerList().getBans();
@@ -601,10 +627,12 @@ public class PlayerDetailMenu extends ChestMenu {
                 }
             }
             case 51 -> { // Warn (chat mode)
+                if (!AdminPermissions.WARN_EDIT.check(sp)) return;
                 admin.closeContainer();
                 ChatListener.startWarnSession(admin, targetUUID, targetName);
             }
             case 52 -> { // View warns
+                if (!AdminPermissions.WARN_VIEW.check(sp)) return;
                 admin.closeContainer();
                 WarnListMenu.open(admin, targetUUID, targetName);
             }

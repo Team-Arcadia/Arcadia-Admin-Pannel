@@ -60,13 +60,15 @@ public final class WarnManager {
         return INSTANCE;
     }
 
-    /** Initialize: load from appropriate backend. */
+    /** Initialize: load from appropriate backend, then enforce the configured TTL. */
     public void init() {
         if (isDatabaseMode()) {
             loadFromDatabase();
         } else {
             loadFromJson();
         }
+        // Purge entries older than the configured TTL. Honours warnExpiryDays=0 (no expiry).
+        WarnPolicy.purgeExpired();
         LOGGER.info("[AdminPanel] WarnManager initialized ({} mode, {} players cached)",
                 isDatabaseMode() ? "database" : "json", warnCache.size());
     }
@@ -249,5 +251,41 @@ public final class WarnManager {
     public void reload() {
         warnCache.clear();
         init();
+    }
+
+    /**
+     * Drops every warn whose timestamp is older than {@code cutoffMs}. Returns the total number
+     * removed. Used by {@link WarnPolicy#purgeExpired()} on init and reload — the config-driven
+     * auto-expiry path. Touches both the in-memory cache and the active backend (DB or JSON) in
+     * one atomic-ish pass so reads stay consistent.
+     */
+    public int purgeOlderThan(long cutoffMs) {
+        int removed = 0;
+        for (var iter = warnCache.entrySet().iterator(); iter.hasNext(); ) {
+            var e = iter.next();
+            List<WarnEntry> list = e.getValue();
+            synchronized (list) {
+                int before = list.size();
+                list.removeIf(w -> w.timestamp() < cutoffMs);
+                removed += before - list.size();
+                if (list.isEmpty()) iter.remove();
+            }
+        }
+        if (removed == 0) return 0;
+        if (isDatabaseMode()) {
+            DatabaseManager.executeAsync(() -> {
+                try (Connection conn = DatabaseManager.getConnection();
+                     PreparedStatement ps = conn.prepareStatement(
+                             "DELETE FROM arcadia_admin_warns WHERE timestamp < ?")) {
+                    ps.setLong(1, cutoffMs);
+                    ps.executeUpdate();
+                } catch (Exception ex) {
+                    LOGGER.error("[AdminPanel] Failed to purge expired warns from DB", ex);
+                }
+            });
+        } else {
+            saveToJson();
+        }
+        return removed;
     }
 }

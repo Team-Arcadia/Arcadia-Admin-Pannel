@@ -44,7 +44,12 @@ Arcadia Admin Panel is a lightweight, optimized server management tool designed 
 | **FTB Integration** | View player homes, last seen location, teleport history (FTB Essentials) |
 | **Login Tracking** | Per-player last login / last logout / first seen timestamps surfaced in the GUI |
 | **FTB Teams Browser** | Browse all parties + server teams, view members, TP to a member's last-known position |
-| **Permission-Aware** | Action buttons hidden based on permissions. Compatible with LuckPerms |
+| **FTB Chunks Stats** | Per-team claim count + force-loaded chunk count displayed in the GUI |
+| **Granular Permissions** | One LuckPerms node per action (`arcadia.adminpanel.warn.edit`, `.ban`, `.mute`, …); buttons hidden if not granted |
+| **Cross-Server Jail Sync** | Jail set on one server propagates instantly when the player connects to another |
+| **Anti-Glitch Jail** | Cancels pearls/chorus/waystones + periodic proximity sweep to bounce escapees back |
+| **Login Queue** | Optional connection throttle so post-reboot bursts don't melt heavy modpacks |
+| **Warn Auto-Expiry** | Configurable TTL (default 6 months); active warns shown to players on join |
 | **Optimized** | Thread-safe collections, async database operations, atomic file writes, tick-friendly |
 
 ## Commands
@@ -92,6 +97,33 @@ All commands use the prefix `/arcadia_adminpanel`.
 Installing on the client enables the steampunk ArcadiaTheme rendering for all admin menus. The mod works without client installation (vanilla chest rendering).
 
 ## Configuration
+
+### Mod Settings
+All tunables live in `config/arcadia/arcadiaadminpanel/config.json` (auto-created on first run):
+
+| Key | Default | Description |
+|---|---|---|
+| `warnExpiryDays` | `180` | Auto-delete warns older than N days. `0` disables. |
+| `warnNotifyOnJoin` | `true` | Send active-warn summary in chat when a player joins. |
+| `loginQueueEnabled` | `false` | Master switch for the post-reboot connection throttle. |
+| `loginQueueMaxPerWindow` | `4` | Concurrent logins allowed per window. |
+| `loginQueueWindowSeconds` | `10` | Window size in seconds. |
+| `loginQueueMaxWaitMs` | `60000` | Hard cap on per-player queue wait. |
+| `jailEnforceProximity` | `true` | Run the periodic proximity sweep for jailed players. |
+| `jailProximityRadius` | `32` | Radius (blocks) from jail point before re-teleport. |
+| `jailEnforceTickInterval` | `20` | Sweep interval in ticks (20 = 1 s). |
+
+### Permission Nodes
+| Node | Purpose |
+|---|---|
+| `arcadia.adminpanel.open` | Open the admin panel at all |
+| `arcadia.adminpanel.warn.view` / `.edit` | View or edit warns |
+| `arcadia.adminpanel.teleport` / `.invsee` / `.clearinv` / `.resetprogress` | Per-button gates |
+| `arcadia.adminpanel.kick` / `.ban` / `.mute` / `.jail` | Moderation actions |
+| `arcadia.adminpanel.teams` | Open the FTB Teams browser |
+| `arcadia.adminpanel.reload` / `.setjail` / `.loginqueue` | High-impact admin |
+
+OP level >= 2 always passes; legacy `arcadia.staff.mod` still grants full access for backwards compatibility.
 
 ### Warning Storage
 By default, warnings are stored in `config/arcadia/arcadiaadminpanel/warns.json` (local JSON).
