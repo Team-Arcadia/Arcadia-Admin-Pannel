@@ -237,6 +237,14 @@ public final class AdminPanelCommand {
                                 .requires(require(AdminPermissions.JAIL))
                                 .executes(AdminPanelCommand::executeJailList))
 
+                        // /arcadia_adminpanel announce <title> [| <subtitle>] — server-wide flash
+                        // announcement. Title and optional subtitle are split on a single literal
+                        // pipe character so the whole message fits in one greedy argument.
+                        .then(Commands.literal("announce")
+                                .requires(require(AdminPermissions.ANNOUNCE))
+                                .then(Commands.argument("message", StringArgumentType.greedyString())
+                                        .executes(AdminPanelCommand::executeAnnounce)))
+
                         // /arcadia_adminpanel givebaton — drops a Jail Baton into the staff member's
                         // inventory. Gated on JAIL since the item itself is gated on JAIL.
                         .then(Commands.literal("givebaton")
@@ -255,6 +263,67 @@ public final class AdminPanelCommand {
                                     return 1;
                                 }))
         );
+    }
+
+    /**
+     * Server-wide announcement: pushes a vanilla title + optional subtitle to every online player
+     * and plays a chime so people actually notice. Syntax:
+     * {@code /arcadia_adminpanel announce <title>[| <subtitle>]} — the single pipe character is
+     * the separator. Color codes (§a, &amp;c, …) are honoured in both title and subtitle.
+     *
+     * <p>Sound: vanilla {@code BLOCK_NOTE_BLOCK_BELL} at every player's position with a slight
+     * pitch boost — close enough to a PA chime that players look up, gentle enough that it
+     * doesn't blow earpieces. Title timings: 10t fade-in, 60t hold (3 s), 20t fade-out — feels
+     * snappy without being annoying.</p>
+     */
+    private static int executeAnnounce(CommandContext<CommandSourceStack> ctx) {
+        try {
+            String raw = StringArgumentType.getString(ctx, "message").trim();
+            if (raw.isEmpty()) return 0;
+
+            String titleText;
+            String subtitleText;
+            int pipe = raw.indexOf('|');
+            if (pipe < 0) {
+                titleText = raw;
+                subtitleText = null;
+            } else {
+                titleText = raw.substring(0, pipe).trim();
+                String after = raw.substring(pipe + 1).trim();
+                subtitleText = after.isEmpty() ? null : after;
+            }
+            if (titleText.isEmpty()) {
+                ctx.getSource().sendFailure(ArcadiaMessages.error(
+                        LanguageHelper.getText("announce.empty",
+                                ctx.getSource().getEntity() instanceof ServerPlayer sp ? sp : null)));
+                return 0;
+            }
+
+            // Honour vanilla & color codes (&a -> §a) so staff can colour titles inline.
+            Component title = Component.literal(net.minecraft.util.StringUtil.filterText(
+                    titleText.replace('&', '§')));
+            Component subtitle = subtitleText == null ? null : Component.literal(
+                    net.minecraft.util.StringUtil.filterText(subtitleText.replace('&', '§')));
+
+            var server = ctx.getSource().getServer();
+            int count = 0;
+            for (ServerPlayer target : server.getPlayerList().getPlayers()) {
+                com.arcadia.lib.text.MessageHelper.sendTitle(target, title, subtitle, 10, 60, 20);
+                com.arcadia.lib.util.SoundHelper.playAt(target,
+                        net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BELL.value(), 1.0f, 1.2f);
+                count++;
+            }
+
+            ServerPlayer admin = ctx.getSource().getEntity() instanceof ServerPlayer sp ? sp : null;
+            final int delivered = count;
+            ctx.getSource().sendSuccess(() -> ArcadiaMessages.success(
+                    LanguageHelper.getText("announce.success", admin)
+                            .replace("%count%", String.valueOf(delivered))), true);
+            return delivered;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
     }
 
     private static int executeMute(CommandContext<CommandSourceStack> ctx, String reason) {

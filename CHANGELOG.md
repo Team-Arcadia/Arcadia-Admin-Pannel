@@ -6,6 +6,14 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ## [1.2.4] - 2026-05-18 (latest)
 
+### Added (fourth pass)
+
+- **Quick announcement command** — New `/arcadia_adminpanel announce <title>[| <subtitle>]`. Pushes a vanilla title + optional subtitle to every online player and plays a `BLOCK_NOTE_BLOCK_BELL` chime so people actually notice. Title and subtitle are split on a single `|` so the whole message fits in one greedy argument. Color codes (`&a`, `&c`, `§e`, …) are honoured inline so staff can style the title without typing the section character. Title timings: 10t fade-in / 60t hold / 20t fade-out. New permission node `arcadia.adminpanel.announce` gates it (OP level ≥ 2 still short-circuits).
+
+### Ajouts (fourth pass)
+
+- **Commande d'annonce rapide** — Nouvelle `/arcadia_adminpanel announce <titre>[| <sous-titre>]`. Envoie un title + sous-titre vanilla à chaque joueur en ligne et joue un son `BLOCK_NOTE_BLOCK_BELL` pour que les gens remarquent. Titre et sous-titre sont séparés par un seul `|` pour que tout le message tienne dans un argument greedy. Les codes couleur (`&a`, `&c`, `§e`, …) sont respectés inline donc le staff peut styliser le titre sans taper le caractère section. Durées du titre : 10t fade-in / 60t hold / 20t fade-out. Nouveau node de permission `arcadia.adminpanel.announce` qui gate la commande (OP level ≥ 2 court-circuite toujours).
+
 ### Added (third pass)
 
 - **Jail Baton (matraque) item** — Custom 32×32 textured staff tool. Right-click another player to jail them for 30 minutes; right-click an already-jailed player to release them. Wielder must have `arcadia.adminpanel.jail` (same gate as the GUI jail button). Cannot baton yourself, cannot baton other staff members (`canOpenAdminPanel` immunity check). New command `/arcadia_adminpanel givebaton` drops one into the staff member's inventory. Stack size 1, RARE rarity, fire-resistant. Hand model uses the vanilla handheld pose so it looks like a tool when held.

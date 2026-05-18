@@ -149,6 +149,8 @@ public final class LanguageHelper {
         en.put("baton.no_self", "You cannot baton yourself.");
         en.put("baton.no_staff", "You cannot baton other staff members.");
         en.put("baton.given", "Jail Baton added to your inventory.");
+        en.put("announce.empty", "Announcement title cannot be empty.");
+        en.put("announce.success", "Announcement sent to %count% player(s).");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -284,6 +286,8 @@ public final class LanguageHelper {
         fr.put("baton.no_self", "Vous ne pouvez pas vous matraquer vous-même.");
         fr.put("baton.no_staff", "Vous ne pouvez pas matraquer un autre membre du staff.");
         fr.put("baton.given", "Matraque de Prison ajoutée à votre inventaire.");
+        fr.put("announce.empty", "Le titre de l'annonce ne peut pas être vide.");
+        fr.put("announce.success", "Annonce envoyée à %count% joueur(s).");
         translations.put("fr", fr);
     }
 

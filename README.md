@@ -42,6 +42,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `unjail <player>` | `arcadia.adminpanel.jail` | Release a jailed player |
 | `jaillist` | `arcadia.adminpanel.jail` | List currently-jailed players |
 | `givebaton` | `arcadia.adminpanel.jail` | Add a Jail Baton to your inventory |
+| `announce <title>[\| <subtitle>]` | `arcadia.adminpanel.announce` | Server-wide title + subtitle + chime |
 
 ## Requirements
 
@@ -147,6 +148,7 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `unjail <joueur>` | `arcadia.adminpanel.jail` | Libérer un joueur emprisonné |
 | `jaillist` | `arcadia.adminpanel.jail` | Lister les joueurs en prison |
 | `givebaton` | `arcadia.adminpanel.jail` | Ajouter une Matraque de Prison à votre inventaire |
+| `announce <titre>[\| <sous-titre>]` | `arcadia.adminpanel.announce` | Title + sous-titre + son pour tout le serveur |
 
 ## Prérequis
 

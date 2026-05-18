@@ -61,7 +61,9 @@ public enum AdminPermissions {
     /** Set the jail location (high-impact admin action). */
     SETJAIL("arcadia.adminpanel.setjail"),
     /** Toggle the login queue. */
-    LOGIN_QUEUE("arcadia.adminpanel.loginqueue");
+    LOGIN_QUEUE("arcadia.adminpanel.loginqueue"),
+    /** Broadcast a server-wide title + subtitle announcement. */
+    ANNOUNCE("arcadia.adminpanel.announce");
 
     public final String node;
     AdminPermissions(String node) { this.node = node; }

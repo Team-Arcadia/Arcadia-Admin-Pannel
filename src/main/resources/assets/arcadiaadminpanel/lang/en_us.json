@@ -131,5 +131,7 @@
   "arcadiaadminpanel.baton.no_self": "You cannot baton yourself.",
   "arcadiaadminpanel.baton.no_staff": "You cannot baton other staff members.",
   "arcadiaadminpanel.baton.given": "Jail Baton added to your inventory.",
-  "item.arcadiaadminpanel.jail_baton": "Jail Baton"
+  "item.arcadiaadminpanel.jail_baton": "Jail Baton",
+  "arcadiaadminpanel.announce.empty": "Announcement title cannot be empty.",
+  "arcadiaadminpanel.announce.success": "Announcement sent to %count% player(s)."
 }

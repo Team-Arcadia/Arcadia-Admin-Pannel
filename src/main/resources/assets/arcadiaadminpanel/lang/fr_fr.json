@@ -131,5 +131,7 @@
   "arcadiaadminpanel.baton.no_self": "Vous ne pouvez pas vous matraquer vous-même.",
   "arcadiaadminpanel.baton.no_staff": "Vous ne pouvez pas matraquer un autre membre du staff.",
   "arcadiaadminpanel.baton.given": "Matraque de Prison ajoutée à votre inventaire.",
-  "item.arcadiaadminpanel.jail_baton": "Matraque de Prison"
+  "item.arcadiaadminpanel.jail_baton": "Matraque de Prison",
+  "arcadiaadminpanel.announce.empty": "Le titre de l'annonce ne peut pas être vide.",
+  "arcadiaadminpanel.announce.success": "Annonce envoyée à %count% joueur(s)."
 }
