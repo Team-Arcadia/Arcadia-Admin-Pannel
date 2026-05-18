@@ -50,6 +50,8 @@ Arcadia Admin Panel is a lightweight, optimized server management tool designed 
 | **Anti-Glitch Jail** | Cancels pearls/chorus/waystones + periodic proximity sweep to bounce escapees back |
 | **Login Queue** | Optional connection throttle so post-reboot bursts don't melt heavy modpacks |
 | **Warn Auto-Expiry** | Configurable TTL (default 6 months); active warns shown to players on join |
+| **Jail Baton** | Custom in-game tool: right-click a player to jail/unjail them. Staff-gated. |
+| **Offline Warn** | `warnoffline <name>` works regardless of whether the target is connected. |
 | **Optimized** | Thread-safe collections, async database operations, atomic file writes, tick-friendly |
 
 ## Commands
@@ -65,11 +67,13 @@ All commands use the prefix `/arcadia_adminpanel`.
 ### Warning System
 | Command | Permission | Description |
 |---|---|---|
-| `/arcadia_adminpanel warn <player> <reason>` | Op Level 2 | Warn a player |
-| `/arcadia_adminpanel warnlist <player>` | Op Level 2 | View player's warning history |
-| `/arcadia_adminpanel delwarn <player> <index>` | Op Level 2 | Delete a specific warning |
-| `/arcadia_adminpanel clearwarns <player>` | Op Level 2 | Clear all warnings for a player |
+| `/arcadia_adminpanel warn <player> <reason>` | `arcadia.adminpanel.warn.edit` | Warn online players (entity selector — supports `@a[…]`) |
+| `/arcadia_adminpanel warnoffline <name> <reason>` | `arcadia.adminpanel.warn.edit` | Warn an online OR offline player by name |
+| `/arcadia_adminpanel warnlist <player>` | `arcadia.adminpanel.warn.view` | View player's warning history |
+| `/arcadia_adminpanel delwarn <player> <index>` | `arcadia.adminpanel.warn.edit` | Delete a specific warning |
+| `/arcadia_adminpanel clearwarns <player>` | `arcadia.adminpanel.warn.edit` | Clear all warnings for a player |
 | `/arcadia_adminpanel checkwarn` | All | View your own warnings |
+| `/arcadia_adminpanel givebaton` | `arcadia.adminpanel.jail` | Add a Jail Baton to your inventory |
 
 ### Staff Moderation
 | Command | Permission | Description |

@@ -51,9 +51,13 @@ public final class WarnPolicy {
         return Math.max(0L, (w.timestamp() + ttl) - System.currentTimeMillis());
     }
 
-    /** Filters a warn list to keep only active entries. Cheap when expiry is disabled. */
+    /**
+     * Filters a warn list to keep only active entries, and always returns an immutable snapshot —
+     * callers may stash the result across thread boundaries (scheduler lambdas, etc.) and must not
+     * be exposed to concurrent mutation of {@code WarnManager}'s backing list.
+     */
     public static List<WarnManager.WarnEntry> filterActive(List<WarnManager.WarnEntry> warns) {
-        if (expiryMs() <= 0) return warns;
+        if (expiryMs() <= 0) return List.copyOf(warns);
         return warns.stream().filter(WarnPolicy::isActive).toList();
     }
 
@@ -82,7 +86,17 @@ public final class WarnPolicy {
         List<WarnManager.WarnEntry> active = filterActive(WarnManager.getInstance().getWarns(uuid));
         if (active.isEmpty()) return;
 
+        // Defer ~2 seconds so the join message isn't drowned by other mods' join spam (Quark welcome
+        // text, FTB Quests progress, vanilla "joined the game" — they all hit immediately). 40 ticks
+        // is long enough to clear most of that without feeling laggy.
+        com.arcadia.lib.scheduler.SchedulerService.delayed(40, () -> deliverNotification(player, active));
+    }
+
+    private static void deliverNotification(ServerPlayer player, List<WarnManager.WarnEntry> active) {
+        // Skip if the player left during the 2-second delay — no point sending to a closed channel.
+        if (player.hasDisconnected()) return;
         boolean french = isFrench(player);
+
         player.sendSystemMessage(ArcadiaMessages.warning(
                 LanguageHelper.getText("warn.join.header", player)
                         .replace("%count%", String.valueOf(active.size()))));
@@ -106,8 +120,22 @@ public final class WarnPolicy {
             player.sendSystemMessage(Component.literal("§8…" + (active.size() - 5)
                     + " " + LanguageHelper.getText("warn.join.more", player)));
         }
-        player.sendSystemMessage(ArcadiaMessages.info(
-                LanguageHelper.getText("warn.join.cmd_hint", player)));
+
+        // Clickable command hint — the command name is rendered in highlighted color and clicking
+        // it fills the chat box (SUGGEST_COMMAND, not RUN_COMMAND) so the player sees what they're
+        // about to execute. The plain text version was easy to miss in a busy chat window.
+        String cmd = "/arcadia_adminpanel checkwarn";
+        net.minecraft.network.chat.MutableComponent hint =
+                net.minecraft.network.chat.Component.literal("§7" + LanguageHelper.getText("warn.join.cmd_hint", player) + " ")
+                        .append(net.minecraft.network.chat.Component.literal("§b§n" + cmd)
+                                .withStyle(s -> s
+                                        .withClickEvent(new net.minecraft.network.chat.ClickEvent(
+                                                net.minecraft.network.chat.ClickEvent.Action.SUGGEST_COMMAND, cmd))
+                                        .withHoverEvent(new net.minecraft.network.chat.HoverEvent(
+                                                net.minecraft.network.chat.HoverEvent.Action.SHOW_TEXT,
+                                                net.minecraft.network.chat.Component.literal(
+                                                        LanguageHelper.getText("warn.join.cmd_hover", player))))));
+        player.sendSystemMessage(ArcadiaMessages.info(hint));
     }
 
     private static String truncate(String s, int max) {

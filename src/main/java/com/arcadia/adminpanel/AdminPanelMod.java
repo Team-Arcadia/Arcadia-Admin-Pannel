@@ -39,6 +39,9 @@ public class AdminPanelMod {
     public static final String MOD_ID = "arcadiaadminpanel";
 
     public AdminPanelMod(IEventBus modEventBus) {
+        // Item registry — must be attached BEFORE FMLCommonSetupEvent fires.
+        com.arcadia.adminpanel.item.AdminPanelItems.ITEMS.register(modEventBus);
+
         // Common setup (database tables, module registration)
         modEventBus.addListener(this::onCommonSetup);
 

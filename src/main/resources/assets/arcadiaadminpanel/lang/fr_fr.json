@@ -121,6 +121,15 @@
   "arcadiaadminpanel.warn.join.header": "Vous avez %count% avertissement(s) actif(s) :",
   "arcadiaadminpanel.warn.join.expires": "expire dans",
   "arcadiaadminpanel.warn.join.more": "de plus — tapez /arcadia_adminpanel checkwarn pour tout voir.",
-  "arcadiaadminpanel.warn.join.cmd_hint": "Utilisez /arcadia_adminpanel checkwarn pour les détails.",
-  "arcadiaadminpanel.jail.blocked.teleport": "Vous ne pouvez pas utiliser d'objets ou de blocs de téléportation en prison."
+  "arcadiaadminpanel.warn.join.cmd_hint": "Pour voir vos avertissements, tapez :",
+  "arcadiaadminpanel.warn.join.cmd_hover": "Cliquez pour exécuter la commande.",
+  "arcadiaadminpanel.jail.blocked.teleport": "Vous ne pouvez pas utiliser d'objets ou de blocs de téléportation en prison.",
+  "arcadiaadminpanel.baton.tooltip.line1": "Clic droit sur un joueur pour l'emprisonner 30 minutes.",
+  "arcadiaadminpanel.baton.tooltip.line2": "Staff uniquement — nécessite arcadia.adminpanel.jail.",
+  "arcadiaadminpanel.baton.reason": "Frappé avec la Matraque de Prison",
+  "arcadiaadminpanel.baton.no_perm": "Vous n'avez pas la permission d'utiliser la Matraque.",
+  "arcadiaadminpanel.baton.no_self": "Vous ne pouvez pas vous matraquer vous-même.",
+  "arcadiaadminpanel.baton.no_staff": "Vous ne pouvez pas matraquer un autre membre du staff.",
+  "arcadiaadminpanel.baton.given": "Matraque de Prison ajoutée à votre inventaire.",
+  "item.arcadiaadminpanel.jail_baton": "Matraque de Prison"
 }

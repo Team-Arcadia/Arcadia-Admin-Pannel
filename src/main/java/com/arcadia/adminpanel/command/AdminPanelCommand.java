@@ -81,12 +81,23 @@ public final class AdminPanelCommand {
                                 .requires(require(AdminPermissions.RELOAD))
                                 .executes(AdminPanelCommand::executeReload))
 
-                        // /arcadia_adminpanel warn <targets> <reason>
+                        // /arcadia_adminpanel warn <targets> <reason> — entity selector form (online,
+                        // multi-target). Preserved for backwards compat with /warn @a etc.
                         .then(Commands.literal("warn")
                                 .requires(require(AdminPermissions.WARN_EDIT))
                                 .then(Commands.argument("targets", EntityArgument.players())
                                         .then(Commands.argument("reason", StringArgumentType.greedyString())
                                                 .executes(AdminPanelCommand::executeWarn))))
+
+                        // /arcadia_adminpanel warnoffline <name> <reason> — string-name form. Works
+                        // for both online AND offline targets; offline players get the warn now and
+                        // see the notification on their next login.
+                        .then(Commands.literal("warnoffline")
+                                .requires(require(AdminPermissions.WARN_EDIT))
+                                .then(Commands.argument("target", StringArgumentType.string())
+                                        .suggests(PLAYER_SUGGESTIONS)
+                                        .then(Commands.argument("reason", StringArgumentType.greedyString())
+                                                .executes(AdminPanelCommand::executeWarnOffline))))
 
                         // /arcadia_adminpanel warnlist <target>
                         .then(Commands.literal("warnlist")
@@ -225,6 +236,24 @@ public final class AdminPanelCommand {
                         .then(Commands.literal("jaillist")
                                 .requires(require(AdminPermissions.JAIL))
                                 .executes(AdminPanelCommand::executeJailList))
+
+                        // /arcadia_adminpanel givebaton — drops a Jail Baton into the staff member's
+                        // inventory. Gated on JAIL since the item itself is gated on JAIL.
+                        .then(Commands.literal("givebaton")
+                                .requires(require(AdminPermissions.JAIL))
+                                .executes(ctx -> {
+                                    if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) {
+                                        ctx.getSource().sendFailure(ArcadiaMessages.error(
+                                                LanguageHelper.getText("error.player_only", (ServerPlayer) null)));
+                                        return 0;
+                                    }
+                                    var stack = new net.minecraft.world.item.ItemStack(
+                                            com.arcadia.adminpanel.item.AdminPanelItems.JAIL_BATON.get());
+                                    if (!sp.getInventory().add(stack)) sp.drop(stack, false);
+                                    sp.sendSystemMessage(ArcadiaMessages.success(
+                                            LanguageHelper.getText("baton.given", sp)));
+                                    return 1;
+                                }))
         );
     }
 
@@ -273,6 +302,67 @@ public final class AdminPanelCommand {
 
         source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);
         return 1;
+    }
+
+    /**
+     * Offline-capable warn. Resolves the target name against (a) the online player list, (b) the
+     * scanned offline-player cache, then adds the warn. Online targets get the same chat / title /
+     * sound treatment as {@link #executeWarn}; offline targets just get the row written, and the
+     * notification fires on their next login through {@link WarnPolicy#notifyOnJoin}.
+     *
+     * <p>Why a separate command instead of overloading {@code warn}? Brigadier doesn't allow two
+     * sibling argument types under the same literal, and {@code EntityArgument.players()} only
+     * resolves entities that exist right now. Splitting keeps both ergonomics: selectors stay on
+     * {@code warn @a[...]}, and offline targets get a dedicated entry point.</p>
+     */
+    private static int executeWarnOffline(CommandContext<CommandSourceStack> context) {
+        try {
+            String targetName = StringArgumentType.getString(context, "target");
+            String reason = StringArgumentType.getString(context, "reason");
+            CommandSourceStack source = context.getSource();
+            String by = source.getTextName();
+            ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+
+            UUID targetUUID = resolveUUID(source, targetName);
+            if (targetUUID == null) {
+                source.sendFailure(ArcadiaMessages.error(
+                        LanguageHelper.getText("error.invalid_target", admin)));
+                return 0;
+            }
+            // Preserve the cache spelling — it's what shows up in the warn list afterwards.
+            String resolvedName = resolveName(source, targetUUID, targetName);
+
+            WarnManager.getInstance().addWarn(targetUUID, reason, by);
+
+            source.sendSuccess(() -> ArcadiaMessages.success(
+                    LanguageHelper.getText("warn.success", admin) + " §7(" + resolvedName + ")"), true);
+
+            // If the player happens to be online right now, give them the full treatment.
+            ServerPlayer onlineTarget = source.getServer().getPlayerList().getPlayer(targetUUID);
+            if (onlineTarget != null) {
+                onlineTarget.sendSystemMessage(ArcadiaMessages.error(
+                        String.format(LanguageHelper.getText("warn.notification", onlineTarget), by)));
+                onlineTarget.sendSystemMessage(Component.literal("§c" +
+                        LanguageHelper.getText("warn.reason_prefix", onlineTarget) + " §f" + reason));
+                com.arcadia.lib.text.MessageHelper.sendTitle(onlineTarget,
+                        Component.literal("§c§l" + LanguageHelper.getText("warn.title", onlineTarget)),
+                        Component.literal("§e" + reason),
+                        10, 70, 20);
+                com.arcadia.lib.util.SoundHelper.error(onlineTarget);
+            }
+            return 1;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return 0;
+        }
+    }
+
+    /** Pretty-prints a name from the offline cache if the provided string was case-shifted. */
+    private static String resolveName(CommandSourceStack source, UUID uuid, String fallback) {
+        ServerPlayer online = source.getServer().getPlayerList().getPlayer(uuid);
+        if (online != null) return online.getName().getString();
+        var cached = OfflinePlayerManager.getInstance().getCache().get(uuid);
+        return cached != null ? cached.name() : fallback;
     }
 
     private static int executeWarn(CommandContext<CommandSourceStack> context) {

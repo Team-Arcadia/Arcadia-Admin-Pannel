@@ -139,8 +139,16 @@ public final class LanguageHelper {
         en.put("warn.join.header", "You have %count% active warning(s):");
         en.put("warn.join.expires", "expires in");
         en.put("warn.join.more", "more — use /arcadia_adminpanel checkwarn to view all.");
-        en.put("warn.join.cmd_hint", "Use /arcadia_adminpanel checkwarn to view details.");
+        en.put("warn.join.cmd_hint", "To view your warnings, run:");
         en.put("jail.blocked.teleport", "You cannot use teleport items or blocks while jailed.");
+        en.put("warn.join.cmd_hover", "Click to run the command.");
+        en.put("baton.tooltip.line1", "Right-click a player to jail them for 30 minutes.");
+        en.put("baton.tooltip.line2", "Staff only — requires arcadia.adminpanel.jail.");
+        en.put("baton.reason", "Whacked with a Jail Baton");
+        en.put("baton.no_perm", "You do not have permission to use the Jail Baton.");
+        en.put("baton.no_self", "You cannot baton yourself.");
+        en.put("baton.no_staff", "You cannot baton other staff members.");
+        en.put("baton.given", "Jail Baton added to your inventory.");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -266,8 +274,16 @@ public final class LanguageHelper {
         fr.put("warn.join.header", "Vous avez %count% avertissement(s) actif(s) :");
         fr.put("warn.join.expires", "expire dans");
         fr.put("warn.join.more", "de plus — tapez /arcadia_adminpanel checkwarn pour tout voir.");
-        fr.put("warn.join.cmd_hint", "Utilisez /arcadia_adminpanel checkwarn pour les détails.");
+        fr.put("warn.join.cmd_hint", "Pour voir vos avertissements, tapez :");
         fr.put("jail.blocked.teleport", "Vous ne pouvez pas utiliser d'objets ou de blocs de téléportation en prison.");
+        fr.put("warn.join.cmd_hover", "Cliquez pour exécuter la commande.");
+        fr.put("baton.tooltip.line1", "Clic droit sur un joueur pour l'emprisonner 30 minutes.");
+        fr.put("baton.tooltip.line2", "Staff uniquement — nécessite arcadia.adminpanel.jail.");
+        fr.put("baton.reason", "Frappé avec la Matraque de Prison");
+        fr.put("baton.no_perm", "Vous n'avez pas la permission d'utiliser la Matraque.");
+        fr.put("baton.no_self", "Vous ne pouvez pas vous matraquer vous-même.");
+        fr.put("baton.no_staff", "Vous ne pouvez pas matraquer un autre membre du staff.");
+        fr.put("baton.given", "Matraque de Prison ajoutée à votre inventaire.");
         translations.put("fr", fr);
     }
 

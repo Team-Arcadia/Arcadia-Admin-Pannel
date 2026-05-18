@@ -119,8 +119,14 @@ public final class JailEnforcer {
         int r = cfg.jailProximityRadius;
         long rSq = (long) r * r;
 
-        for (ServerPlayer sp : server.getPlayerList().getPlayers()) {
-            if (!jm.isJailed(sp.getUUID())) continue;
+        // Iterate the jailed set directly rather than every online player — on a 100-player server
+        // with 0 jailed entries the previous code did 100 HashMap lookups per second for nothing.
+        // The jailed map is typically 0-3 entries.
+        var jailed = jm.getAllJailed();
+        if (jailed.isEmpty()) return;
+        for (var entry : jailed.entrySet()) {
+            ServerPlayer sp = server.getPlayerList().getPlayer(entry.getKey());
+            if (sp == null) continue; // offline; nothing to enforce
             // Different dimension OR outside the radius -> bounce them back.
             boolean wrongDim = !sp.serverLevel().dimension().location().toString().equals(loc.dimension());
             double dx = sp.getX() - loc.x();

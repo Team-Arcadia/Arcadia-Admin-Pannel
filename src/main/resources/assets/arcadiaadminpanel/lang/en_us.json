@@ -121,6 +121,15 @@
   "arcadiaadminpanel.warn.join.header": "You have %count% active warning(s):",
   "arcadiaadminpanel.warn.join.expires": "expires in",
   "arcadiaadminpanel.warn.join.more": "more — use /arcadia_adminpanel checkwarn to view all.",
-  "arcadiaadminpanel.warn.join.cmd_hint": "Use /arcadia_adminpanel checkwarn to view details.",
-  "arcadiaadminpanel.jail.blocked.teleport": "You cannot use teleport items or blocks while jailed."
+  "arcadiaadminpanel.warn.join.cmd_hint": "To view your warnings, run:",
+  "arcadiaadminpanel.warn.join.cmd_hover": "Click to run the command.",
+  "arcadiaadminpanel.jail.blocked.teleport": "You cannot use teleport items or blocks while jailed.",
+  "arcadiaadminpanel.baton.tooltip.line1": "Right-click a player to jail them for 30 minutes.",
+  "arcadiaadminpanel.baton.tooltip.line2": "Staff only — requires arcadia.adminpanel.jail.",
+  "arcadiaadminpanel.baton.reason": "Whacked with a Jail Baton",
+  "arcadiaadminpanel.baton.no_perm": "You do not have permission to use the Jail Baton.",
+  "arcadiaadminpanel.baton.no_self": "You cannot baton yourself.",
+  "arcadiaadminpanel.baton.no_staff": "You cannot baton other staff members.",
+  "arcadiaadminpanel.baton.given": "Jail Baton added to your inventory.",
+  "item.arcadiaadminpanel.jail_baton": "Jail Baton"
 }

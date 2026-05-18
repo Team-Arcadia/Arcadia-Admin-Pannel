@@ -6,6 +6,34 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ## [1.2.4] - 2026-05-18 (latest)
 
+### Added (third pass)
+
+- **Jail Baton (matraque) item** — Custom 32×32 textured staff tool. Right-click another player to jail them for 30 minutes; right-click an already-jailed player to release them. Wielder must have `arcadia.adminpanel.jail` (same gate as the GUI jail button). Cannot baton yourself, cannot baton other staff members (`canOpenAdminPanel` immunity check). New command `/arcadia_adminpanel givebaton` drops one into the staff member's inventory. Stack size 1, RARE rarity, fire-resistant. Hand model uses the vanilla handheld pose so it looks like a tool when held.
+- **Warn offline players** — New `/arcadia_adminpanel warnoffline <name> <reason>` accepts both online AND offline targets (resolves via the offline-player cache). Offline targets get the warn row written immediately; the warn list and the on-join notification cover the rest. The existing `warn @selector <reason>` is preserved unchanged for multi-target online use cases. The GUI's existing warn flow (right-click + chat-input session) already worked for offline players.
+
+### Fixed (third pass)
+
+- **Join warn message: the command was hard to spot** — The "/arcadia_adminpanel checkwarn" hint was sent immediately on join (drowned by other mods' welcome spam) and rendered as plain text in a small grey font. Two improvements: (1) delay the warn-summary delivery by 40 ticks (~2 s) so it lands AFTER other mods' join messages; (2) make the command name a clickable + hoverable component using `SUGGEST_COMMAND` action — clicking it fills the chat box so the player sees what they're about to run before pressing Enter. Hover tooltip explains "click to fill the chat box".
+
+### Performance (third pass)
+
+- **Jail anti-glitch sweep now iterates jailed set, not online player list** — Previous version did `O(online_players)` lookups per tick interval. On a 100-player server with 0 jailed entries that was 100 wasted HashMap lookups per second. New version iterates `JailManager.getAllJailed()` directly — typically 0-3 entries — and looks up the corresponding `ServerPlayer` once per jailed UUID.
+- **`WarnPolicy.filterActive` always returns an immutable snapshot** — Defensive change so callers stashing the list across thread boundaries (the new scheduler-delayed join notification) cannot accidentally hold a reference to mutable internal state. Costs one extra `List.copyOf` when expiry is disabled; negligible.
+
+### Ajouts (third pass)
+
+- **Matraque de Prison (Jail Baton)** — Outil staff custom avec texture 32×32. Clic droit sur un joueur pour l'emprisonner 30 minutes ; clic droit sur un joueur déjà en prison pour le libérer. Le porteur doit avoir `arcadia.adminpanel.jail` (même gate que le bouton jail du GUI). Impossible de se matraquer soi-même, impossible de matraquer un autre staff (immunité `canOpenAdminPanel`). Nouvelle commande `/arcadia_adminpanel givebaton` ajoute une matraque dans l'inventaire du staff. Stack 1, rareté RARE, résistante au feu. Le modèle d'inventaire utilise le pose handheld vanilla pour ressembler à un outil quand tenu en main.
+- **Warn des joueurs hors ligne** — Nouvelle `/arcadia_adminpanel warnoffline <nom> <raison>` accepte les cibles online ET offline (résolu via le cache offline-player). Les cibles offline reçoivent l'écriture du warn immédiatement ; la liste des warns et la notification à la connexion gèrent le reste. L'existante `warn @selector <raison>` est préservée inchangée pour les usages multi-cible en ligne. Le flow warn du GUI (clic droit + session chat-input) fonctionnait déjà pour les joueurs offline.
+
+### Correctifs (third pass)
+
+- **Message warn à la connexion : la commande était dure à voir** — Le hint "/arcadia_adminpanel checkwarn" était envoyé immédiatement à la connexion (noyé par le spam de bienvenue des autres mods) et rendu en texte gris pâle. Deux améliorations : (1) délai du résumé warn de 40 ticks (~2 s) pour qu'il atterrisse APRÈS les messages de connexion des autres mods ; (2) le nom de la commande devient un component cliquable + hoverable avec l'action `SUGGEST_COMMAND` — cliquer remplit la barre de chat pour que le joueur voie ce qu'il va exécuter avant d'appuyer sur Entrée. Tooltip hover explique "cliquez pour remplir la barre de chat".
+
+### Performance (third pass)
+
+- **Le balayage anti-glitch de la prison itère le set des jailed, pas la liste des joueurs en ligne** — La version précédente faisait `O(joueurs_en_ligne)` lookups par intervalle de tick. Sur un serveur de 100 joueurs avec 0 entrée jailed c'était 100 HashMap lookups gaspillés par seconde. La nouvelle version itère `JailManager.getAllJailed()` directement — typiquement 0-3 entrées — et lookup le `ServerPlayer` correspondant une fois par UUID jailed.
+- **`WarnPolicy.filterActive` retourne toujours un snapshot immuable** — Changement défensif pour que les callers stashant la liste à travers les frontières de threads (la nouvelle notification de connexion délayée par scheduler) ne puissent pas accidentellement garder une référence à l'état mutable interne. Coûte un `List.copyOf` supplémentaire quand l'expiration est désactivée ; négligeable.
+
 ### Added (second pass)
 
 - **Granular per-action permissions** — Reworked the permission model. Each button has its own LuckPerms node (`arcadia.adminpanel.open`, `.warn.view`, `.warn.edit`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.kick`, `.ban`, `.mute`, `.jail`, `.setjail`, `.reload`, `.teams`, `.loginqueue`). Buttons the viewer doesn't have are hidden from the GUI entirely. Slash commands check the same nodes via a shared `require()` predicate. OP level >= 2 short-circuits everything (vanilla admins keep full access). Legacy `arcadia.staff.mod` is still honoured as a fallback so existing groups don't lose access on upgrade. Results cached for 2 s per-player so a single menu rebuild only hits the perm backend once.
