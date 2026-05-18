@@ -8,7 +8,7 @@
 
 <p>&nbsp;</p>
 
-<p style="text-align: center;"><img src="https://img.shields.io/badge/Minecraft-1.21.1-62B47A?style=flat-square&amp;logo=minecraft&amp;logoColor=white" alt="MC 1.21.1">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/NeoForge-21.1.219+-F16436?style=flat-square" alt="NeoForge">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/Java-21-007396?style=flat-square&amp;logo=openjdk&amp;logoColor=white" alt="Java 21">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/Arcadia_Lib-1.2.9+-B87333?style=flat-square" alt="Arcadia Lib 1.2.9+">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/LuckPerms-Optional-9C27B0?style=flat-square" alt="LuckPerms Optional">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/Languages-EN%20%2F%20FR-2196F3?style=flat-square" alt="EN / FR"></p>
+<p style="text-align: center;"><img src="https://img.shields.io/badge/Minecraft-1.21.1-62B47A?style=flat-square&amp;logo=minecraft&amp;logoColor=white" alt="MC 1.21.1">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/NeoForge-21.1.219+-F16436?style=flat-square" alt="NeoForge">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/Java-21-007396?style=flat-square&amp;logo=openjdk&amp;logoColor=white" alt="Java 21">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/Arcadia_Lib-1.2.9+-B87333?style=flat-square" alt="Arcadia Lib 1.2.9+">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/LuckPerms-Optional-9C27B0?style=flat-square" alt="LuckPerms Optional">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/License-LGPL--3.0-FFA500?style=flat-square" alt="LGPL-3.0">&nbsp;&nbsp;&nbsp; <img src="https://img.shields.io/badge/Languages-EN%20%2F%20FR-2196F3?style=flat-square" alt="EN / FR"></p>
 
 <p>&nbsp;</p>
 
@@ -208,10 +208,10 @@
 
 <hr style="border: 1px solid #FFA500;">
 
-<p align="center" style="text-align: center; margin-top: 1.2em; margin-bottom: 0.6em;"><span style="font-size: xx-large; color: #ffa500;"><strong>🤝 Source & License</strong></span></p>
-<p style="text-align: center;">Arcadia Admin Panel's source is published for transparency and audit on GitHub. The mod is <strong>All Rights Reserved</strong> — redistribution, commercial use, and derivative works require explicit written permission from the author.</p>
+<p align="center" style="text-align: center; margin-top: 1.2em; margin-bottom: 0.6em;"><span style="font-size: xx-large; color: #ffa500;"><strong>🤝 Contribute</strong></span></p>
+<p style="text-align: center;">Arcadia Admin Panel is fully open source under <strong>LGPL-3.0-or-later</strong>. You are free to use, study, modify, fork and redistribute it, including for commercial purposes, as long as derivative works credit <strong>vyrriox / Team Arcadia</strong> and link back to the upstream repository.</p>
 
-<p style="text-align: center;"><a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Star_on-GitHub-FFA500?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Star on GitHub"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/CHANGELOG.md" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Changelog-Scroll-orange?style=for-the-badge&amp;logo=readme&amp;logoColor=white" alt="Changelog"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/LICENSE" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/License-All_Rights_Reserved-d73a49?style=for-the-badge" alt="License"></a></p>
+<p style="text-align: center;"><a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Star_on-GitHub-FFA500?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Star on GitHub"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/CHANGELOG.md" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Changelog-Scroll-orange?style=for-the-badge&amp;logo=readme&amp;logoColor=white" alt="Changelog"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/LICENSE" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/License-LGPL--3.0-FFA500?style=for-the-badge" alt="License"></a></p>
 
 <p>&nbsp;</p>
 
@@ -390,10 +390,10 @@
 
 <hr style="border: 1px solid #FFA500;">
 
-<p align="center" style="text-align: center; margin-top: 1.2em; margin-bottom: 0.6em;"><span style="font-size: xx-large; color: #ffa500;"><strong>🤝 Source & Licence</strong></span></p>
-<p style="text-align: center;">Le code source d'Arcadia Admin Panel est publié pour la transparence et l'audit sur GitHub. Le mod est <strong>Tous Droits Réservés</strong> — la redistribution, l'usage commercial et les travaux dérivés requièrent une autorisation écrite explicite de l'auteur.</p>
+<p align="center" style="text-align: center; margin-top: 1.2em; margin-bottom: 0.6em;"><span style="font-size: xx-large; color: #ffa500;"><strong>🤝 Contribuer</strong></span></p>
+<p style="text-align: center;">Arcadia Admin Panel est entièrement open source sous <strong>LGPL-3.0-or-later</strong>. Vous êtes libre de l'utiliser, l'étudier, le modifier, le forker et le redistribuer, y compris à des fins commerciales, à condition que les travaux dérivés créditent <strong>vyrriox / Team Arcadia</strong> et pointent vers le dépôt d'origine.</p>
 
-<p style="text-align: center;"><a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Star_sur-GitHub-FFA500?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Star sur GitHub"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/CHANGELOG.md" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Changelog-Parchemin-orange?style=for-the-badge&amp;logo=readme&amp;logoColor=white" alt="Changelog"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/LICENSE" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Licence-Tous_Droits_Reserves-d73a49?style=for-the-badge" alt="Licence"></a></p>
+<p style="text-align: center;"><a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Star_sur-GitHub-FFA500?style=for-the-badge&amp;logo=github&amp;logoColor=white" alt="Star sur GitHub"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/CHANGELOG.md" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Changelog-Parchemin-orange?style=for-the-badge&amp;logo=readme&amp;logoColor=white" alt="Changelog"></a>&nbsp; &nbsp;<a href="https://github.com/Team-Arcadia/Arcadia-Admin-Pannel/blob/main/LICENSE" target="_blank" rel="nofollow noopener"><img src="https://img.shields.io/badge/Licence-LGPL--3.0-FFA500?style=for-the-badge" alt="Licence"></a></p>
 
 <p>&nbsp;</p>
 
@@ -469,4 +469,4 @@
 
 <p>&nbsp;</p>
 
-<p style="text-align: center;"><span style="font-size: small;">&copy; 2026 Arcadia Admin Panel | Created by vyrriox / Team Arcadia | All Rights Reserved | Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</span></p>
+<p style="text-align: center;"><span style="font-size: small;">&copy; 2026 Arcadia Admin Panel | Created by vyrriox / Team Arcadia | LGPL-3.0-or-later | Not an official Minecraft product. Not approved by or associated with Mojang or Microsoft.</span></p>

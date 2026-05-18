@@ -97,7 +97,7 @@ Configure MySQL in `config/arcadia/lib/database.toml` and set `enabled = true`. 
 
 Author: vyrriox
 Organization: Team Arcadia
-License: All Rights Reserved — see [LICENSE](LICENSE). The source is published for transparency and audit; redistribution, commercial use, and derivative works require explicit written permission from the author.
+License: LGPL-3.0-or-later — see [LICENSE](LICENSE). Forks and derivative works are welcome under the same license, provided you credit "vyrriox / Team Arcadia" and link back to the upstream repository.
 Discord: [discord.gg/xjF8Rtzyd4](https://discord.gg/xjF8Rtzyd4)
 Website: [arcadia-echoes-of-power.fr](https://arcadia-echoes-of-power.fr/)
 
@@ -183,6 +183,6 @@ Installer côté client active le rendu ArcadiaTheme steampunk et la barre de re
 
 Auteur : vyrriox
 Organisation : Team Arcadia
-Licence : Tous Droits Réservés — voir [LICENSE](LICENSE). Le code source est publié pour la transparence et l'audit ; la redistribution, l'usage commercial et les travaux dérivés requièrent une autorisation écrite explicite de l'auteur.
+Licence : LGPL-3.0-or-later — voir [LICENSE](LICENSE). Les forks et travaux dérivés sont les bienvenus sous la même licence, à condition de créditer « vyrriox / Team Arcadia » et de pointer vers le dépôt d'origine.
 Discord : [discord.gg/xjF8Rtzyd4](https://discord.gg/xjF8Rtzyd4)
 Site web : [arcadia-echoes-of-power.fr](https://arcadia-echoes-of-power.fr/)
