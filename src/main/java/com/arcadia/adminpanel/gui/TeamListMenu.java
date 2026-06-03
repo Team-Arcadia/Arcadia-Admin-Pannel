@@ -31,6 +31,7 @@ public class TeamListMenu extends ChestMenu {
     private final ServerPlayer admin;
     private final String filter;
     private int page = 0;
+    private boolean showPlayerTeams = false;
     private static final int ITEMS_PER_PAGE = 45;
 
     public static void open(ServerPlayer admin) { open(admin, ""); }
@@ -70,14 +71,7 @@ public class TeamListMenu extends ChestMenu {
             return;
         }
 
-        List<FTBTeamsReader.Team> teams = new ArrayList<>();
-        teams.addAll(FTBTeamsReader.getParties());
-        teams.addAll(FTBTeamsReader.getServerTeams());
-
-        if (!filter.isEmpty()) {
-            String lower = filter.toLowerCase(Locale.ROOT);
-            teams.removeIf(t -> !t.displayName.toLowerCase(Locale.ROOT).contains(lower));
-        }
+        List<FTBTeamsReader.Team> teams = collectTeams();
 
         int start = page * ITEMS_PER_PAGE;
         int end = Math.min(start + ITEMS_PER_PAGE, teams.size());
@@ -121,7 +115,29 @@ public class TeamListMenu extends ChestMenu {
             this.getContainer().setItem(53, ItemBuilder.of(Items.ARROW)
                     .name(Component.literal("§e" + LanguageHelper.getText("nav.next", admin) + " >>")).build());
         }
+
+        // Toggle: include per-player teams (off by default — parties + server teams are the usual
+        // "teams", but on FTB Chunks servers players often claim with their personal team).
+        this.getContainer().setItem(47, ItemBuilder.of(showPlayerTeams ? Items.LIME_DYE : Items.GRAY_DYE)
+                .name(Component.literal("§6" + LanguageHelper.getText(
+                        showPlayerTeams ? "team.filter.hide_players" : "team.filter.show_players", admin)))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("team.filter.players_hint", admin)))
+                .build());
+
         this.getContainer().setItem(49, backButton());
+    }
+
+    /** Builds the displayed team list: parties + server teams, plus player teams when toggled on. */
+    private List<FTBTeamsReader.Team> collectTeams() {
+        List<FTBTeamsReader.Team> teams = new ArrayList<>();
+        teams.addAll(FTBTeamsReader.getServerTeams());
+        teams.addAll(FTBTeamsReader.getParties());
+        if (showPlayerTeams) teams.addAll(FTBTeamsReader.getPlayerTeams());
+        if (!filter.isEmpty()) {
+            String lower = filter.toLowerCase(Locale.ROOT);
+            teams.removeIf(t -> !t.displayName.toLowerCase(Locale.ROOT).contains(lower));
+        }
+        return teams;
     }
 
     private net.minecraft.world.item.ItemStack backButton() {
@@ -143,15 +159,10 @@ public class TeamListMenu extends ChestMenu {
         }
         if (slotId == 45 && page > 0) { page--; buildMenu(); return; }
         if (slotId == 53) { page++; buildMenu(); return; }
+        if (slotId == 47) { showPlayerTeams = !showPlayerTeams; page = 0; buildMenu(); return; }
 
         if (slotId >= 0 && slotId < ITEMS_PER_PAGE) {
-            List<FTBTeamsReader.Team> teams = new ArrayList<>();
-            teams.addAll(FTBTeamsReader.getParties());
-            teams.addAll(FTBTeamsReader.getServerTeams());
-            if (!filter.isEmpty()) {
-                String lower = filter.toLowerCase(Locale.ROOT);
-                teams.removeIf(t -> !t.displayName.toLowerCase(Locale.ROOT).contains(lower));
-            }
+            List<FTBTeamsReader.Team> teams = collectTeams();
             int index = page * ITEMS_PER_PAGE + slotId;
             if (index < teams.size()) {
                 sp.closeContainer();

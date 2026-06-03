@@ -11,6 +11,9 @@ import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.gui.PlayerDetailMenu;
 import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.NextSpawnManager;
+import com.arcadia.adminpanel.util.OfflinePlayerManager;
+import com.arcadia.adminpanel.util.SkullCache;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
@@ -164,23 +167,49 @@ public class ChatListener {
         // Record connection time for the admin-panel "last login" display.
         com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogin(sp);
 
+        // Repair the offline-cache name with the authoritative profile name (fixes the
+        // "Unknown-xxxx" / UUID-instead-of-pseudo regression for anyone scanned before usercache or
+        // FTB Teams knew their name) and warm their head texture so the real skin shows in the GUI.
+        OfflinePlayerManager.getInstance().upsertName(sp.getUUID(), sp.getGameProfile().getName());
+        SkullCache.warmTextures(sp.getServer(), sp.getUUID());
+
         // Cross-server jail sync (DB mode only): pull the freshest jail row for this UUID before
         // deciding whether to teleport. Covers the "jailed on server A, reconnect to B" case where
         // B's in-memory cache was populated at startup and doesn't know about the new jail yet.
         // Falls through to the local cache check for JSON-mode (single-server) installs.
         if (JailManager.getInstance().isDatabaseMode()) {
             JailManager.getInstance().refreshFromDatabaseAsync(sp.getUUID(),
-                    () -> sp.getServer().execute(() -> applyJailIfNeeded(sp)));
+                    () -> sp.getServer().execute(() -> {
+                        if (!applyJailIfNeeded(sp)) applyNextSpawnIfNeeded(sp);
+                    }));
         } else {
-            applyJailIfNeeded(sp);
+            if (!applyJailIfNeeded(sp)) applyNextSpawnIfNeeded(sp);
         }
 
         // Surface active warns on join (configurable via WarnPolicy).
         com.arcadia.adminpanel.util.WarnPolicy.notifyOnJoin(sp);
     }
 
-    private static void applyJailIfNeeded(ServerPlayer sp) {
-        if (!JailManager.getInstance().isJailed(sp.getUUID())) return;
+    /**
+     * Apply a pending next-login spawn override (jail takes priority and is handled first). Deferred
+     * a few ticks so we override AFTER vanilla / other mods finish positioning the freshly-spawned
+     * player, then consumed (one-shot).
+     */
+    private static void applyNextSpawnIfNeeded(ServerPlayer sp) {
+        if (!NextSpawnManager.getInstance().has(sp.getUUID())) return;
+        com.arcadia.lib.scheduler.SchedulerService.delayed(10, () -> {
+            if (sp.hasDisconnected()) return;
+            NextSpawnManager.SpawnPoint point = NextSpawnManager.getInstance().consumeAndApply(sp);
+            if (point != null) {
+                sp.sendSystemMessage(ArcadiaMessages.info(
+                        LanguageHelper.getText("nextspawn.applied", sp)));
+            }
+        });
+    }
+
+    /** @return {@code true} if the player was jailed (and thus teleported to jail). */
+    private static boolean applyJailIfNeeded(ServerPlayer sp) {
+        if (!JailManager.getInstance().isJailed(sp.getUUID())) return false;
         JailManager.getInstance().teleportToJail(sp, sp.getServer());
         JailManager.JailEntry entry = JailManager.getInstance().getJailEntry(sp.getUUID());
         if (entry != null) {
@@ -192,6 +221,7 @@ public class ChatListener {
                             .replace("%time%", remaining)
                             .replace("%reason%", entry.reason())));
         }
+        return true;
     }
 
     // ── Cleanup on disconnect ───────────────────────────────────────────────

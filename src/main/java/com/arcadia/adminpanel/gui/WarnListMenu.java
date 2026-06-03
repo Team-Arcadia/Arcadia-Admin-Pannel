@@ -181,9 +181,11 @@ public class WarnListMenu extends ChestMenu {
                 boolean success = WarnManager.getInstance().removeWarn(targetUUID, absoluteIndex + 1);
                 if (success) {
                     SoundHelper.playAt(sp, SoundHelper.CLICK);
+                    // The item label shows #(size - index); report the SAME number the admin clicked
+                    // (removeWarn still takes the 1-based timestamp-DESC index = absoluteIndex + 1).
                     sp.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
                             LanguageHelper.getText("warn.deleted", sp)
-                                    .replace("%d", String.valueOf(absoluteIndex + 1))
+                                    .replace("%d", String.valueOf(sortedWarns.size() - absoluteIndex))
                                     .replace("%s", targetName)));
                     buildMenu();
                 }

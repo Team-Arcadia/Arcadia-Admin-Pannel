@@ -151,6 +151,31 @@ public final class LanguageHelper {
         en.put("baton.given", "Jail Baton added to your inventory.");
         en.put("announce.empty", "Announcement title cannot be empty.");
         en.put("announce.success", "Announcement sent to %count% player(s).");
+        // ── 1.2.5 ──────────────────────────────────────────────────────────
+        en.put("action.nextspawn", "Next-Login Spawn");
+        en.put("nextspawn.hint", "Left-click: spawn this player at your position on their next login.");
+        en.put("nextspawn.set_to", "Set to:");
+        en.put("nextspawn.left_update", "Left-click: update to your position");
+        en.put("nextspawn.right_clear", "Right-click: clear");
+        en.put("nextspawn.set", "Next-login spawn set for %player%.");
+        en.put("nextspawn.cleared", "Cleared next-login spawn for %player%.");
+        en.put("nextspawn.none", "No next-login spawn was set for %player%.");
+        en.put("nextspawn.applied", "An admin moved your next-login spawn point.");
+        en.put("nextspawn.list.empty", "No pending next-login spawns.");
+        en.put("nextspawn.list.header", "Pending next-login spawns (%count%):");
+        en.put("action.gamemode", "Game Mode");
+        en.put("gamemode.current", "Current:");
+        en.put("gamemode.cycle", "Click to cycle game mode");
+        en.put("action.heal", "Heal / Feed");
+        en.put("heal.hint", "Left-click: heal · Right-click: feed");
+        en.put("heal.done", "Healed %player%.");
+        en.put("feed.done", "Fed %player%.");
+        en.put("team.filter.show_players", "Show player teams");
+        en.put("team.filter.hide_players", "Hide player teams");
+        en.put("team.filter.players_hint", "Toggle per-player (personal) teams in the list");
+        en.put("team.member.actions", "Left-click: details · Right-click: TP to last-seen");
+        en.put("jail.radius.current", "Jail zone radius: %radius% blocks (anti-escape: %state%)");
+        en.put("jail.radius.set", "Jail zone radius set to %radius% blocks (anti-escape enabled).");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -288,6 +313,31 @@ public final class LanguageHelper {
         fr.put("baton.given", "Matraque de Prison ajoutée à votre inventaire.");
         fr.put("announce.empty", "Le titre de l'annonce ne peut pas être vide.");
         fr.put("announce.success", "Annonce envoyée à %count% joueur(s).");
+        // ── 1.2.5 ──────────────────────────────────────────────────────────
+        fr.put("action.nextspawn", "Spawn Prochaine Connexion");
+        fr.put("nextspawn.hint", "Clic gauche : ce joueur apparaîtra à votre position à sa prochaine connexion.");
+        fr.put("nextspawn.set_to", "Défini à :");
+        fr.put("nextspawn.left_update", "Clic gauche : mettre à jour à votre position");
+        fr.put("nextspawn.right_clear", "Clic droit : annuler");
+        fr.put("nextspawn.set", "Spawn de prochaine connexion défini pour %player%.");
+        fr.put("nextspawn.cleared", "Spawn de prochaine connexion annulé pour %player%.");
+        fr.put("nextspawn.none", "Aucun spawn de prochaine connexion défini pour %player%.");
+        fr.put("nextspawn.applied", "Un admin a déplacé votre point de spawn de prochaine connexion.");
+        fr.put("nextspawn.list.empty", "Aucun spawn de prochaine connexion en attente.");
+        fr.put("nextspawn.list.header", "Spawns de prochaine connexion en attente (%count%) :");
+        fr.put("action.gamemode", "Mode de Jeu");
+        fr.put("gamemode.current", "Actuel :");
+        fr.put("gamemode.cycle", "Cliquez pour changer de mode");
+        fr.put("action.heal", "Soigner / Nourrir");
+        fr.put("heal.hint", "Clic gauche : soigner · Clic droit : nourrir");
+        fr.put("heal.done", "%player% soigné.");
+        fr.put("feed.done", "%player% nourri.");
+        fr.put("team.filter.show_players", "Afficher les teams joueur");
+        fr.put("team.filter.hide_players", "Masquer les teams joueur");
+        fr.put("team.filter.players_hint", "Afficher/masquer les teams personnelles dans la liste");
+        fr.put("team.member.actions", "Clic gauche : détails · Clic droit : TP dernière position");
+        fr.put("jail.radius.current", "Rayon de la zone de prison : %radius% blocs (anti-évasion : %state%)");
+        fr.put("jail.radius.set", "Rayon de la zone de prison réglé à %radius% blocs (anti-évasion activé).");
         translations.put("fr", fr);
     }
 

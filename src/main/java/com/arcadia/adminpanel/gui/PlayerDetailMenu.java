@@ -8,6 +8,7 @@ import com.arcadia.lib.staff.StaffService;
 import com.arcadia.lib.text.MessageHelper;
 import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
+import com.arcadia.lib.scheduler.SchedulerService;
 import com.arcadia.adminpanel.event.ChatListener;
 import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBChunksReader;
@@ -16,6 +17,7 @@ import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.LoginTracker;
+import com.arcadia.adminpanel.util.NextSpawnManager;
 import com.arcadia.adminpanel.util.SkullCache;
 import com.arcadia.adminpanel.util.TimeFormat;
 import com.arcadia.adminpanel.util.WarnManager;
@@ -48,6 +50,11 @@ public class PlayerDetailMenu extends ChestMenu {
     private int homePage = 0;
     private boolean confirmClear = false;
     private static final int HOMES_PER_PAGE = 27;
+
+    // Deferred header-skin refresh (skins resolve async via Mojang); bounded so offline-mode UUIDs
+    // don't loop forever.
+    private boolean headerRefreshScheduled = false;
+    private int headerRefreshAttempts = 0;
 
     public static void open(ServerPlayer admin, UUID targetUUID, String targetName, boolean isOnline) {
         admin.openMenu(new SimpleMenuProvider(
@@ -129,6 +136,46 @@ public class PlayerDetailMenu extends ChestMenu {
         skull.set(net.minecraft.core.component.DataComponents.LORE,
                 new net.minecraft.world.item.component.ItemLore(lore));
         this.getContainer().setItem(4, skull);
+        // Resolve the real skin async and re-render the header once it's ready.
+        SkullCache.warmTextures(admin.getServer(), targetUUID);
+        if (!SkullCache.hasTexture(targetUUID)) scheduleHeaderRefresh();
+
+        // Gamemode switch (slot 1) — online only; cycles SURVIVAL→CREATIVE→ADVENTURE→SPECTATOR.
+        if (isOnline && canUseCommand("gamemode") && AdminPermissions.GAMEMODE.check(admin)) {
+            ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+            String gm = target != null
+                    ? target.gameMode.getGameModeForPlayer().getName() : "?";
+            this.getContainer().setItem(1, ItemBuilder.of(Items.GRASS_BLOCK)
+                    .name(Component.literal("§a" + LanguageHelper.getText("action.gamemode", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("gamemode.current", admin) + " §f" + gm))
+                    .addLore(Component.literal("§e" + LanguageHelper.getText("gamemode.cycle", admin)))
+                    .build());
+        }
+
+        // Heal / Feed (slot 3) — online only. Left-click heals, right-click feeds.
+        if (isOnline && AdminPermissions.HEAL.check(admin)) {
+            this.getContainer().setItem(3, ItemBuilder.of(Items.GOLDEN_APPLE)
+                    .name(Component.literal("§d" + LanguageHelper.getText("action.heal", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("heal.hint", admin)))
+                    .build());
+        }
+
+        // Next-login spawn override (slot 7) — works for online AND offline targets. Left-click pins
+        // the admin's current position; right-click clears a pending override.
+        if (AdminPermissions.NEXT_SPAWN.check(admin)) {
+            NextSpawnManager.SpawnPoint pin = NextSpawnManager.getInstance().get(targetUUID);
+            var nsb = ItemBuilder.of(pin != null ? Items.RECOVERY_COMPASS : Items.ENDER_EYE)
+                    .name(Component.literal("§b" + LanguageHelper.getText("action.nextspawn", admin)));
+            if (pin != null) {
+                nsb.addLore(Component.literal("§7" + LanguageHelper.getText("nextspawn.set_to", admin)
+                        + " §f" + pin.getShortDimension() + " §7(" + pin.getFormattedCoords() + ")"));
+                nsb.addLore(Component.literal("§e" + LanguageHelper.getText("nextspawn.left_update", admin)));
+                nsb.addLore(Component.literal("§c" + LanguageHelper.getText("nextspawn.right_clear", admin)));
+            } else {
+                nsb.addLore(Component.literal("§7" + LanguageHelper.getText("nextspawn.hint", admin)));
+            }
+            this.getContainer().setItem(7, nsb.build());
+        }
 
         // Team button (slot 5) — only if FTB Teams data is loaded AND the player belongs somewhere
         // AND the viewer has the TEAMS perm. Now also surfaces FTB Chunks claim count.
@@ -382,6 +429,35 @@ public class PlayerDetailMenu extends ChestMenu {
         return Items.GRASS_BLOCK;
     }
 
+    private static net.minecraft.world.level.GameType cycleGameMode(net.minecraft.world.level.GameType current) {
+        return switch (current) {
+            case SURVIVAL -> net.minecraft.world.level.GameType.CREATIVE;
+            case CREATIVE -> net.minecraft.world.level.GameType.ADVENTURE;
+            case ADVENTURE -> net.minecraft.world.level.GameType.SPECTATOR;
+            case SPECTATOR -> net.minecraft.world.level.GameType.SURVIVAL;
+        };
+    }
+
+    /**
+     * Re-render the header skull once the real skin resolves (bounded retries so offline-mode UUIDs
+     * don't loop). Only runs while this menu is still the admin's open container.
+     */
+    private void scheduleHeaderRefresh() {
+        if (admin == null || headerRefreshScheduled || headerRefreshAttempts >= 4) return;
+        headerRefreshScheduled = true;
+        headerRefreshAttempts++;
+        SchedulerService.delayed(25, () -> {
+            headerRefreshScheduled = false;
+            if (admin.containerMenu != this) return;
+            if (SkullCache.hasTexture(targetUUID)) {
+                buildMenu();
+                this.broadcastChanges();
+            } else {
+                scheduleHeaderRefresh();
+            }
+        });
+    }
+
     private void showDetailedInfo() {
         admin.sendSystemMessage(Component.literal("§8§m" + "─".repeat(40)));
         admin.sendSystemMessage(Component.literal(
@@ -508,6 +584,56 @@ public class PlayerDetailMenu extends ChestMenu {
                         TeamDetailMenu.open(sp, team.id);
                     }
                 }
+            }
+            case 1 -> { // Gamemode cycle (online only)
+                if (!AdminPermissions.GAMEMODE.check(sp)) return;
+                if (isOnline && canUseCommand("gamemode")) {
+                    ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                    if (target != null) {
+                        target.setGameMode(cycleGameMode(target.gameMode.getGameModeForPlayer()));
+                        SoundHelper.playAt(admin, SoundHelper.CLICK);
+                        buildMenu();
+                    }
+                }
+            }
+            case 3 -> { // Heal (left-click) / Feed (right-click) — online only
+                if (!AdminPermissions.HEAL.check(sp)) return;
+                if (isOnline) {
+                    ServerPlayer target = admin.getServer().getPlayerList().getPlayer(targetUUID);
+                    if (target != null) {
+                        if (button == 1) {
+                            target.getFoodData().setFoodLevel(20);
+                            target.getFoodData().setSaturation(20f);
+                            admin.sendSystemMessage(ArcadiaMessages.success(
+                                    LanguageHelper.getText("feed.done", admin).replace("%player%", targetName)));
+                        } else {
+                            target.setHealth(target.getMaxHealth());
+                            target.getFoodData().setFoodLevel(20);
+                            target.getFoodData().setSaturation(20f);
+                            target.clearFire();
+                            admin.sendSystemMessage(ArcadiaMessages.success(
+                                    LanguageHelper.getText("heal.done", admin).replace("%player%", targetName)));
+                        }
+                        SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
+                    }
+                }
+            }
+            case 7 -> { // Next-login spawn override — left: pin admin pos, right: clear
+                if (!AdminPermissions.NEXT_SPAWN.check(sp)) return;
+                if (button == 1) {
+                    boolean cleared = NextSpawnManager.getInstance().clear(targetUUID);
+                    admin.sendSystemMessage(cleared
+                            ? ArcadiaMessages.success(LanguageHelper.getText("nextspawn.cleared", admin)
+                                    .replace("%player%", targetName))
+                            : ArcadiaMessages.info(LanguageHelper.getText("nextspawn.none", admin)
+                                    .replace("%player%", targetName)));
+                } else {
+                    NextSpawnManager.getInstance().setFromAdmin(targetUUID, admin);
+                    admin.sendSystemMessage(ArcadiaMessages.success(
+                            LanguageHelper.getText("nextspawn.set", admin).replace("%player%", targetName)));
+                    SoundHelper.playAt(admin, SoundHelper.CLICK);
+                }
+                buildMenu();
             }
             case 53 -> { // Back
                 sp.closeContainer();

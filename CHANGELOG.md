@@ -4,7 +4,65 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.4] - 2026-05-18 (latest)
+## [1.2.5] - 2026-06-03 (latest)
+
+### Fixed
+
+- **FTB Teams showed empty / wouldn't appear** — FTB Teams stores a team's owner ONLY in the top-level `owner` string (parties) or implicitly as the team id (player teams); it is never written into the `ranks` map. The parser read `owner` but never added it as a member, so any solo team counted 0 members and `getEffectiveTeamFor()` couldn't match the owner — the team browser looked broken/empty. The owner is now re-injected as an `OWNER`-ranked member (verified against FTB Teams 2101.x `AbstractTeam.serializeNBT` + `PartyTeam`/`PlayerTeam.getRankForPlayer`). Added the missing `ENEMY` rank.
+- **Offline players showed a UUID instead of their name** — Names were resolved only from the in-memory profile cache (`usercache.json`, capped at ~1000 MRU entries), so anyone past the cap fell back to a permanent `Unknown-xxxx` placeholder. Resolution is now multi-source — profile cache → FTB Teams cached `player_name` (covers every player with a personal team) → `usercache.json` parsed directly — and placeholders are upgraded on re-scan and repaired authoritatively the moment a player logs in.
+- **Player heads rendered as the default Steve skin** — GUI heads shipped a name+UUID profile with an empty texture map, so the client never resolved the real skin. The mod now resolves the fully-textured `GameProfile` server-side (async, via `SkullBlockEntity.fetchGameProfile`), caches it, and ships the textures inline so the real skin renders. The player list re-sends head slots in place once textures arrive. (Online-mode only; offline-mode UUIDs have no Mojang record.)
+- **FTB Essentials homes / last-seen / teleport history were silently empty** — FTB Essentials writes pretty-printed, multi-line SNBT, but the reader parsed it line-by-line and assumed every value fit on one line, so homes, last-seen, and `/back` history all parsed to nothing. Replaced with whole-file NBT parsing (`TagParser` on the full document), matching the FTB Chunks reader.
+- **Staff with the panel permission couldn't open it** — Arcadia Lib's dashboard decides card visibility with `arcadia.hub.<cardId>` (i.e. `arcadia.hub.adminpanel`), while opening required `arcadia.adminpanel.open` / `arcadia.staff.mod`. Granting one but not the other left staff either unable to see the card or able to see it but not open it. `arcadia.hub.adminpanel` (checked strictly, so it still fails closed without a perm backend) now also opens the panel — one node both reveals and opens it.
+- **Expired jails could re-jail a player after restart** — `isJailed()`'s expired-entry cleanup was guarded by a condition that was always false (the key is already gone once `computeIfPresent` returns null), so the stale DB/JSON row was never deleted and reloaded as an active jail. Eviction is now captured inside the remapping function and the row is flushed.
+- **Warn deletion reported the wrong number** — The success message showed the inverse of the number printed on the clicked warn item (the deletion itself was always correct). The message now matches the item label.
+- **Login queue admitted whole bursts at once** — The throttle reserved its window slot only when a queued login fired, so a simultaneous reconnect storm computed the same delay and all completed together. Slots are now reserved synchronously at schedule time, so admissions are paced correctly at `loginQueueMaxPerWindow` per window.
+- **`delwarn` could delete the wrong DB row** — The delete matched only `(uuid, timestamp, warned_by)`; two warns at the same millisecond with different reasons could collide. The predicate now includes `reason` and `server_id`.
+- **`getShortDimension` could throw on malformed dimension strings** — Guarded the empty path-segment case (e.g. `a::b`).
+
+### Added
+
+- **Next-login spawn override (debug teleport)** — Pin a one-shot spawn point to a player; on their next connection they are teleported there instead of their normal position, then the override is consumed. Set it from the player detail menu (new button — left-click pins your current position, right-click clears), or via `/arcadia_adminpanel setnextspawn <player>`, `clearnextspawn <player>`, `nextspawnlist`. Works for offline targets. Jail always takes priority. New node `arcadia.adminpanel.nextspawn`. Persisted across restarts.
+- **Player-teams toggle in the Teams browser** — The team browser now lists server teams + parties and, via a toggle, per-player (personal) teams too — so you can see every team on FTB-Chunks-style servers where players claim land with their personal team.
+- **Game-mode switch & Heal/Feed in the player menu** — New buttons for online players: cycle game mode (`arcadia.adminpanel.gamemode`), and heal/feed — left-click heals + extinguishes fire, right-click feeds (`arcadia.adminpanel.heal`). Applied programmatically (no command-string injection).
+- **Live jail-zone command** — `/arcadia_adminpanel jailradius [blocks]` shows or sets the maximum jail-zone radius at runtime (persisted to `config.json`) and (re-)enables the anti-escape proximity sweep that teleports a jailed player back inside the zone if they get out. Gated on `arcadia.adminpanel.setjail`.
+
+### Performance
+
+- **Team detail menu no longer reads the disk per member on the tick thread** — Member last-seen data was read from disk for every visible member on every redraw, and member names were resolved inside the sort comparator (`O(n log n)` profile-cache lookups). Names are now precomputed once and last-seen is fetched lazily only on click.
+- **FTB player-data cache now negative-caches misses** — A player with no FTB file no longer triggers a `Files.exists()` syscall on every GUI redraw.
+- **Login tracking writes are async + coalesced** — `logins.json` was rewritten synchronously on the server thread on every connect/disconnect. Writes now run on a daemon IO thread and coalesce to at most one every few seconds, with a final flush on shutdown.
+- **Warn DB load is off-thread** — `/reload` no longer freezes the tick running the warn `SELECT`; it runs async and swaps the cache in on completion.
+
+### Correctifs
+
+- **Les FTB Teams apparaissaient vides / pas du tout** — FTB Teams stocke le propriétaire d'une team UNIQUEMENT dans la chaîne `owner` de premier niveau (parties) ou implicitement via l'id de la team (player teams) ; il n'est jamais écrit dans la map `ranks`. Le parser lisait `owner` mais ne l'ajoutait jamais comme membre, donc toute team solo comptait 0 membre et `getEffectiveTeamFor()` ne trouvait pas le propriétaire — le navigateur de teams semblait cassé/vide. Le propriétaire est désormais ré-injecté comme membre de rang `OWNER` (vérifié sur FTB Teams 2101.x). Ajout du rang `ENEMY` manquant.
+- **Les joueurs hors ligne affichaient un UUID au lieu de leur pseudo** — Les noms n'étaient résolus que via le cache profil en mémoire (`usercache.json`, plafonné à ~1000 entrées MRU) ; au-delà du plafond, on retombait sur un placeholder permanent `Unknown-xxxx`. La résolution est maintenant multi-sources — cache profil → `player_name` mis en cache par FTB Teams (couvre chaque joueur ayant une team personnelle) → `usercache.json` lu directement — les placeholders sont améliorés au re-scan et réparés de façon autoritaire dès qu'un joueur se connecte.
+- **Les têtes de joueur affichaient le skin Steve par défaut** — Les têtes du GUI envoyaient un profil nom+UUID avec une map de textures vide, donc le client ne résolvait jamais le vrai skin. Le mod résout désormais le `GameProfile` complet (avec textures) côté serveur (async, via `SkullBlockEntity.fetchGameProfile`), le met en cache et embarque les textures pour que le vrai skin s'affiche. La liste des joueurs ré-envoie les têtes en place dès que les textures arrivent. (Mode online uniquement.)
+- **Homes / dernière position / historique de téléportation FTB Essentials étaient silencieusement vides** — FTB Essentials écrit du SNBT multi-ligne, mais le lecteur le parsait ligne par ligne en supposant une valeur par ligne ; homes, last-seen et historique `/back` étaient donc tous vides. Remplacé par un parsing NBT pleine page (`TagParser` sur le document complet).
+- **Le staff avec la permission du panel ne pouvait pas l'ouvrir** — Le dashboard d'Arcadia Lib décide la visibilité de la carte avec `arcadia.hub.<cardId>` (`arcadia.hub.adminpanel`), alors que l'ouverture exigeait `arcadia.adminpanel.open` / `arcadia.staff.mod`. Donner l'un sans l'autre laissait le staff soit incapable de voir la carte, soit capable de la voir sans pouvoir l'ouvrir. `arcadia.hub.adminpanel` (vérifié en strict) ouvre désormais aussi le panel — un seul nœud révèle ET ouvre.
+- **Une prison expirée pouvait ré-emprisonner après redémarrage** — Le nettoyage de l'entrée expirée dans `isJailed()` était gardé par une condition toujours fausse, donc la ligne périmée n'était jamais supprimée et se rechargeait en prison active. L'éviction est maintenant capturée dans la fonction de remappage et la ligne est purgée.
+- **La suppression de warn affichait le mauvais numéro** — Le message de succès affichait l'inverse du numéro inscrit sur le warn cliqué (la suppression elle-même était correcte). Le message correspond désormais au libellé.
+- **La file de connexion admettait des rafales entières d'un coup** — Le créneau de fenêtre n'était réservé qu'au déclenchement, donc une rafale de reconnexions calculait le même délai et se terminait ensemble. Les créneaux sont désormais réservés de façon synchrone à la planification, cadençant correctement à `loginQueueMaxPerWindow` par fenêtre.
+- **`delwarn` pouvait supprimer la mauvaise ligne** — La suppression ne matchait que `(uuid, timestamp, warned_by)`. Le prédicat inclut désormais `reason` et `server_id`.
+- **`getShortDimension` pouvait planter sur des dimensions malformées** — Cas du segment vide (`a::b`) sécurisé.
+
+### Ajouts
+
+- **Spawn de prochaine connexion (téléport de debug)** — Épingle un point de spawn à usage unique sur un joueur ; à sa prochaine connexion il y est téléporté au lieu de sa position normale, puis l'override est consommé. À définir depuis le menu détail du joueur (nouveau bouton — clic gauche épingle votre position, clic droit annule) ou via `/arcadia_adminpanel setnextspawn <joueur>`, `clearnextspawn <joueur>`, `nextspawnlist`. Fonctionne sur les cibles hors ligne. La prison est toujours prioritaire. Nouveau nœud `arcadia.adminpanel.nextspawn`. Persistant.
+- **Bascule des player teams dans le navigateur de Teams** — Le navigateur liste désormais les teams serveur + parties et, via une bascule, les teams personnelles aussi — pour voir toutes les teams sur les serveurs type FTB Chunks où les joueurs claim avec leur team personnelle.
+- **Mode de jeu & Soin/Nourriture dans le menu joueur** — Nouveaux boutons pour les joueurs en ligne : changer de mode de jeu (`arcadia.adminpanel.gamemode`), et soigner/nourrir — clic gauche soigne + éteint le feu, clic droit nourrit (`arcadia.adminpanel.heal`). Appliqués programmatiquement (pas d'injection de commande).
+- **Commande de zone de prison en direct** — `/arcadia_adminpanel jailradius [blocs]` affiche ou règle le rayon max de la zone de prison à l'exécution (persisté dans `config.json`) et (ré)active le balayage de proximité anti-évasion qui re-téléporte un détenu dans la zone s'il sort. Gated sur `arcadia.adminpanel.setjail`.
+
+### Performance
+
+- **Le menu détail d'une team ne lit plus le disque par membre sur le thread tick** — La dernière position de chaque membre visible était lue depuis le disque à chaque redraw, et les noms étaient résolus dans le comparateur de tri (`O(n log n)` lookups). Les noms sont désormais précalculés une fois et la dernière position est lue paresseusement seulement au clic.
+- **Le cache de données FTB met aussi en cache les absences** — Un joueur sans fichier FTB ne déclenche plus un `Files.exists()` à chaque redraw du GUI.
+- **L'écriture du suivi de connexion est async + coalescée** — `logins.json` était réécrit de façon synchrone sur le thread serveur à chaque connexion/déconnexion. Les écritures passent par un thread IO daemon et sont coalescées à au plus une toutes les quelques secondes, avec un flush final à l'arrêt.
+- **Le chargement DB des warns est hors thread** — `/reload` ne gèle plus le tick le temps du `SELECT` des warns ; il s'exécute en async et échange le cache à la fin.
+
+---
+
+## [1.2.4] - 2026-05-18
 
 ### Added (fourth pass)
 

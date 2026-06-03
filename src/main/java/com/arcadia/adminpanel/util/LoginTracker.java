@@ -20,6 +20,10 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tracks per-player connection metadata that FTB Essentials does not cover natively:
@@ -66,6 +70,21 @@ public final class LoginTracker {
     private final Path storeFile;
     private final Path storeTempFile;
     private volatile boolean loaded = false;
+
+    /**
+     * Coalesced off-thread persistence. recordLogin/recordLogout are called on the main server
+     * thread (PlayerLoggedIn/Out events); writing the whole map with Gson + an atomic rename inline
+     * spikes tick time during login storms. Instead we mark the cache dirty and flush at most once
+     * every {@link #FLUSH_DELAY_SECONDS} seconds on a daemon IO thread.
+     */
+    private static final long FLUSH_DELAY_SECONDS = 5L;
+    private final ScheduledExecutorService io =
+            Executors.newSingleThreadScheduledExecutor(r -> {
+                Thread t = new Thread(r, "Arcadia-LoginTracker-IO");
+                t.setDaemon(true);
+                return t;
+            });
+    private final AtomicBoolean dirty = new AtomicBoolean(false);
 
     private LoginTracker() {
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("arcadia/arcadiaadminpanel");
@@ -119,7 +138,7 @@ public final class LoginTracker {
         cache.merge(player.getUUID(),
                 new LoginRecord(now, now, 0L, ip),
                 (existing, fresh) -> existing.withLogin(now, ip));
-        save();
+        markDirty();
     }
 
     public void recordLogout(ServerPlayer player) {
@@ -128,7 +147,21 @@ public final class LoginTracker {
         LoginRecord existing = cache.get(player.getUUID());
         if (existing == null) return; // Login never recorded — ignore the stray logout.
         cache.put(player.getUUID(), existing.withLogout(now));
+        markDirty();
+    }
+
+    /** Schedule a single coalesced flush; subsequent dirties within the window are folded in. */
+    private void markDirty() {
+        if (dirty.compareAndSet(false, true)) {
+            io.schedule(() -> { dirty.set(false); save(); }, FLUSH_DELAY_SECONDS, TimeUnit.SECONDS);
+        }
+    }
+
+    /** Final synchronous flush + executor shutdown. Call on ServerStopping so no write is lost. */
+    public void shutdown() {
+        dirty.set(false);
         save();
+        io.shutdown();
     }
 
     /**

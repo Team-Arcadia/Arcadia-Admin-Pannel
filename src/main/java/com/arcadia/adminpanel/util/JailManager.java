@@ -274,13 +274,16 @@ public final class JailManager {
         // Atomic check-and-remove: if the entry is expired, computeIfPresent returns null and
         // performs the removal in one step. Avoids the get+remove race that could let two threads
         // both observe the same expired entry and trigger duplicate side effects (double DB delete,
-        // double "released" message, double teleport back).
-        JailEntry survivor = jailCache.computeIfPresent(uuid,
-                (k, e) -> e.isExpired() ? null : e);
-        if (survivor == null && jailCache.containsKey(uuid)) {
-            // computeIfPresent returned null AND key is gone — we were the one that evicted it.
-            // Defer DB cleanup; the scheduled expiry lambda also handles this case so we just
-            // ensure JSON state is flushed.
+        // double "released" message, double teleport back). We capture eviction INSIDE the remapping
+        // function — the previous `survivor == null && containsKey` guard was always false (the key
+        // is already gone once the function returns null), so the stale row was never cleaned up and
+        // reloaded as an active jail after /reload or restart.
+        boolean[] evicted = {false};
+        JailEntry survivor = jailCache.computeIfPresent(uuid, (k, e) -> {
+            if (e.isExpired()) { evicted[0] = true; return null; }
+            return e;
+        });
+        if (evicted[0]) {
             if (isDatabaseMode()) {
                 DatabaseManager.executeAsync(() -> deleteJailDb(uuid));
             } else {

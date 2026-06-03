@@ -22,7 +22,9 @@ import net.minecraft.world.item.Items;
 import org.jetbrains.annotations.NotNull;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -65,6 +67,18 @@ public class TeamDetailMenu extends ChestMenu {
         return null;
     }
 
+    /** Rank-then-name sort using a precomputed name map (no resolveName calls inside compare). */
+    private List<FTBTeamsReader.Member> sortedMembers(FTBTeamsReader.Team team, Map<UUID, String> names) {
+        List<FTBTeamsReader.Member> members = new ArrayList<>(team.members);
+        members.sort((a, b) -> {
+            int ra = a.rank().ordinal();
+            int rb = b.rank().ordinal();
+            if (ra != rb) return Integer.compare(ra, rb);
+            return names.get(a.uuid()).compareToIgnoreCase(names.get(b.uuid()));
+        });
+        return members;
+    }
+
     private void buildMenu() {
         if (admin == null) return;
         var filler = ItemBuilder.of(Items.GRAY_STAINED_GLASS_PANE).name(Component.literal(" ")).build();
@@ -78,21 +92,22 @@ public class TeamDetailMenu extends ChestMenu {
             return;
         }
 
-        // Member skulls — sorted by rank (owner first), then name.
-        List<FTBTeamsReader.Member> members = new ArrayList<>(team.members);
-        members.sort((a, b) -> {
-            int ra = a.rank().ordinal();
-            int rb = b.rank().ordinal();
-            if (ra != rb) return Integer.compare(ra, rb);
-            return resolveName(a.uuid()).compareToIgnoreCase(resolveName(b.uuid()));
-        });
+        // Member skulls — sorted by rank (owner first), then name. Names are precomputed ONCE (out
+        // of the comparator) so we don't do O(n log n) profile-cache lookups, and we no longer read
+        // each member's FTB data file from disk on the server thread per redraw — last-seen is
+        // fetched lazily on right-click instead.
+        Map<UUID, String> memberNames = new HashMap<>();
+        for (var mm : team.members) memberNames.computeIfAbsent(mm.uuid(), this::resolveName);
+
+        List<FTBTeamsReader.Member> members = sortedMembers(team, memberNames);
 
         int start = page * MEMBERS_PER_PAGE;
         int end = Math.min(start + MEMBERS_PER_PAGE, members.size());
         for (int i = start; i < end; i++) {
             FTBTeamsReader.Member m = members.get(i);
-            String name = resolveName(m.uuid());
+            String name = memberNames.get(m.uuid());
             var skull = SkullCache.createSkull(m.uuid(), name);
+            SkullCache.warmTextures(admin.getServer(), m.uuid());
             skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
                     Component.literal(rankColor(m.rank()) + name));
 
@@ -100,16 +115,7 @@ public class TeamDetailMenu extends ChestMenu {
             lore.add(Component.literal("§7" + LanguageHelper.getText("team.rank", admin)
                     + " " + rankColor(m.rank()) + m.rank().name().toLowerCase()));
             lore.add(Component.literal("§8" + m.uuid()));
-
-            // Show last-seen position so admins can read a team's footprint at a glance.
-            FTBDataReader.PlayerFTBData fd = FTBDataReader.readPlayerData(m.uuid());
-            if (fd != null && fd.lastSeen != null) {
-                lore.add(Component.literal("§7" + LanguageHelper.getText("misc.dim", admin)
-                        + " §f" + fd.lastSeen.getShortDimension()));
-                lore.add(Component.literal("§7" + LanguageHelper.getText("misc.pos", admin)
-                        + " §f" + fd.lastSeen.getFormattedCoords()));
-                lore.add(Component.literal("§e" + LanguageHelper.getText("team.click.tp", admin)));
-            }
+            lore.add(Component.literal("§e" + LanguageHelper.getText("team.member.actions", admin)));
             skull.set(net.minecraft.core.component.DataComponents.LORE,
                     new net.minecraft.world.item.component.ItemLore(lore));
 
@@ -156,6 +162,7 @@ public class TeamDetailMenu extends ChestMenu {
             case MEMBER -> "§a";
             case ALLY -> "§b";
             case INVITED -> "§7";
+            case ENEMY -> "§c";
             case NONE -> "§8";
         };
     }
@@ -194,13 +201,9 @@ public class TeamDetailMenu extends ChestMenu {
         if (slotId >= 0 && slotId < MEMBERS_PER_PAGE) {
             FTBTeamsReader.Team team = resolveTeam();
             if (team == null) return;
-            List<FTBTeamsReader.Member> members = new ArrayList<>(team.members);
-            members.sort((a, b) -> {
-                int ra = a.rank().ordinal();
-                int rb = b.rank().ordinal();
-                if (ra != rb) return Integer.compare(ra, rb);
-                return resolveName(a.uuid()).compareToIgnoreCase(resolveName(b.uuid()));
-            });
+            Map<UUID, String> names = new HashMap<>();
+            for (var mm : team.members) names.computeIfAbsent(mm.uuid(), this::resolveName);
+            List<FTBTeamsReader.Member> members = sortedMembers(team, names);
             int index = page * MEMBERS_PER_PAGE + slotId;
             if (index >= members.size()) return;
             FTBTeamsReader.Member m = members.get(index);

@@ -88,6 +88,20 @@ public final class AdminConfig {
         }
     }
 
+    /** Persist the current in-memory config to disk (used by runtime setters like /jailradius). */
+    public static synchronized void save() {
+        Path dir = FMLPaths.CONFIGDIR.get().resolve("arcadia/arcadiaadminpanel");
+        Path file = dir.resolve("config.json");
+        try {
+            if (!Files.exists(dir)) Files.createDirectories(dir);
+            try (FileWriter w = new FileWriter(file.toFile())) {
+                GSON.toJson(DATA, w);
+            }
+        } catch (IOException e) {
+            LOGGER.error("[AdminPanel] Failed to save config", e);
+        }
+    }
+
     /** Re-read from disk. Called by {@code /arcadia_adminpanel reload}. */
     public static void reload() { init(); }
 }

@@ -1,11 +1,18 @@
 package com.arcadia.adminpanel.util;
 
+import com.google.gson.JsonArray;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
 import com.mojang.authlib.GameProfile;
 import com.mojang.logging.LogUtils;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
+import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
 import java.io.IOException;
+import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
@@ -13,8 +20,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Stream;
 
 /**
- * Manages offline player data caching and retrieval
- * Singleton pattern for global access
+ * Manages offline player data caching and retrieval.
+ * Singleton pattern for global access.
  *
  * @author vyrriox
  */
@@ -63,29 +70,48 @@ public class OfflinePlayerManager {
         Thread scanThread = new Thread(() -> {
             try {
                 Path ftbPath = findFTBDataDirectory(server, rootPath);
-                if (ftbPath != null) {
-                    FTBDataReader.setExactPath(ftbPath);
-                    scanDirectory(server, ftbPath);
-                    // Locate team data once player scan succeeds (sibling of ftbessentials).
-                    Path worldDir = ftbPath.getParent() != null ? ftbPath.getParent().getParent() : null;
-                    if (worldDir != null) {
-                        Path teamsDir = worldDir.resolve("ftbteams");
+
+                // ── FTB Teams + FTB Chunks discovery — INDEPENDENT of FTB Essentials ──────────
+                // Previously this was nested inside the ftbessentials lookup, so a server running
+                // FTB Teams without FTB Essentials never located the ftbteams dir and the Teams
+                // browser stayed hidden. Resolve the world dir on its own and probe both dirs.
+                // Done BEFORE the player scan so offline-name resolution can read FTB Teams'
+                // cached player_name.
+                List<Path> worldCandidates = new ArrayList<>();
+                Path gw = locateWorldDir(server);
+                if (gw != null) worldCandidates.add(gw);
+                if (ftbPath != null && ftbPath.getParent() != null
+                        && ftbPath.getParent().getParent() != null) {
+                    worldCandidates.add(ftbPath.getParent().getParent());
+                }
+                boolean teamsFound = false, chunksFound = false;
+                for (Path wd : worldCandidates) {
+                    if (!teamsFound) {
+                        Path teamsDir = wd.resolve("ftbteams");
                         if (Files.isDirectory(teamsDir)) {
                             FTBTeamsReader.setBasePath(teamsDir);
                             LOGGER.info("[AdminPanel] Found FTB Teams data at: {}", teamsDir);
-                        } else {
-                            LOGGER.info("[AdminPanel] No FTB Teams data dir at {} (mod not installed?)", teamsDir);
+                            teamsFound = true;
                         }
-                        Path chunksDir = worldDir.resolve("ftbchunks");
+                    }
+                    if (!chunksFound) {
+                        Path chunksDir = wd.resolve("ftbchunks");
                         if (Files.isDirectory(chunksDir)) {
                             FTBChunksReader.setBasePath(chunksDir);
                             LOGGER.info("[AdminPanel] Found FTB Chunks data at: {}", chunksDir);
-                        } else {
-                            LOGGER.info("[AdminPanel] No FTB Chunks data dir at {} (mod not installed?)", chunksDir);
+                            chunksFound = true;
                         }
                     }
+                }
+                if (!teamsFound) LOGGER.info("[AdminPanel] No FTB Teams data dir found (mod not installed?)");
+                if (!chunksFound) LOGGER.info("[AdminPanel] No FTB Chunks data dir found (mod not installed?)");
+
+                // ── FTB Essentials player scan (homes / last-seen / login tracking) ──────────
+                if (ftbPath != null) {
+                    FTBDataReader.setExactPath(ftbPath);
+                    scanDirectory(server, ftbPath);
                 } else {
-                    LOGGER.warn("[AdminPanel] Could not find FTB Essentials data directory under {} — checked server root, ./world, server.properties level-name, and getWorldPath. Are FTB Essentials installed and the world loaded?", rootPath);
+                    LOGGER.warn("[AdminPanel] Could not find FTB Essentials data directory under {} — checked server root, ./world, server.properties level-name, and getWorldPath. Offline homes/last-seen will be unavailable (FTB Teams browser still works if FTB Teams is installed).", rootPath);
                 }
             } catch (Exception e) {
                 LOGGER.error("[AdminPanel] Offline scan failed", e);
@@ -93,6 +119,18 @@ public class OfflinePlayerManager {
         }, "Arcadia-OfflineScan");
         scanThread.setDaemon(true);
         scanThread.start();
+    }
+
+    /** Best-effort world-dir lookup, independent of FTB Essentials. */
+    @Nullable
+    private Path locateWorldDir(MinecraftServer server) {
+        try {
+            Path w = server.getWorldPath(LevelResource.ROOT);
+            if (w != null && Files.isDirectory(w)) return w;
+        } catch (Exception e) {
+            LOGGER.debug("[AdminPanel] getWorldPath failed for teams/chunks discovery", e);
+        }
+        return null;
     }
 
     /**
@@ -106,7 +144,7 @@ public class OfflinePlayerManager {
     private Path findFTBDataDirectory(MinecraftServer server, Path root) {
         // 1. Authoritative: ask the server for the world dir and resolve ftbessentials/playerdata.
         try {
-            Path worldDir = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
+            Path worldDir = server.getWorldPath(LevelResource.ROOT);
             if (worldDir != null) {
                 Path expected = worldDir.resolve("ftbessentials").resolve("playerdata");
                 if (Files.isDirectory(expected)) {
@@ -170,6 +208,9 @@ public class OfflinePlayerManager {
     }
 
     private void scanDirectory(MinecraftServer server, Path dataDir) {
+        // Build the usercache.json map once (uuid -> name) so we don't reparse it per player.
+        Map<UUID, String> userCache = loadUserCacheMap();
+
         try (Stream<Path> stream = Files.list(dataDir)) {
             stream
                     .filter(p -> p.getFileName().toString().endsWith(".snbt"))
@@ -180,19 +221,24 @@ public class OfflinePlayerManager {
                             filename = filename.substring(0, filename.length() - 5);
                             UUID uuid = UUID.fromString(filename);
 
-                            // Don't overwrite if already cached
-                            if (!offlineCache.containsKey(uuid)) {
-                                Optional<GameProfile> profile = server.getProfileCache().get(uuid);
-                                String name = profile.map(GameProfile::getName)
-                                        .orElse("Unknown-" + uuid.toString().substring(0, 5));
-
+                            CachedPlayerSummary existing = offlineCache.get(uuid);
+                            boolean placeholder = existing != null && existing.name().startsWith("Unknown-");
+                            // Resolve a real name on first sight OR if we only have a placeholder so far
+                            // (re-scan / reload can upgrade a stale "Unknown-xxxx" once a source appears).
+                            if (existing == null || placeholder) {
+                                String name = resolveName(server, uuid, userCache);
+                                if (name == null) {
+                                    name = existing != null ? existing.name()
+                                            : "Unknown-" + uuid.toString().substring(0, 8);
+                                }
                                 offlineCache.put(uuid, new CachedPlayerSummary(uuid, name));
 
-                                // Track first-time observation for "first seen" display.
-                                LoginTracker.getInstance().observeFromScan(uuid, path);
+                                // Warm the textured profile so the GUI can show the real skin (async).
+                                SkullCache.warmTextures(server, uuid);
 
-                                if (profile.isPresent()) {
-                                    SkullCache.createSkull(profile.get());
+                                if (existing == null) {
+                                    // Track first-time observation for "first seen" display.
+                                    LoginTracker.getInstance().observeFromScan(uuid, path);
                                 }
                             }
                         } catch (IllegalArgumentException ignored) {
@@ -207,6 +253,64 @@ public class OfflinePlayerManager {
         } catch (IOException e) {
             LOGGER.error("[AdminPanel] Failed to list player data directory {}", dataDir, e);
         }
+    }
+
+    /**
+     * Multi-source offline-name resolution. Tries, in order: (1) the in-memory profile cache
+     * (usercache.json, no network), (2) FTB Teams' cached {@code player_name} (covers every player
+     * who ever got a personal team — far beyond usercache's ~1000 MRU cap), (3) usercache.json
+     * parsed directly (catches entries the in-memory MRU dropped). Returns {@code null} only when
+     * every source is empty — the caller then keeps any existing value or a short-UUID placeholder.
+     */
+    @Nullable
+    private String resolveName(MinecraftServer server, UUID uuid, Map<UUID, String> userCache) {
+        Optional<GameProfile> profile = server.getProfileCache().get(uuid);
+        if (profile.isPresent()) {
+            String n = profile.get().getName();
+            if (n != null && !n.isBlank()) return n;
+        }
+        String ftbName = FTBTeamsReader.getPlayerName(uuid);
+        if (ftbName != null && !ftbName.isBlank()) return ftbName;
+        String diskName = userCache.get(uuid);
+        if (diskName != null && !diskName.isBlank()) return diskName;
+        return null;
+    }
+
+    /** Parse {@code <root>/usercache.json} into a uuid -> name map. Best-effort; never throws. */
+    private Map<UUID, String> loadUserCacheMap() {
+        Map<UUID, String> map = new HashMap<>();
+        if (cachedRootPath == null) return map;
+        Path file = cachedRootPath.resolve("usercache.json");
+        if (!Files.isRegularFile(file)) return map;
+        try (Reader r = Files.newBufferedReader(file)) {
+            JsonElement parsed = JsonParser.parseReader(r);
+            if (!parsed.isJsonArray()) return map;
+            JsonArray arr = parsed.getAsJsonArray();
+            for (JsonElement el : arr) {
+                if (!el.isJsonObject()) continue;
+                JsonObject o = el.getAsJsonObject();
+                if (!o.has("uuid") || !o.has("name")) continue;
+                try {
+                    UUID id = UUID.fromString(o.get("uuid").getAsString());
+                    String name = o.get("name").getAsString();
+                    if (name != null && !name.isBlank()) map.put(id, name);
+                } catch (IllegalArgumentException ignored) {
+                }
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[AdminPanel] Failed to read usercache.json: {}", e.getMessage());
+        }
+        return map;
+    }
+
+    /**
+     * Upsert a definitive name into the offline cache. Called on player login (authoritative source)
+     * so an entry that was scanned as "Unknown-xxxx" is repaired immediately, with no reload and no
+     * network dependency.
+     */
+    public void upsertName(UUID uuid, String name) {
+        if (uuid == null || name == null || name.isBlank()) return;
+        offlineCache.put(uuid, new CachedPlayerSummary(uuid, name));
     }
 
     public List<CachedPlayerSummary> getAllOfflinePlayers() {

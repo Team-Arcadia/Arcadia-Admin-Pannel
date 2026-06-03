@@ -63,14 +63,15 @@ public final class WarnManager {
     /** Initialize: load from appropriate backend, then enforce the configured TTL. */
     public void init() {
         if (isDatabaseMode()) {
+            // Async: the SELECT + connection acquisition must NOT run on the server/command thread
+            // (a large warn table would freeze the tick on /reload). Purge + log run in the callback.
             loadFromDatabase();
         } else {
             loadFromJson();
+            WarnPolicy.purgeExpired();
+            LOGGER.info("[AdminPanel] WarnManager initialized (json mode, {} players cached)",
+                    warnCache.size());
         }
-        // Purge entries older than the configured TTL. Honours warnExpiryDays=0 (no expiry).
-        WarnPolicy.purgeExpired();
-        LOGGER.info("[AdminPanel] WarnManager initialized ({} mode, {} players cached)",
-                isDatabaseMode() ? "database" : "json", warnCache.size());
     }
 
     public boolean isDatabaseMode() {
@@ -188,24 +189,36 @@ public final class WarnManager {
     // ── Database backend ────────────────────────────────────────────────────
 
     private void loadFromDatabase() {
-        try (Connection conn = DatabaseManager.getConnection();
-             PreparedStatement ps = conn.prepareStatement(
-                     "SELECT player_uuid, reason, warned_by, server_id, timestamp FROM arcadia_admin_warns")) {
-            ResultSet rs = ps.executeQuery();
-            while (rs.next()) {
-                UUID uuid = UUID.fromString(rs.getString("player_uuid"));
-                WarnEntry entry = new WarnEntry(
-                        rs.getString("reason"),
-                        rs.getString("warned_by"),
-                        rs.getLong("timestamp"),
-                        rs.getString("server_id")
-                );
-                warnCache.computeIfAbsent(uuid,
-                        k -> Collections.synchronizedList(new ArrayList<>())).add(entry);
+        DatabaseManager.supplyAsync(() -> {
+            Map<UUID, List<WarnEntry>> loaded = new ConcurrentHashMap<>();
+            try (Connection conn = DatabaseManager.getConnection();
+                 PreparedStatement ps = conn.prepareStatement(
+                         "SELECT player_uuid, reason, warned_by, server_id, timestamp FROM arcadia_admin_warns");
+                 ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    UUID uuid = UUID.fromString(rs.getString("player_uuid"));
+                    WarnEntry entry = new WarnEntry(
+                            rs.getString("reason"),
+                            rs.getString("warned_by"),
+                            rs.getLong("timestamp"),
+                            rs.getString("server_id")
+                    );
+                    loaded.computeIfAbsent(uuid,
+                            k -> Collections.synchronizedList(new ArrayList<>())).add(entry);
+                }
+            } catch (Exception e) {
+                LOGGER.error("[AdminPanel] Failed to load warns from database", e);
+                return null;
             }
-        } catch (Exception e) {
-            LOGGER.error("[AdminPanel] Failed to load warns from database", e);
-        }
+            return loaded;
+        }).thenAccept(loaded -> {
+            if (loaded == null) return;
+            warnCache.clear();
+            warnCache.putAll(loaded);
+            WarnPolicy.purgeExpired();
+            LOGGER.info("[AdminPanel] WarnManager initialized (database mode, {} players cached)",
+                    warnCache.size());
+        });
     }
 
     private void insertWarnDb(UUID targetUUID, WarnEntry entry) {
@@ -226,10 +239,15 @@ public final class WarnManager {
     private void deleteWarnDb(UUID targetUUID, WarnEntry entry) {
         try (Connection conn = DatabaseManager.getConnection();
              PreparedStatement ps = conn.prepareStatement(
-                     "DELETE FROM arcadia_admin_warns WHERE player_uuid = ? AND timestamp = ? AND warned_by = ? LIMIT 1")) {
+                     "DELETE FROM arcadia_admin_warns WHERE player_uuid = ? AND timestamp = ? "
+                   + "AND warned_by = ? AND reason = ? AND server_id = ? LIMIT 1")) {
+            // Match on the full tuple so two warns issued at the same millisecond by the same admin
+            // (but with different reasons) can't be confused. Byte-identical rows are interchangeable.
             ps.setString(1, targetUUID.toString());
             ps.setLong(2, entry.timestamp());
             ps.setString(3, entry.by());
+            ps.setString(4, entry.reason());
+            ps.setString(5, entry.serverId());
             ps.executeUpdate();
         } catch (Exception e) {
             LOGGER.error("[AdminPanel] Failed to delete warn from database", e);

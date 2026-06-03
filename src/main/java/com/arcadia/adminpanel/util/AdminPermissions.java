@@ -63,7 +63,13 @@ public enum AdminPermissions {
     /** Toggle the login queue. */
     LOGIN_QUEUE("arcadia.adminpanel.loginqueue"),
     /** Broadcast a server-wide title + subtitle announcement. */
-    ANNOUNCE("arcadia.adminpanel.announce");
+    ANNOUNCE("arcadia.adminpanel.announce"),
+    /** Pin / clear a player's next-login spawn override (debug teleport). */
+    NEXT_SPAWN("arcadia.adminpanel.nextspawn"),
+    /** Change a player's game mode from the panel. */
+    GAMEMODE("arcadia.adminpanel.gamemode"),
+    /** Heal / feed a player from the panel. */
+    HEAL("arcadia.adminpanel.heal");
 
     public final String node;
     AdminPermissions(String node) { this.node = node; }

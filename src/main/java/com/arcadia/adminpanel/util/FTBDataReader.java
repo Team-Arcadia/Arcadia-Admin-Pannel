@@ -2,18 +2,29 @@ package com.arcadia.adminpanel.util;
 
 import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.ListTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * Reads FTB Essentials player data from .snbt files
- * Optimized with Caching (30s TTL) and Manual Parsing for Robustness
+ * Reads FTB Essentials player data from {@code <world>/ftbessentials/playerdata/<uuid>.snbt}.
+ *
+ * <p>FTB Essentials serialises this file as pretty-printed, indented, <b>multi-line</b> SNBT via
+ * FTB Library's writer. We therefore parse the whole file as a single NBT compound with vanilla
+ * {@link TagParser} (which handles both inline and multi-line SNBT) and navigate it via the NBT
+ * API — never line-by-line, which silently dropped homes / last-seen / teleport history whenever
+ * a value spanned more than one line.</p>
+ *
+ * <p>Optimised with a 30 s TTL cache that also <b>negative-caches</b> misses (missing or
+ * unparseable files) so the admin GUI never re-stats the disk on every redraw.</p>
  *
  * @author vyrriox
  */
@@ -26,7 +37,7 @@ public class FTBDataReader {
     private static final Map<UUID, CachedData> dataCache = new ConcurrentHashMap<>();
     private static final long CACHE_TTL = 30_000L; // 30 Seconds
 
-    private record CachedData(PlayerFTBData data, long timestamp) {
+    private record CachedData(@Nullable PlayerFTBData data, long timestamp) {
     }
 
     public static void clearCache() {
@@ -51,131 +62,86 @@ public class FTBDataReader {
         if (ftbDataPath == null)
             return null;
 
-        // check cache
+        // Check cache (positive AND negative — a cached null is a valid "no data" answer).
         CachedData cached = dataCache.get(uuid);
         if (cached != null && (System.currentTimeMillis() - cached.timestamp < CACHE_TTL)) {
             return cached.data;
         }
 
         Path dataFile = ftbDataPath.resolve(uuid.toString() + ".snbt");
-        if (!Files.exists(dataFile))
+        if (!Files.exists(dataFile)) {
+            // Negative-cache: a player who never set a home / teleported has no file. Without this,
+            // every member skull in the team menu would Files.exists() on the server thread per redraw.
+            dataCache.put(uuid, new CachedData(null, System.currentTimeMillis()));
             return null;
+        }
 
         try {
-            List<String> lines = Files.readAllLines(dataFile);
+            // Whole-file NBT parse. FTB Essentials writes pretty-printed multi-line SNBT; the prior
+            // line-based scan only handled single-line values and thus returned empty homes / null
+            // last-seen / empty history on real installs.
+            CompoundTag root = TagParser.parseTag(Files.readString(dataFile));
+
             Map<String, HomeLocation> homes = new HashMap<>();
-            LastSeenLocation lastSeen = null;
-            List<TeleportRecord> history = new ArrayList<>();
-
-            boolean inHomes = false;
-
-            for (String line : lines) {
-                line = line.trim();
-                if (line.isEmpty())
-                    continue;
-                // Detect start of homes block
-                if (line.startsWith("homes: {") || (line.startsWith("homes:") && line.endsWith("{"))) {
-                    // Fix: Check if it is an empty inline block "homes: {}"
-                    if (line.contains("}")) {
-                        inHomes = false; // It opens and closes on same line, do not enter block mode
-                    } else {
-                        inHomes = true;
-                    }
-                    continue;
-                }
-
-                if (inHomes && line.equals("}")) {
-                    inHomes = false;
-                    continue;
-                }
-
-                if (inHomes) {
-                    int colonIndex = line.indexOf(':');
-                    if (colonIndex > 0) {
-                        String homeName = line.substring(0, colonIndex).trim();
-                        String nbtPart = line.substring(colonIndex + 1).trim();
-                        try {
-                            CompoundTag homeTag = TagParser.parseTag(nbtPart);
-                            homes.put(homeName, new HomeLocation(
-                                    homeTag.getString("dim"),
-                                    homeTag.getDouble("x"),
-                                    homeTag.getDouble("y"),
-                                    homeTag.getDouble("z"),
-                                    homeTag.getFloat("xRot"),
-                                    homeTag.getFloat("yRot"),
-                                    homeTag.getLong("time")));
-                        } catch (Exception ignored) {
-                        }
-                    }
-                }
-
-                if (line.startsWith("last_seen:")) {
-                    try {
-                        String nbtPart = line.substring(line.indexOf(':') + 1).trim();
-                        CompoundTag lastSeenTag = TagParser.parseTag(nbtPart);
-                        lastSeen = new LastSeenLocation(
-                                lastSeenTag.getString("dim"),
-                                lastSeenTag.getDouble("x"),
-                                lastSeenTag.getDouble("y"),
-                                lastSeenTag.getDouble("z"),
-                                lastSeenTag.getFloat("xRot"),
-                                lastSeenTag.getFloat("yRot"),
-                                lastSeenTag.getLong("time"));
-                    } catch (Exception ignored) {
-                    }
-                }
-
-                if (line.startsWith("teleport_history:")) {
-                    try {
-                        int start = line.indexOf('[');
-                        int end = line.lastIndexOf(']');
-                        if (start >= 0 && end > start) {
-                            String listContent = line.substring(start + 1, end).trim();
-                            if (!listContent.isEmpty()) {
-                                int braceDepth = 0;
-                                StringBuilder currentObj = new StringBuilder();
-                                for (char c : listContent.toCharArray()) {
-                                    if (c == '{')
-                                        braceDepth++;
-                                    if (c == '}')
-                                        braceDepth--;
-                                    currentObj.append(c);
-                                    if (braceDepth == 0 && currentObj.length() > 0
-                                            && currentObj.toString().trim().endsWith("}")) {
-                                        String objStr = currentObj.toString().trim();
-                                        if (objStr.startsWith(","))
-                                            objStr = objStr.substring(1).trim();
-                                        try {
-                                            CompoundTag recordTag = TagParser.parseTag(objStr);
-                                            history.add(new TeleportRecord(
-                                                    recordTag.getString("dim"),
-                                                    recordTag.getDouble("x"),
-                                                    recordTag.getDouble("y"),
-                                                    recordTag.getDouble("z"),
-                                                    recordTag.getLong("time")));
-                                        } catch (Exception ignored) {
-                                        }
-                                        currentObj = new StringBuilder();
-                                    }
-                                }
-                                Collections.reverse(history);
-                            }
-                        }
-                    } catch (Exception ignored) {
-                    }
+            if (root.contains("homes", Tag.TAG_COMPOUND)) {
+                CompoundTag homesTag = root.getCompound("homes");
+                for (String name : homesTag.getAllKeys()) {
+                    CompoundTag h = homesTag.getCompound(name);
+                    homes.put(name, new HomeLocation(
+                            h.getString("dim"),
+                            h.getDouble("x"), h.getDouble("y"), h.getDouble("z"),
+                            h.getFloat("xRot"), h.getFloat("yRot"),
+                            h.getLong("time")));
                 }
             }
 
+            LastSeenLocation lastSeen = null;
+            if (root.contains("last_seen", Tag.TAG_COMPOUND)) {
+                CompoundTag t = root.getCompound("last_seen");
+                lastSeen = new LastSeenLocation(
+                        t.getString("dim"),
+                        t.getDouble("x"), t.getDouble("y"), t.getDouble("z"),
+                        t.getFloat("xRot"), t.getFloat("yRot"),
+                        t.getLong("time"));
+            }
+
+            List<TeleportRecord> history = new ArrayList<>();
+            if (root.contains("teleport_history", Tag.TAG_LIST)) {
+                ListTag list = root.getList("teleport_history", Tag.TAG_COMPOUND);
+                for (int i = 0; i < list.size(); i++) {
+                    CompoundTag t = list.getCompound(i);
+                    history.add(new TeleportRecord(
+                            t.getString("dim"),
+                            t.getDouble("x"), t.getDouble("y"), t.getDouble("z"),
+                            t.getLong("time")));
+                }
+                // Newest-first for the GUI (FTB appends chronologically).
+                Collections.reverse(history);
+            }
+
             PlayerFTBData data = new PlayerFTBData(homes, lastSeen, history);
-            // Update Cache
             dataCache.put(uuid, new CachedData(data, System.currentTimeMillis()));
             return data;
 
-        } catch (Exception e) {
-            // Log only real errors, to console, properly
-            // e.printStackTrace(); // Keep stacktrace for critical IO errors
+        } catch (IOException | RuntimeException | com.mojang.brigadier.exceptions.CommandSyntaxException e) {
+            LOGGER.debug("[AdminPanel] Failed to parse FTB player data {}: {}", dataFile, e.getMessage());
+            // Negative-cache parse failures too, so a malformed file isn't re-read every redraw.
+            dataCache.put(uuid, new CachedData(null, System.currentTimeMillis()));
             return null;
         }
+    }
+
+    /**
+     * Shared dimension prettifier: {@code minecraft:the_nether} -&gt; {@code The_nether}. Guards the
+     * empty-path-segment case (e.g. a corrupt {@code "a::b"}) so GUI lore building never throws
+     * {@link StringIndexOutOfBoundsException}.
+     */
+    static String shortDimension(String dimension) {
+        if (dimension == null || dimension.isEmpty()) return dimension == null ? "" : dimension;
+        String[] parts = dimension.split(":");
+        String name = parts.length > 1 ? parts[1] : dimension;
+        if (name.isEmpty()) return dimension;
+        return Character.toUpperCase(name.charAt(0)) + name.substring(1);
     }
 
     public static class PlayerFTBData {
@@ -213,8 +179,7 @@ public class FTBDataReader {
         }
 
         public String getShortDimension() {
-            String[] parts = dimension.split(":");
-            return parts.length > 1 ? parts[1].substring(0, 1).toUpperCase() + parts[1].substring(1) : dimension;
+            return FTBDataReader.shortDimension(dimension);
         }
     }
 
@@ -239,8 +204,7 @@ public class FTBDataReader {
         }
 
         public String getShortDimension() {
-            String[] parts = dimension.split(":");
-            return parts.length > 1 ? parts[1].substring(0, 1).toUpperCase() + parts[1].substring(1) : dimension;
+            return FTBDataReader.shortDimension(dimension);
         }
     }
 
@@ -262,8 +226,7 @@ public class FTBDataReader {
         }
 
         public String getShortDimension() {
-            String[] parts = dimension.split(":");
-            return parts.length > 1 ? parts[1].substring(0, 1).toUpperCase() + parts[1].substring(1) : dimension;
+            return FTBDataReader.shortDimension(dimension);
         }
     }
 }

@@ -14,6 +14,7 @@ import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LoginTracker;
+import com.arcadia.adminpanel.util.NextSpawnManager;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.neoforged.bus.api.IEventBus;
@@ -30,7 +31,7 @@ import java.nio.file.Paths;
  * Arcadia Admin Panel — Steampunk-themed server management mod.
  * Both-sided mod powered by Arcadia Lib.
  *
- * @version 1.2.0
+ * @version 1.2.5
  * @author vyrriox
  */
 @Mod("arcadiaadminpanel")
@@ -120,9 +121,12 @@ public class AdminPanelMod {
         WarnManager.getInstance().init();
         JailManager.getInstance().init();
         LoginTracker.getInstance().init();
+        NextSpawnManager.getInstance().init();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {
+        // Flush the login tracker's coalesced write + stop its IO thread so no record is lost.
+        LoginTracker.getInstance().shutdown();
         // Clear caches on server stop
         FTBDataReader.clearCache();
         FTBTeamsReader.clearCache();
@@ -135,14 +139,23 @@ public class AdminPanelMod {
      * <ol>
      *   <li>Vanilla OP level &gt;= 2 (set via /op or server.properties — immune to perm-backend state).</li>
      *   <li>The new granular {@code arcadia.adminpanel.open} node (1.2.4+ permission rework).</li>
+     *   <li>The dashboard-visibility node {@code arcadia.hub.adminpanel} (1.2.5). This is the SAME
+     *       node Arcadia Lib's carousel uses to decide whether the Admin Panel card is even visible
+     *       ({@code canSeeHubCard} checks {@code arcadia.hub.<cardId>}). Before 1.2.5 a player granted
+     *       only the open node could not SEE the card, and a player granted only the hub node could
+     *       see it but clicking did nothing — the two gates disagreed. Accepting it here (strictly,
+     *       so it still fails closed when no perm backend is bound) means one node now both reveals
+     *       and opens the panel.</li>
      *   <li>Legacy {@code arcadia.staff.mod} — kept so existing LuckPerms groups don't lose access
-     *       on upgrade. New deployments should grant {@code arcadia.adminpanel.*} instead.</li>
+     *       on upgrade. New deployments should grant {@code arcadia.hub.adminpanel} (see + open) and
+     *       optionally {@code arcadia.adminpanel.*} for the per-action nodes.</li>
      * </ol>
      */
     public static boolean canOpenAdminPanel(net.minecraft.server.level.ServerPlayer player) {
         if (player == null) return false;
         if (player.hasPermissions(2)) return true;
         if (com.arcadia.adminpanel.util.AdminPermissions.OPEN.check(player)) return true;
+        if (com.arcadia.lib.permissions.PermissionService.hasPermissionStrict(player, "arcadia.hub.adminpanel")) return true;
         return com.arcadia.lib.permissions.PermissionService.hasPermissionStrict(player, "arcadia.staff.mod");
     }
 }

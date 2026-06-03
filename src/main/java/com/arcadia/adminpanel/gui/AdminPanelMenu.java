@@ -1,6 +1,7 @@
 package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
+import com.arcadia.lib.scheduler.SchedulerService;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
@@ -30,6 +31,17 @@ public class AdminPanelMenu extends ChestMenu {
     private int currentPage = 0;
     private boolean showOffline = true;
     private static final int ITEMS_PER_PAGE = 45;
+
+    // Authoritative slot -> player mapping for the current page. We act on the head's UUID (not its
+    // display name) so duplicate / case-colliding names can never operate on the wrong player.
+    private final Map<Integer, UUID> slotUuid = new HashMap<>();
+    private final Map<Integer, String> slotName = new HashMap<>();
+
+    // Deferred head-skin refresh: skins resolve async (Mojang), so we re-send the head slots in
+    // place a few times after build until they're all textured (capped, never on offline mode).
+    private boolean headRefreshScheduled = false;
+    private int headRefreshAttempts = 0;
+    private static final int MAX_HEAD_REFRESH = 4;
 
     /** Server-side constructor — builds menu content. */
     public static void open(ServerPlayer admin) {
@@ -96,15 +108,25 @@ public class AdminPanelMenu extends ChestMenu {
         }
 
         // Place heads
+        slotUuid.clear();
+        slotName.clear();
+        headRefreshAttempts = 0;
+        boolean anyPlaceholder = false;
         int start = currentPage * ITEMS_PER_PAGE;
         int end = Math.min(start + ITEMS_PER_PAGE, allPlayers.size());
         for (int i = start; i < end; i++) {
             PlayerInfo info = allPlayers.get(i);
+            int slot = i - start;
             var skull = SkullCache.createSkull(info.uuid, info.name);
             skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
                     Component.literal((info.online ? "§a" : "§c") + info.name));
-            this.getContainer().setItem(i - start, skull);
+            this.getContainer().setItem(slot, skull);
+            slotUuid.put(slot, info.uuid);
+            slotName.put(slot, info.name);
+            if (!SkullCache.hasTexture(info.uuid)) anyPlaceholder = true;
         }
+        // Some skins are still resolving — re-send the head slots in place once they arrive.
+        if (anyPlaceholder) scheduleHeadRefresh();
 
         // Controls row
         if (currentPage > 0) {
@@ -148,6 +170,36 @@ public class AdminPanelMenu extends ChestMenu {
         }
     }
 
+    /**
+     * Re-send the current page's head slots once their skins finish resolving. Bounded retries so a
+     * permanently-unresolvable head (offline-mode UUID) doesn't loop forever. Only runs while this
+     * menu is still the player's open container.
+     */
+    private void scheduleHeadRefresh() {
+        if (admin == null || headRefreshScheduled || headRefreshAttempts >= MAX_HEAD_REFRESH) return;
+        headRefreshScheduled = true;
+        headRefreshAttempts++;
+        SchedulerService.delayed(30, () -> {
+            headRefreshScheduled = false;
+            if (admin.containerMenu != this) return;
+            boolean stillPlaceholder = false;
+            for (var e : slotUuid.entrySet()) {
+                int slot = e.getKey();
+                UUID uuid = e.getValue();
+                String name = slotName.get(slot);
+                if (name == null) continue;
+                boolean online = admin.getServer().getPlayerList().getPlayer(uuid) != null;
+                var skull = SkullCache.createSkull(uuid, name);
+                skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
+                        Component.literal((online ? "§a" : "§c") + name));
+                this.getContainer().setItem(slot, skull);
+                if (!SkullCache.hasTexture(uuid)) stillPlaceholder = true;
+            }
+            this.broadcastChanges();
+            if (stillPlaceholder) scheduleHeadRefresh();
+        });
+    }
+
     @Override
     public void clicked(int slotId, int button, @NotNull ClickType clickType, @NotNull Player player) {
         if (!(player instanceof ServerPlayer sp)) return;
@@ -156,31 +208,16 @@ public class AdminPanelMenu extends ChestMenu {
         var clicked = this.getContainer().getItem(slotId);
         if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE)) return;
 
-        // Player head click (slots 0-44)
+        // Player head click (slots 0-44) — act on the authoritative slot UUID, never the display
+        // name (duplicate / case-colliding names would otherwise target the wrong player).
         if (slotId >= 0 && slotId < 45) {
-            String displayName = clicked.getHoverName().getString();
-            String cleanName = displayName.replaceAll("§[0-9a-fk-or]", "");
-
-            UUID targetUUID = null;
-            boolean isOnline = false;
-
-            ServerPlayer target = sp.getServer().getPlayerList().getPlayerByName(cleanName);
-            if (target != null) {
-                targetUUID = target.getUUID();
-                isOnline = true;
-            } else {
-                for (var entry : OfflinePlayerManager.getInstance().getCache().entrySet()) {
-                    if (entry.getValue().name().equalsIgnoreCase(cleanName)) {
-                        targetUUID = entry.getKey();
-                        break;
-                    }
-                }
-            }
-
-            if (targetUUID != null) {
-                sp.closeContainer();
-                PlayerDetailMenu.open(sp, targetUUID, cleanName, isOnline);
-            }
+            UUID targetUUID = slotUuid.get(slotId);
+            if (targetUUID == null) return;
+            boolean isOnline = sp.getServer().getPlayerList().getPlayer(targetUUID) != null;
+            String name = slotName.getOrDefault(slotId,
+                    clicked.getHoverName().getString().replaceAll("§[0-9a-fk-or]", ""));
+            sp.closeContainer();
+            PlayerDetailMenu.open(sp, targetUUID, name, isOnline);
             return;
         }
 

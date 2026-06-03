@@ -6,16 +6,17 @@ Arcadia Admin Panel is a NeoForge Minecraft mod that gives server staff a comple
 
 ## Features
 
-- **Player Panel** — Paginated grid of every player on the server, online and offline (resolved from FTB Essentials player data). Real-time client-side search bar filters by name. Click a head to open the player detail menu.
-- **Player Detail Menu** — One screen for everything: jail/unjail, mute/unmute, kick, ban/unban, clear inventory, invsee, reset progress, teleport to/here, view homes, view teleport history, view warns. Skull lore surfaces last login / last logout / first seen timestamps.
+- **Player Panel** — Paginated grid of every player on the server, online and offline. Offline names are resolved from multiple sources (usercache + FTB Teams cached names) so heads show real pseudos, never raw UUIDs, and render the players' **real skins** (resolved server-side, online-mode). Real-time client-side search bar filters by name. Click a head to open the player detail menu.
+- **Player Detail Menu** — One screen for everything: jail/unjail, mute/unmute, kick, ban/unban, clear inventory, invsee, reset progress, teleport to/here, switch **game mode**, **heal/feed**, pin a one-shot **next-login spawn** (debug teleport), view homes, view teleport history, view warns. Skull lore surfaces last login / last logout / first seen timestamps.
+- **Next-Login Spawn** — Pin a debug spawn point to any player (online or offline); on their next connection they spawn there instead of their normal position, then the override is consumed. Set it from the GUI (stand where you want them, click) or via command. Jail always takes priority. Persists across restarts.
 - **Warning System** — Add, list, delete, and bulk-clear warns. Configurable auto-expiry (default 180 days). Multi-server sync via shared MySQL (Arcadia Lib `DatabaseManager`); falls back to local JSON when the database is disabled. Players see their active warns on join with time-until-expiry per warn and a clickable `/checkwarn` link.
 - **Offline Warning** — `/arcadia_adminpanel warnoffline <name> <reason>` works whether the target is connected or not. Offline targets get notified at their next login.
 - **Jail System** — Per-server jail location with multi-server sync. Players are bounced back to the jail by a 3-layer anti-glitch system: `EntityTeleportEvent` cancel for ender pearls and chorus fruit, right-click intercept for waystone/warp/teleport-named items + blocks, and a periodic proximity sweep that re-teleports anyone who drifted outside the configurable radius. On release, players are teleported back to their pre-jail position.
 - **Jail Baton** — Custom 32×32 textured staff tool. Right-click a player to jail them for 30 minutes; right-click an already-jailed player to release them. Staff-gated, immune to self-target and other staff.
-- **FTB Teams Browser** — List every party + server team with member count + claim count + force-loaded chunk count. Click a member to open their detail panel or right-click to teleport to their last-seen position. Parses `<world>/ftbteams/*.snbt` directly — no runtime dependency on the FTB Teams mod.
+- **FTB Teams Browser** — List every party + server team (and, via a toggle, per-player personal teams) with member count + claim count + force-loaded chunk count. Member counts include the team owner. Click a member to open their detail panel or right-click to teleport to their last-seen position. Parses `<world>/ftbteams/*.snbt` directly — no runtime dependency on the FTB Teams mod, and discovery is independent of FTB Essentials.
 - **FTB Chunks Integration** — Per-team total claims and force-loaded chunks surfaced in the GUI, parsed from `<world>/ftbchunks/<team-uuid>.snbt`.
 - **Login Queue** — Optional connection throttle (off by default). Token-bucket rolling window holds excess players in the negotiation phase — no slot, no chunk loads — until their turn. Saves heavy modpacks from post-reboot TPS death.
-- **Granular Permissions** — One LuckPerms node per action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.open`). Buttons the viewer can't use are hidden from the GUI entirely. OP level ≥ 2 short-circuits everything; legacy `arcadia.staff.mod` still grants full access for backwards compatibility.
+- **Granular Permissions** — One LuckPerms node per action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.open`). Buttons the viewer can't use are hidden from the GUI entirely. **To grant panel access, the simplest single node is `arcadia.hub.adminpanel`** — it is the node Arcadia Lib's dashboard uses to show the card, and as of 1.2.5 it also opens the panel (so one grant both reveals and opens it). OP level ≥ 2 short-circuits everything; legacy `arcadia.staff.mod` still grants full access for backwards compatibility.
 - **Bilingual UI** — English and French lang files, automatic locale detection.
 
 ## Commands
@@ -43,6 +44,10 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `jaillist` | `arcadia.adminpanel.jail` | List currently-jailed players |
 | `givebaton` | `arcadia.adminpanel.jail` | Add a Jail Baton to your inventory |
 | `announce <title>[\| <subtitle>]` | `arcadia.adminpanel.announce` | Server-wide title + subtitle + chime |
+| `setnextspawn <player>` | `arcadia.adminpanel.nextspawn` | Pin a one-shot next-login spawn to your position |
+| `clearnextspawn <player>` | `arcadia.adminpanel.nextspawn` | Clear a pending next-login spawn |
+| `nextspawnlist` | `arcadia.adminpanel.nextspawn` | List pending next-login spawns |
+| `jailradius [blocks]` | `arcadia.adminpanel.setjail` | Show/set the jail-zone radius + enable anti-escape |
 
 ## Requirements
 
@@ -60,7 +65,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 ## Installation
 
 1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.9 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.2.4.jar` in your `mods/` folder
+2. Place `arcadia-admin-panel-1.2.5.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -112,16 +117,17 @@ Arcadia Admin Panel est un mod NeoForge pour Minecraft qui offre au staff serveu
 
 ## Caractéristiques
 
-- **Panneau Joueur** — Grille paginée de tous les joueurs du serveur, en ligne et hors ligne (résolus via les données FTB Essentials). Barre de recherche client-side temps réel pour filtrer par nom. Cliquez sur une tête pour ouvrir le menu de détail.
-- **Menu Détail Joueur** — Un seul écran pour tout : jail/unjail, mute/unmute, kick, ban/unban, vider inventaire, invsee, reset progression, téléporter vers/ici, voir homes, voir historique TP, voir warns. Le lore du crâne affiche dernière connexion / dernière déconnexion / première fois vu.
+- **Panneau Joueur** — Grille paginée de tous les joueurs du serveur, en ligne et hors ligne. Les noms hors ligne sont résolus depuis plusieurs sources (usercache + noms mis en cache par FTB Teams) pour afficher les vrais pseudos, jamais des UUID bruts, et rendent les **vraies têtes (skins)** des joueurs (résolues côté serveur, mode online). Barre de recherche client-side temps réel pour filtrer par nom. Cliquez sur une tête pour ouvrir le menu de détail.
+- **Menu Détail Joueur** — Un seul écran pour tout : jail/unjail, mute/unmute, kick, ban/unban, vider inventaire, invsee, reset progression, téléporter vers/ici, changer de **mode de jeu**, **soigner/nourrir**, épingler un **spawn de prochaine connexion** à usage unique (téléport de debug), voir homes, voir historique TP, voir warns. Le lore du crâne affiche dernière connexion / dernière déconnexion / première fois vu.
+- **Spawn de Prochaine Connexion** — Épingle un point de spawn de debug sur n'importe quel joueur (en ligne ou hors ligne) ; à sa prochaine connexion il apparaît là au lieu de sa position normale, puis l'override est consommé. À définir depuis le GUI (placez-vous où vous voulez, cliquez) ou via commande. La prison est toujours prioritaire. Persiste après redémarrage.
 - **Système d'Avertissement** — Ajouter, lister, supprimer, et vider en masse les warns. Expiration auto configurable (défaut 180 jours). Sync multi-serveur via MySQL partagée (Arcadia Lib `DatabaseManager`) ; fallback JSON local si la base est désactivée. Les joueurs voient leurs warns actifs à la connexion avec le temps avant expiration de chaque warn et un lien cliquable `/checkwarn`.
 - **Warn Hors Ligne** — `/arcadia_adminpanel warnoffline <nom> <raison>` fonctionne que la cible soit connectée ou non. Les cibles offline sont notifiées à leur prochaine connexion.
 - **Système de Prison** — Position de prison par serveur avec sync multi-serveur. Les joueurs sont renvoyés en prison par un système anti-glitch 3 couches : annulation `EntityTeleportEvent` pour perles + chorus, intercept du clic droit pour items + blocs nommés waystone/warp/teleport, et balayage périodique de proximité qui re-téléporte quiconque a dérivé hors du rayon configurable. À la libération, les joueurs sont téléportés à leur position d'avant-jail.
 - **Matraque de Prison** — Outil staff custom avec texture 32×32. Clic droit sur un joueur pour le jail 30 min ; clic droit sur un joueur déjà en prison pour le libérer. Staff uniquement, immunité auto-target et autres staff.
-- **Navigateur FTB Teams** — Liste toutes les parties + teams serveur avec compteur de membres + compteur de claims + chunks force-loaded. Clic sur un membre pour ouvrir son panneau détail ou clic droit pour téléporter à sa dernière position. Parse `<world>/ftbteams/*.snbt` directement — aucune dépendance d'exécution sur le mod FTB Teams.
+- **Navigateur FTB Teams** — Liste toutes les parties + teams serveur (et, via une bascule, les teams personnelles par joueur) avec compteur de membres + compteur de claims + chunks force-loaded. Le compteur de membres inclut le propriétaire de la team. Clic sur un membre pour ouvrir son panneau détail ou clic droit pour téléporter à sa dernière position. Parse `<world>/ftbteams/*.snbt` directement — aucune dépendance d'exécution sur le mod FTB Teams, et la découverte est indépendante de FTB Essentials.
 - **Intégration FTB Chunks** — Total des claims et chunks force-loaded par team affiché dans le GUI, parsé depuis `<world>/ftbchunks/<team-uuid>.snbt`.
 - **File d'Attente Connexion** — Throttle de connexion optionnel (désactivé par défaut). Fenêtre glissante token-bucket maintient l'excès de joueurs en phase de négociation — pas de slot, pas de chargement de chunks — jusqu'à leur tour. Sauve les modpacks lourds de la mort TPS post-reboot.
-- **Permissions Granulaires** — Un node LuckPerms par action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.open`). Les boutons que le viewer ne peut pas utiliser sont entièrement cachés du GUI. OP level ≥ 2 court-circuite tout ; le legacy `arcadia.staff.mod` accorde toujours l'accès complet pour rétrocompatibilité.
+- **Permissions Granulaires** — Un node LuckPerms par action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.open`). Les boutons que le viewer ne peut pas utiliser sont entièrement cachés du GUI. **Pour accorder l'accès au panel, le node unique le plus simple est `arcadia.hub.adminpanel`** — c'est le node qu'utilise le dashboard d'Arcadia Lib pour afficher la carte, et depuis la 1.2.5 il ouvre aussi le panel (un seul grant révèle ET ouvre). OP level ≥ 2 court-circuite tout ; le legacy `arcadia.staff.mod` accorde toujours l'accès complet pour rétrocompatibilité.
 - **Interface Bilingue** — Fichiers de langue anglais et français, détection automatique de la locale.
 
 ## Commandes
@@ -149,6 +155,10 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `jaillist` | `arcadia.adminpanel.jail` | Lister les joueurs en prison |
 | `givebaton` | `arcadia.adminpanel.jail` | Ajouter une Matraque de Prison à votre inventaire |
 | `announce <titre>[\| <sous-titre>]` | `arcadia.adminpanel.announce` | Title + sous-titre + son pour tout le serveur |
+| `setnextspawn <joueur>` | `arcadia.adminpanel.nextspawn` | Épingler un spawn de prochaine connexion à votre position |
+| `clearnextspawn <joueur>` | `arcadia.adminpanel.nextspawn` | Annuler un spawn de prochaine connexion en attente |
+| `nextspawnlist` | `arcadia.adminpanel.nextspawn` | Lister les spawns de prochaine connexion en attente |
+| `jailradius [blocs]` | `arcadia.adminpanel.setjail` | Afficher/régler le rayon de la zone de prison + activer l'anti-évasion |
 
 ## Prérequis
 
@@ -166,7 +176,7 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 ## Installation
 
 1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.9 dans votre dossier `mods/`
-2. Placez `arcadia-admin-panel-1.2.4.jar` dans votre dossier `mods/`
+2. Placez `arcadia-admin-panel-1.2.5.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
 5. Démarrez le serveur

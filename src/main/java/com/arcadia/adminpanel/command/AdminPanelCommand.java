@@ -19,6 +19,7 @@ import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
+import com.arcadia.adminpanel.util.LoginTracker;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.commands.CommandSourceStack;
@@ -262,7 +263,123 @@ public final class AdminPanelCommand {
                                             LanguageHelper.getText("baton.given", sp)));
                                     return 1;
                                 }))
+
+                        // /arcadia_adminpanel setnextspawn <target> — pin the admin's current
+                        // position as the player's one-shot next-login spawn (debug teleport).
+                        .then(Commands.literal("setnextspawn")
+                                .requires(require(AdminPermissions.NEXT_SPAWN))
+                                .then(Commands.argument("target", StringArgumentType.string())
+                                        .suggests(PLAYER_SUGGESTIONS)
+                                        .executes(AdminPanelCommand::executeSetNextSpawn)))
+
+                        // /arcadia_adminpanel clearnextspawn <target>
+                        .then(Commands.literal("clearnextspawn")
+                                .requires(require(AdminPermissions.NEXT_SPAWN))
+                                .then(Commands.argument("target", StringArgumentType.string())
+                                        .suggests(PLAYER_SUGGESTIONS)
+                                        .executes(AdminPanelCommand::executeClearNextSpawn)))
+
+                        // /arcadia_adminpanel nextspawnlist
+                        .then(Commands.literal("nextspawnlist")
+                                .requires(require(AdminPermissions.NEXT_SPAWN))
+                                .executes(AdminPanelCommand::executeNextSpawnList))
+
+                        // /arcadia_adminpanel jailradius [blocks] — show or set the max jail zone
+                        // radius. Setting it also (re-)enables the anti-escape proximity sweep that
+                        // teleports a jailed player back inside the zone if they get out.
+                        .then(Commands.literal("jailradius")
+                                .requires(require(AdminPermissions.SETJAIL))
+                                .executes(AdminPanelCommand::executeJailRadiusShow)
+                                .then(Commands.argument("blocks", IntegerArgumentType.integer(1, 1000))
+                                        .executes(AdminPanelCommand::executeJailRadiusSet)))
         );
+    }
+
+    private static int executeJailRadiusShow(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        com.arcadia.adminpanel.util.AdminConfig.Data cfg = com.arcadia.adminpanel.util.AdminConfig.get();
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("jail.radius.current", admin)
+                        .replace("%radius%", String.valueOf(cfg.jailProximityRadius))
+                        .replace("%state%", cfg.jailEnforceProximity ? "ON" : "OFF")), false);
+        return 1;
+    }
+
+    private static int executeJailRadiusSet(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        int blocks = IntegerArgumentType.getInteger(context, "blocks");
+        com.arcadia.adminpanel.util.AdminConfig.Data cfg = com.arcadia.adminpanel.util.AdminConfig.get();
+        cfg.jailProximityRadius = blocks;
+        cfg.jailEnforceProximity = true; // configuring a zone implies enabling anti-escape
+        com.arcadia.adminpanel.util.AdminConfig.save();
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("jail.radius.set", admin)
+                        .replace("%radius%", String.valueOf(blocks))), true);
+        return 1;
+    }
+
+    private static int executeSetNextSpawn(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        if (!(source.getEntity() instanceof ServerPlayer admin)) {
+            source.sendFailure(ArcadiaMessages.error(
+                    LanguageHelper.getText("error.player_only", (ServerPlayer) null)));
+            return 0;
+        }
+        String targetName = StringArgumentType.getString(context, "target");
+        UUID targetUUID = resolveUUID(source, targetName);
+        if (targetUUID == null) {
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+            return 0;
+        }
+        String resolved = resolveName(source, targetUUID, targetName);
+        com.arcadia.adminpanel.util.NextSpawnManager.getInstance().setFromAdmin(targetUUID, admin);
+        admin.sendSystemMessage(ArcadiaMessages.success(
+                LanguageHelper.getText("nextspawn.set", admin).replace("%player%", resolved)));
+        return 1;
+    }
+
+    private static int executeClearNextSpawn(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        String targetName = StringArgumentType.getString(context, "target");
+        UUID targetUUID = resolveUUID(source, targetName);
+        if (targetUUID == null) {
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+            return 0;
+        }
+        boolean cleared = com.arcadia.adminpanel.util.NextSpawnManager.getInstance().clear(targetUUID);
+        String resolved = resolveName(source, targetUUID, targetName);
+        source.sendSuccess(() -> cleared
+                ? ArcadiaMessages.success(LanguageHelper.getText("nextspawn.cleared", admin)
+                        .replace("%player%", resolved))
+                : ArcadiaMessages.info(LanguageHelper.getText("nextspawn.none", admin)
+                        .replace("%player%", resolved)), false);
+        return 1;
+    }
+
+    private static int executeNextSpawnList(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        var all = com.arcadia.adminpanel.util.NextSpawnManager.getInstance().getAll();
+        if (all.isEmpty()) {
+            source.sendSuccess(() -> ArcadiaMessages.info(
+                    LanguageHelper.getText("nextspawn.list.empty", admin)), false);
+            return 1;
+        }
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("nextspawn.list.header", admin)
+                        .replace("%count%", String.valueOf(all.size()))), false);
+        for (var entry : all.entrySet()) {
+            UUID uuid = entry.getKey();
+            var point = entry.getValue();
+            String name = resolveName(source, uuid, uuid.toString().substring(0, 8));
+            source.sendSuccess(() -> Component.literal(
+                    " §8- §e" + name + " §7→ §f" + point.getShortDimension()
+                            + " §7(" + point.getFormattedCoords() + ") §8by §7" + point.setBy()), false);
+        }
+        return 1;
     }
 
     /**
@@ -368,6 +485,7 @@ public final class AdminPanelCommand {
         com.arcadia.adminpanel.util.FTBChunksReader.clearCache();
         AdminPermissions.invalidateAll();
         WarnManager.getInstance().reload();
+        com.arcadia.adminpanel.util.NextSpawnManager.getInstance().reload();
 
         source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);
         return 1;
@@ -673,10 +791,25 @@ public final class AdminPanelCommand {
     private static UUID resolveUUID(CommandSourceStack source, String targetName) {
         ServerPlayer onlineTarget = source.getServer().getPlayerList().getPlayerByName(targetName);
         if (onlineTarget != null) return onlineTarget.getUUID();
+        // Prefer an exact-case match; collect case-insensitive matches for a deterministic tie-break
+        // (ConcurrentHashMap iteration order is undefined, so "first match wins" could act on a
+        // different account across restarts when names collide via Mojang name reuse).
+        UUID exact = null;
+        java.util.List<UUID> ci = new java.util.ArrayList<>();
         for (var entry : OfflinePlayerManager.getInstance().getCache().entrySet()) {
-            if (entry.getValue().name().equalsIgnoreCase(targetName)) return entry.getKey();
+            String n = entry.getValue().name();
+            if (n.equals(targetName)) exact = entry.getKey();
+            else if (n.equalsIgnoreCase(targetName)) ci.add(entry.getKey());
         }
-        return null;
+        if (exact != null) return exact;
+        if (ci.isEmpty()) return null;
+        if (ci.size() == 1) return ci.get(0);
+        // Ambiguous: most-recently-seen wins (stable across restarts).
+        ci.sort(java.util.Comparator.<UUID>comparingLong(u -> {
+            LoginTracker.LoginRecord r = LoginTracker.getInstance().get(u);
+            return r == null ? 0L : Math.max(r.lastLoginMs(), r.firstSeenMs());
+        }).reversed());
+        return ci.get(0);
     }
 
     private AdminPanelCommand() {}

@@ -95,6 +95,24 @@ public final class FTBTeamsReader {
         return null;
     }
 
+    /**
+     * Best-effort lookup of the cached player name FTB Teams stores in the per-player team file
+     * ({@code player/<uuid>.snbt}, top-level {@code player_name}). Returns {@code null} if FTB Teams
+     * data is unavailable or the file/field is missing. Used as one source in offline-name resolution
+     * so the admin panel never has to fall back to a raw UUID when FTB Teams knows the name.
+     */
+    @Nullable
+    public static String getPlayerName(UUID playerUuid) {
+        Path base = basePath;
+        if (base == null) return null;
+        Path file = base.resolve(TeamType.PLAYER.dir).resolve(playerUuid + ".snbt");
+        if (!Files.isRegularFile(file)) return null;
+        CompoundTag tag = readSnbt(file);
+        if (tag == null) return null;
+        String name = tag.getString("player_name");
+        return name != null && !name.isBlank() ? name : null;
+    }
+
     private static List<Team> getTeams(TeamType type) {
         if (basePath == null) return List.of();
         CachedTeams cached = cache.get(type.dir);
@@ -181,6 +199,21 @@ public final class FTBTeamsReader {
                 }
             }
 
+            // FTB Teams never writes the owner into the "ranks" map: for a PartyTeam the owner lives
+            // only in the top-level "owner" string, and for a PlayerTeam the owner is the team id
+            // itself (injected as `owner` above). FTB re-applies the OWNER rank at runtime via
+            // getRankForPlayer(). Without mirroring that here, every solo team (owner only, no other
+            // ranks) parses to memberCount()==0 and getEffectiveTeamFor() can't match the owner —
+            // which is the core "teams show empty / aren't found" bug. Verified against FTB Teams
+            // 2101.x AbstractTeam.serializeNBT + PartyTeam/PlayerTeam.getRankForPlayer.
+            if (owner != null) {
+                boolean ownerListed = false;
+                for (Member m : members) {
+                    if (m.uuid.equals(owner)) { ownerListed = true; break; }
+                }
+                if (!ownerListed) members.add(new Member(owner, Rank.OWNER));
+            }
+
             return new Team(id, type, displayName, color, description, owner, members);
         } catch (Exception e) {
             LOGGER.debug("[AdminPanel] Failed to parse team file {}: {}", file, e.getMessage());
@@ -220,7 +253,7 @@ public final class FTBTeamsReader {
     }
 
     public enum Rank {
-        OWNER, OFFICER, MEMBER, ALLY, INVITED, NONE;
+        OWNER, OFFICER, MEMBER, ALLY, INVITED, NONE, ENEMY;
 
         public boolean isInTeam() {
             return this == OWNER || this == OFFICER || this == MEMBER;
