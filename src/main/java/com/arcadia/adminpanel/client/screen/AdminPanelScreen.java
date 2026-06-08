@@ -17,6 +17,11 @@ import org.jetbrains.annotations.NotNull;
  */
 public class AdminPanelScreen extends ThemedContainerScreen {
 
+    // Color-code stripper, compiled once. isFilteredOut() runs for up to 45 head slots every render
+    // frame; compiling the pattern inline (replaceAll) re-looked it up on every call.
+    private static final java.util.regex.Pattern COLOR_CODE =
+            java.util.regex.Pattern.compile("§[0-9a-fk-or]");
+
     private EditBox searchBox;
     private String searchQuery = "";
 
@@ -69,8 +74,8 @@ public class AdminPanelScreen extends ThemedContainerScreen {
         if (!slot.hasItem()) return false;
         var stack = slot.getItem();
         if (!stack.is(Items.PLAYER_HEAD)) return false;
-        String name = stack.getHoverName().getString().toLowerCase()
-                .replaceAll("§[0-9a-fk-or]", "");
+        String name = COLOR_CODE.matcher(stack.getHoverName().getString().toLowerCase())
+                .replaceAll("");
         return !name.contains(searchQuery);
     }
 

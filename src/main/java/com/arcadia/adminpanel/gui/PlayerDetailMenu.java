@@ -56,6 +56,13 @@ public class PlayerDetailMenu extends ChestMenu {
     private boolean headerRefreshScheduled = false;
     private int headerRefreshAttempts = 0;
 
+    // Per-session FTB data cache. readPlayerData() reads + parses a file (NBT/JSON) on the server
+    // thread; without this it was re-read once per buildMenu() AND again on every home/history/tp
+    // click and the info sheet. One menu instance reads it at most once now; a fresh buildMenu()
+    // (e.g. after an action re-opens the menu) clears it so stale data never sticks.
+    private FTBDataReader.PlayerFTBData cachedFtbData;
+    private boolean ftbDataLoaded = false;
+
     public static void open(ServerPlayer admin, UUID targetUUID, String targetName, boolean isOnline) {
         admin.openMenu(new SimpleMenuProvider(
                 (id, playerInv, player) -> new PlayerDetailMenu(id, playerInv, (ServerPlayer) player,
@@ -95,6 +102,11 @@ public class PlayerDetailMenu extends ChestMenu {
 
     private void buildMenu() {
         if (admin == null) return;
+
+        // Fresh render — drop any FTB data cached from a prior build so the menu reflects current
+        // homes / last-seen after an action re-opens it.
+        ftbDataLoaded = false;
+        cachedFtbData = null;
 
         var filler = ItemBuilder.of(Items.GRAY_STAINED_GLASS_PANE).name(Component.literal(" ")).build();
         for (int i = 0; i < 54; i++) {
@@ -240,14 +252,18 @@ public class PlayerDetailMenu extends ChestMenu {
                     .name(Component.literal("§6" + LanguageHelper.getText("action.invsee", admin))).build());
         }
 
-        // Info book (slot 8)
-        this.getContainer().setItem(8, ItemBuilder.of(Items.BOOK)
-                .name(Component.literal("§b" + LanguageHelper.getText("info.full", admin))).build());
+        // Info book (slot 8) — gated on the INFO node so the player's ban/whitelist/login sheet
+        // isn't exposed to a viewer who only holds OPEN.
+        if (AdminPermissions.INFO.check(admin)) {
+            this.getContainer().setItem(8, ItemBuilder.of(Items.BOOK)
+                    .name(Component.literal("§b" + LanguageHelper.getText("info.full", admin))).build());
+        }
 
-        // Homes (slots 9-35)
-        FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+        // Homes (slots 9-35) — teleport destinations, so visibility is gated on TELEPORT.
+        FTBDataReader.PlayerFTBData ftbData = readFtbData();
+        boolean canTeleport = canUseCommand("tp") && AdminPermissions.TELEPORT.check(admin);
 
-        if (ftbData != null && !ftbData.homes.isEmpty()) {
+        if (canTeleport && ftbData != null && !ftbData.homes.isEmpty()) {
             List<Map.Entry<String, FTBDataReader.HomeLocation>> homes = new ArrayList<>(ftbData.homes.entrySet());
             homes.sort(Map.Entry.comparingByKey());
             int start = homePage * HOMES_PER_PAGE;
@@ -395,6 +411,18 @@ public class PlayerDetailMenu extends ChestMenu {
         } catch (Exception e) {
             return false;
         }
+    }
+
+    /**
+     * Returns the target's FTB data, reading + parsing it from disk at most once per menu session.
+     * {@link #buildMenu()} resets the cache so a re-opened menu sees fresh data.
+     */
+    private FTBDataReader.PlayerFTBData readFtbData() {
+        if (!ftbDataLoaded) {
+            cachedFtbData = FTBDataReader.readPlayerData(targetUUID);
+            ftbDataLoaded = true;
+        }
+        return cachedFtbData;
     }
 
     private boolean canUseCommand(String commandLiteral) {
@@ -640,6 +668,7 @@ public class PlayerDetailMenu extends ChestMenu {
                 AdminPanelMenu.open(sp);
             }
             case 8 -> { // Info
+                if (!AdminPermissions.INFO.check(sp)) return;
                 showDetailedInfo();
                 sp.closeContainer();
             }
@@ -695,7 +724,7 @@ public class PlayerDetailMenu extends ChestMenu {
                                 admin.getYRot(), admin.getXRot());
                     }
                 } else {
-                    FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+                    FTBDataReader.PlayerFTBData ftbData = readFtbData();
                     if (ftbData != null && ftbData.lastSeen != null) {
                         executeTeleport(ftbData.lastSeen.dimension,
                                 ftbData.lastSeen.x, ftbData.lastSeen.y, ftbData.lastSeen.z);
@@ -763,9 +792,11 @@ public class PlayerDetailMenu extends ChestMenu {
                 WarnListMenu.open(admin, targetUUID, targetName);
             }
             default -> {
-                // Homes (9-35)
+                // Homes (9-35) — teleport action, so re-check TELEPORT (layer 2): a forged
+                // slot-click on a home must not move a viewer who lacks the teleport node.
                 if (slotId >= 9 && slotId <= 35) {
-                    FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+                    if (!AdminPermissions.TELEPORT.check(sp)) return;
+                    FTBDataReader.PlayerFTBData ftbData = readFtbData();
                     if (ftbData != null) {
                         var homes = new ArrayList<>(ftbData.homes.entrySet());
                         homes.sort(Map.Entry.comparingByKey());
@@ -777,9 +808,10 @@ public class PlayerDetailMenu extends ChestMenu {
                         }
                     }
                 }
-                // History (36-44)
+                // History (36-44) — same TELEPORT re-check.
                 if (slotId >= 36 && slotId <= 44) {
-                    FTBDataReader.PlayerFTBData ftbData = FTBDataReader.readPlayerData(targetUUID);
+                    if (!AdminPermissions.TELEPORT.check(sp)) return;
+                    FTBDataReader.PlayerFTBData ftbData = readFtbData();
                     if (ftbData != null && ftbData.teleportHistory != null) {
                         int index = slotId - 36;
                         if (index < ftbData.teleportHistory.size()) {

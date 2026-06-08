@@ -176,6 +176,9 @@ public final class LanguageHelper {
         en.put("team.member.actions", "Left-click: details · Right-click: TP to last-seen");
         en.put("jail.radius.current", "Jail zone radius: %radius% blocks (anti-escape: %state%)");
         en.put("jail.radius.set", "Jail zone radius set to %radius% blocks (anti-escape enabled).");
+        en.put("loginqueue.state", "Login queue is currently %state%.");
+        en.put("loginqueue.set", "Login queue turned %state%.");
+        en.put("loginqueue.invalid", "Invalid state — use 'on' or 'off'.");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -338,6 +341,9 @@ public final class LanguageHelper {
         fr.put("team.member.actions", "Clic gauche : détails · Clic droit : TP dernière position");
         fr.put("jail.radius.current", "Rayon de la zone de prison : %radius% blocs (anti-évasion : %state%)");
         fr.put("jail.radius.set", "Rayon de la zone de prison réglé à %radius% blocs (anti-évasion activé).");
+        fr.put("loginqueue.state", "La file d'attente de connexion est actuellement %state%.");
+        fr.put("loginqueue.set", "File d'attente de connexion : %state%.");
+        fr.put("loginqueue.invalid", "État invalide — utilisez 'on' ou 'off'.");
         translations.put("fr", fr);
     }
 

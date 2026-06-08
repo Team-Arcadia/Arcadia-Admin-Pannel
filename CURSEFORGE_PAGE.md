@@ -72,7 +72,7 @@
 </tr>
 <tr>
 <td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
-<p><span style="color: #ffa500;"><strong>🔒 Granular permissions (LuckPerms)</strong></span><br><strong>One node per action.</strong> Give your moderators <code>arcadia.adminpanel.warn.edit</code> + <code>.mute</code> + <code>.kick</code> but withhold <code>.ban</code> and <code>.clearinv</code>. Buttons the viewer can't use don't render — clean GUI, no audit risk.</p>
+<p><span style="color: #ffa500;"><strong>🔒 Granular permissions (LuckPerms)</strong></span><br><strong>One node per action.</strong> Give your moderators <code>arcadia.adminpanel.warn.edit</code> + <code>.mute</code> + <code>.kick</code> but withhold <code>.ban</code> and <code>.clearinv</code>. Every action is gated <strong>twice</strong> — the button is hidden when the viewer lacks the node <em>and</em> the click handler re-checks it, so a forged packet can't trigger an action the GUI never showed. On a dedicated server the backend <strong>fails closed</strong>: without a permission backend bound, only OPs pass. (1.2.6 closed every remaining gap — teleport grids, the team browser, warn deletion and the info sheet are now fully node-gated.)</p>
 </td>
 <td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
 <p><span style="color: #ffa500;"><strong>⚖️ Smart Warning System</strong></span><br>Add / list / delete warns. <strong>Auto-expires</strong> after a configurable TTL (default 180 days). <strong>Multi-server MySQL sync</strong> via Arcadia Lib. Players see their active warns on join with a clickable <code>/checkwarn</code> link and time-until-expiry per warn.</p>
@@ -163,7 +163,7 @@
 </tr>
 <tr style="background-color: rgba(255, 165, 0, 0.10);">
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;"><strong>Arcadia Lib</strong></td>
-<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.9</td>
+<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.13</td>
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">Required</td>
 </tr>
 <tr>
@@ -254,7 +254,7 @@
 </tr>
 <tr>
 <td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
-<p><span style="color: #ffa500;"><strong>🔒 Permissions granulaires (LuckPerms)</strong></span><br><strong>Un node par action.</strong> Donnez à vos modérateurs <code>arcadia.adminpanel.warn.edit</code> + <code>.mute</code> + <code>.kick</code> mais retirez <code>.ban</code> et <code>.clearinv</code>. Les boutons que le viewer ne peut pas utiliser ne sont pas rendus — GUI propre, zéro risque d'audit.</p>
+<p><span style="color: #ffa500;"><strong>🔒 Permissions granulaires (LuckPerms)</strong></span><br><strong>Un node par action.</strong> Donnez à vos modérateurs <code>arcadia.adminpanel.warn.edit</code> + <code>.mute</code> + <code>.kick</code> mais retirez <code>.ban</code> et <code>.clearinv</code>. Chaque action est gardée <strong>deux fois</strong> — le bouton est masqué si le joueur n'a pas le node <em>et</em> le gestionnaire de clic le re-vérifie, donc un paquet forgé ne peut pas déclencher une action que le GUI n'a jamais affichée. Sur un serveur dédié, le backend <strong>échoue fermé</strong> : sans backend de permission lié, seuls les OP passent. (La 1.2.6 a fermé tous les trous restants — grilles de téléportation, navigateur d'équipes, suppression d'avertissement et fiche d'info sont désormais entièrement gardés par node.)</p>
 </td>
 <td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
 <p><span style="color: #ffa500;"><strong>⚖️ Système d'avertissements intelligent</strong></span><br>Ajouter / lister / supprimer les warns. <strong>Expiration auto</strong> après un TTL configurable (défaut 180 jours). <strong>Sync MySQL multi-serveur</strong> via Arcadia Lib. Les joueurs voient leurs warns actifs à la connexion avec un lien <code>/checkwarn</code> cliquable et le temps avant expiration par warn.</p>
@@ -345,7 +345,7 @@
 </tr>
 <tr style="background-color: rgba(255, 165, 0, 0.10);">
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;"><strong>Arcadia Lib</strong></td>
-<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.9</td>
+<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.13</td>
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">Requis</td>
 </tr>
 <tr>

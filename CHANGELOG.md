@@ -4,7 +4,65 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.5] - 2026-06-03 (latest)
+## [1.2.6] - 2026-06-08 (latest)
+
+### Security
+
+- **GUI privilege escalation via forged slot-click packets (TELEPORT)** — The admin panel's two-layer permission model (hide the button if the viewer lacks the node, AND re-check the node in the click handler so a crafted packet can't trigger an unrendered action) had holes on every teleport path that didn't go through a numbered slot case. A staff member granted `arcadia.adminpanel.open` but **not** `arcadia.adminpanel.teleport` could craft a click packet and teleport anyway via: the player-detail **homes** grid (slots 9–35) and **teleport-history** row (slots 36–44), and the **team-detail** member right-click (TP to last-seen). None re-checked `TELEPORT` before executing. All now re-check `arcadia.adminpanel.teleport` in the handler, and the home/history buttons are also hidden at build time when the viewer lacks it.
+- **Team browser reachable without `arcadia.adminpanel.teams`** — The Teams button on the main menu and the team-list/team-detail menus gated only on FTB Teams being installed, never on the `TEAMS` node, so any panel user could browse every team's roster and members. The whole Teams chain (main button → team list → team detail) now requires `arcadia.adminpanel.teams` at both the visibility and action layers.
+- **Warn deletion only required `warn.view`** — The delete-on-click handler in the warn list gated on "is staff" (panel access) rather than `arcadia.adminpanel.warn.edit`, so a moderator with view-only warn permission could delete warns through the GUI. Deletion now re-checks `WARN_EDIT`, and the delete hint is hidden from view-only viewers.
+- **Player info sheet had no permission node** — The info book (ban/whitelist status, login history, last-seen) rendered and opened for anyone who could open the panel, with no node of its own. New node `arcadia.adminpanel.info` now gates both its visibility and its action.
+
+### Fixed
+
+- **Jail auto-release could fire instantly on extreme durations** — `jailInternal` cast `durationMs / 50` straight to `int`; a duration above ~107 billion ms overflowed to a negative tick delay and released the player immediately. Now clamped with `Math.max(1, …)` and bounded to `Integer.MAX_VALUE`, matching the startup and unjail schedulers.
+- **Command failures were swallowed to `System.err`** — Eight command handlers caught exceptions with `printStackTrace()`. They now log through the mod's SLF4J logger so failures land in the server log with context instead of raw stderr spam.
+
+### Added
+
+- **`/arcadia_adminpanel loginqueue [on|off]`** — The login-throttle queue was config-file-only and its reserved permission node `arcadia.adminpanel.loginqueue` was never enforced. A runtime toggle command now shows or flips `loginQueueEnabled` (persisted to `config.json`), gated on that node — the node is no longer dead.
+- **Granular mute node on the command path** — `/arcadia_adminpanel mute` / `unmute` now require `arcadia.adminpanel.mute` in addition to the `MOD` staff grade, matching the GUI's dual gate so one role config governs both. `checkwarn` is now gated on `arcadia.adminpanel.open` for auditability (it remains a read-only self-view).
+
+### Changed
+
+- **Arcadia Lib 1.2.9 → 1.2.13** — Picks up the lib's fail-closed permission backend (`PermissionBackend.DENY` is the dedicated-server default, so a missing/uninitialized LuckPerms no longer implicitly grants every node), the UUID-based debug-mode hardening, and the safe-command allow-list. No API changes affect the admin panel.
+
+### Performance
+
+- **Player detail menu reads FTB data at most once per session** — `readPlayerData` (a file read + NBT/JSON parse on the server thread) was re-run on every home/history/TP click and the info sheet after already being read on menu build. A per-instance cache, reset on each rebuild, collapses these to a single read.
+- **Jail proximity sweep no longer allocates a dimension string per tick** — The per-second anti-escape sweep called `…dimension().location().toString()` for every jailed player. The jail dimension is now parsed to a `ResourceLocation` once and compared by object, removing the per-iteration string allocation.
+- **Client search no longer recompiles its regex per frame** — The player-list search stripped colour codes with an inline `replaceAll` pattern on up to 45 heads every render frame; the pattern is now compiled once as a static field.
+
+### Sécurité
+
+- **Élévation de privilèges via paquets de clic forgés (TELEPORT)** — Le modèle de permission à deux couches du panneau (cacher le bouton si le joueur n'a pas le nœud, ET re-vérifier le nœud dans le gestionnaire de clic pour qu'un paquet forgé ne puisse pas déclencher une action non rendue) avait des trous sur toutes les téléportations passant par une grille de slots plutôt qu'un case numéroté. Un staff ayant `arcadia.adminpanel.open` mais **pas** `arcadia.adminpanel.teleport` pouvait quand même téléporter via : la grille **homes** (slots 9–35), l'historique de **téléportation** (slots 36–44) et le clic droit sur un **membre d'équipe** (TP dernière position). Aucun ne re-vérifiait `TELEPORT` avant d'agir. Tous re-vérifient désormais `arcadia.adminpanel.teleport`, et les boutons homes/historique sont aussi masqués à la construction.
+- **Navigateur d'équipes accessible sans `arcadia.adminpanel.teams`** — Le bouton Équipes et les menus liste/détail d'équipe ne dépendaient que de la présence de FTB Teams, jamais du nœud `TEAMS` ; n'importe quel utilisateur du panneau pouvait parcourir les rosters. Toute la chaîne Équipes exige maintenant `arcadia.adminpanel.teams` aux deux couches (visibilité + action).
+- **La suppression d'avertissement n'exigeait que `warn.view`** — Le gestionnaire de suppression au clic se basait sur « est staff » (accès panneau) plutôt que sur `arcadia.adminpanel.warn.edit` ; un modérateur en lecture seule pouvait supprimer des avertissements via le GUI. La suppression re-vérifie désormais `WARN_EDIT`, et l'astuce de suppression est masquée aux lecteurs sans ce nœud.
+- **La fiche d'info joueur n'avait aucun nœud de permission** — Le livre d'info (statut ban/whitelist, historique de connexion, dernière position) s'affichait et s'ouvrait pour quiconque pouvait ouvrir le panneau, sans nœud propre. Le nouveau nœud `arcadia.adminpanel.info` gère désormais sa visibilité et son action.
+
+### Correctifs
+
+- **La libération automatique de prison pouvait se déclencher immédiatement sur des durées extrêmes** — `jailInternal` convertissait `durationMs / 50` directement en `int` ; une durée au-delà de ~107 milliards de ms débordait en délai de ticks négatif et libérait le joueur aussitôt. Désormais borné avec `Math.max(1, …)` et plafonné à `Integer.MAX_VALUE`, comme les planificateurs de démarrage et de libération.
+- **Les échecs de commande étaient avalés vers `System.err`** — Huit gestionnaires de commande capturaient les exceptions avec `printStackTrace()`. Ils passent maintenant par le logger SLF4J du mod pour que les échecs arrivent dans le log serveur avec contexte au lieu du stderr brut.
+
+### Ajouts
+
+- **`/arcadia_adminpanel loginqueue [on|off]`** — La file d'attente de connexion n'était configurable que par fichier et son nœud réservé `arcadia.adminpanel.loginqueue` n'était jamais appliqué. Une commande de bascule runtime affiche ou inverse `loginQueueEnabled` (persisté dans `config.json`), gérée par ce nœud — le nœud n'est plus mort.
+- **Nœud de mute granulaire côté commande** — `/arcadia_adminpanel mute` / `unmute` exigent désormais `arcadia.adminpanel.mute` en plus du grade staff `MOD`, comme le double verrou du GUI, pour qu'une seule config de rôle régisse les deux. `checkwarn` est désormais gérée par `arcadia.adminpanel.open` pour l'auditabilité (elle reste une auto-consultation en lecture seule).
+
+### Modifications
+
+- **Arcadia Lib 1.2.9 → 1.2.13** — Récupère le backend de permission fail-closed de la lib (`PermissionBackend.DENY` est le défaut sur serveur dédié, donc un LuckPerms manquant/non initialisé n'accorde plus implicitement tous les nœuds), le durcissement du mode debug basé UUID et la liste blanche de commandes sûres. Aucun changement d'API n'affecte le panneau.
+
+### Performance
+
+- **Le menu détail joueur lit les données FTB une seule fois par session** — `readPlayerData` (lecture fichier + parsing NBT/JSON sur le thread serveur) était relancé à chaque clic home/historique/TP et sur la fiche d'info, après l'avoir déjà lu à la construction. Un cache par instance, réinitialisé à chaque reconstruction, réduit cela à une seule lecture.
+- **La surveillance de proximité de prison n'alloue plus de chaîne de dimension par tick** — La sweep anti-évasion (chaque seconde) appelait `…dimension().location().toString()` pour chaque joueur emprisonné. La dimension de la prison est désormais parsée en `ResourceLocation` une fois et comparée par objet, supprimant l'allocation de chaîne par itération.
+- **La recherche client ne recompile plus sa regex à chaque frame** — La recherche de la liste de joueurs retirait les codes couleur avec un motif `replaceAll` inline sur jusqu'à 45 têtes à chaque frame de rendu ; le motif est désormais compilé une fois en champ statique.
+
+---
+
+## [1.2.5] - 2026-06-03
 
 ### Fixed
 

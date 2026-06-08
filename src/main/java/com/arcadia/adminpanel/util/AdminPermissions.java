@@ -60,8 +60,10 @@ public enum AdminPermissions {
     RELOAD("arcadia.adminpanel.reload"),
     /** Set the jail location (high-impact admin action). */
     SETJAIL("arcadia.adminpanel.setjail"),
-    /** Toggle the login queue. */
+    /** Toggle the login queue at runtime ({@code /arcadia_adminpanel loginqueue [on|off]}). */
     LOGIN_QUEUE("arcadia.adminpanel.loginqueue"),
+    /** View a player's detailed info sheet (ban/whitelist status, login history, last-seen). */
+    INFO("arcadia.adminpanel.info"),
     /** Broadcast a server-wide title + subtitle announcement. */
     ANNOUNCE("arcadia.adminpanel.announce"),
     /** Pin / clear a player's next-login spawn override (debug teleport). */

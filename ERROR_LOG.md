@@ -4,6 +4,14 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-06-08 14:50] — Menu soft-lock from a blanket permission gate before navigation slots
+
+**Context:** Hardening `TeamListMenu.clicked()` for 1.2.6 — added a `TEAMS` node re-check (layer 2) so a forged packet can't drive the team browser without the node.
+**Error:** Placed `if (!AdminPermissions.TEAMS.check(sp)) return;` at the TOP of `clicked()`, before the back/pagination/toggle slot dispatch. If the viewer's permission flushed mid-session (2 s cache TTL, `/reload` → `invalidateAll()`, or a LuckPerms rank change), the back button stopped working and the staff member was trapped in the menu until disconnect/death.
+**Root cause:** A two-layer permission gate must protect only the *privileged content action*, not menu navigation. Navigation (back, paginate, toggle) must always stay reachable so a permission change can't strand a player in a server-side container.
+**Fix:** Moved the `TEAMS` re-check to AFTER the navigation-slot returns, just before the "open team detail" content block — matching how `TeamDetailMenu` already structures it. Caught by an adversarial code-review pass before commit.
+**Prevention:** When adding a per-action permission re-check inside a `clicked()` handler, gate the specific content branch, never the whole method. Always verify back/close/pagination slots run before any `return` from a permission check. Review every server-side menu's `clicked()` for "free navigation, gated actions".
+
 ## [2026-06-03 10:40] — Non-exhaustive switch after adding enum constant
 
 **Context:** Added `ENEMY` to `FTBTeamsReader.Rank` (to match FTB Teams' real serialized ranks).

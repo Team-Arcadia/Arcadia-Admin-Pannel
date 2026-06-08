@@ -41,6 +41,8 @@ import java.util.stream.Stream;
  */
 public final class AdminPanelCommand {
 
+    private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
+
     /**
      * Requires-predicate for a granular {@link AdminPermissions} node. Non-player sources (console,
      * command blocks, functions) always pass — preserves automation. Player sources pass if they
@@ -107,8 +109,10 @@ public final class AdminPanelCommand {
                                         .suggests(PLAYER_SUGGESTIONS)
                                         .executes(AdminPanelCommand::executeWarnList)))
 
-                        // /arcadia_adminpanel checkwarn
+                        // /arcadia_adminpanel checkwarn — self-serve "see my own warns". Gated on the
+                        // base OPEN node for auditability; the menu is read-only for self-views anyway.
                         .then(Commands.literal("checkwarn")
+                                .requires(require(AdminPermissions.OPEN))
                                 .executes(AdminPanelCommand::executeCheckWarn))
 
                         // /arcadia_adminpanel delwarn <target> <index>
@@ -197,6 +201,7 @@ public final class AdminPanelCommand {
                                         .executes(ctx -> {
                                             if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
                                             if (!StaffService.requireRole(ctx.getSource(), StaffRole.MOD)) return 0;
+                                            if (!AdminPermissions.MUTE.check(sp)) return 0;
                                             ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
                                             StaffActions.unmute(target.getUUID(), sp);
                                             return 1;
@@ -292,7 +297,47 @@ public final class AdminPanelCommand {
                                 .executes(AdminPanelCommand::executeJailRadiusShow)
                                 .then(Commands.argument("blocks", IntegerArgumentType.integer(1, 1000))
                                         .executes(AdminPanelCommand::executeJailRadiusSet)))
+
+                        // /arcadia_adminpanel loginqueue [on|off] — show or toggle the login-throttle
+                        // queue at runtime (was config-only; the LOGIN_QUEUE node now actually gates it).
+                        .then(Commands.literal("loginqueue")
+                                .requires(require(AdminPermissions.LOGIN_QUEUE))
+                                .executes(AdminPanelCommand::executeLoginQueueShow)
+                                .then(Commands.argument("state", StringArgumentType.word())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                new String[]{"on", "off"}, b))
+                                        .executes(AdminPanelCommand::executeLoginQueueSet)))
         );
+    }
+
+    private static int executeLoginQueueShow(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        boolean on = com.arcadia.adminpanel.util.AdminConfig.get().loginQueueEnabled;
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("loginqueue.state", admin)
+                        .replace("%state%", on ? "ON" : "OFF")), false);
+        return 1;
+    }
+
+    private static int executeLoginQueueSet(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        String state = StringArgumentType.getString(context, "state").toLowerCase();
+        boolean on;
+        if (state.equals("on") || state.equals("true")) on = true;
+        else if (state.equals("off") || state.equals("false")) on = false;
+        else {
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("loginqueue.invalid", admin)));
+            return 0;
+        }
+        com.arcadia.adminpanel.util.AdminConfig.get().loginQueueEnabled = on;
+        com.arcadia.adminpanel.util.AdminConfig.save();
+        final boolean fOn = on;
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("loginqueue.set", admin)
+                        .replace("%state%", fOn ? "ON" : "OFF")), true);
+        return 1;
     }
 
     private static int executeJailRadiusShow(CommandContext<CommandSourceStack> context) {
@@ -438,7 +483,7 @@ public final class AdminPanelCommand {
                             .replace("%count%", String.valueOf(delivered))), true);
             return delivered;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -447,6 +492,9 @@ public final class AdminPanelCommand {
         try {
             if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
             if (!StaffService.requireRole(ctx.getSource(), StaffRole.MOD)) return 0;
+            // Granular node on top of the staff grade, mirroring the GUI's dual gate so the same
+            // role config governs both the command and the Mute button.
+            if (!AdminPermissions.MUTE.check(sp)) return 0;
             ServerPlayer target = EntityArgument.getPlayer(ctx, "target");
             long mins = LongArgumentType.getLong(ctx, "minutes");
             StaffActions.mute(target.getUUID(), sp, reason, mins * 60_000L);
@@ -539,7 +587,7 @@ public final class AdminPanelCommand {
             }
             return 1;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -579,7 +627,7 @@ public final class AdminPanelCommand {
             }
             return targets.size();
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -608,7 +656,7 @@ public final class AdminPanelCommand {
             }
             return 1;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -645,7 +693,7 @@ public final class AdminPanelCommand {
             }
             return 1;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -667,7 +715,7 @@ public final class AdminPanelCommand {
                     String.format(LanguageHelper.getText("warn.cleared", admin), targetName, count)), true);
             return 1;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -709,7 +757,7 @@ public final class AdminPanelCommand {
                                     : LanguageHelper.getText("jail.permanent", admin))), true);
             return 1;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }
@@ -745,7 +793,7 @@ public final class AdminPanelCommand {
             }
             return 1;
         } catch (Exception e) {
-            e.printStackTrace();
+            LOGGER.error("[AdminPanel] Command execution failed", e);
             return 0;
         }
     }

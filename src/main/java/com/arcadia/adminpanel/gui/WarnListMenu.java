@@ -2,6 +2,7 @@ package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
 import com.arcadia.lib.util.SoundHelper;
+import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.WarnManager;
 import net.minecraft.network.chat.Component;
@@ -111,8 +112,9 @@ public class WarnListMenu extends ChestMenu {
                     builder.addLore(Component.literal("§8" + LanguageHelper.getText("misc.server", admin) + " " + warn.serverId()));
                 }
 
-                // Delete hint for admins
-                if (!admin.getUUID().equals(targetUUID)) {
+                // Delete hint — only shown to staff who can actually edit warns (layer 1). Viewers
+                // with WARN_VIEW but not WARN_EDIT see the list read-only with no delete prompt.
+                if (!admin.getUUID().equals(targetUUID) && AdminPermissions.WARN_EDIT.check(admin)) {
                     builder.addLore(Component.literal(" "));
                     builder.addLore(Component.literal("§e" + LanguageHelper.getText("warn.click_delete", admin)));
                 }
@@ -170,8 +172,10 @@ public class WarnListMenu extends ChestMenu {
             return;
         }
 
-        // Delete warn on click — strictly staff-only.
-        if (isStaff && !isSelfView && slotId >= 0 && slotId < ITEMS_PER_PAGE) {
+        // Delete warn on click — strictly staff-only AND requires the WARN_EDIT node (layer 2).
+        // WARN_VIEW alone (read-only viewers) must not be able to delete via a forged slot click.
+        if (isStaff && !isSelfView && AdminPermissions.WARN_EDIT.check(sp)
+                && slotId >= 0 && slotId < ITEMS_PER_PAGE) {
             List<WarnManager.WarnEntry> warns = WarnManager.getInstance().getWarns(targetUUID);
             List<WarnManager.WarnEntry> sortedWarns = new ArrayList<>(warns);
             sortedWarns.sort((w1, w2) -> Long.compare(w2.timestamp(), w1.timestamp()));

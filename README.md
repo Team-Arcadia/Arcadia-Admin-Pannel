@@ -32,7 +32,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `warnlist <player>` | `arcadia.adminpanel.warn.view` | Open the warn list GUI |
 | `delwarn <player> <index>` | `arcadia.adminpanel.warn.edit` | Delete a specific warn |
 | `clearwarns <player>` | `arcadia.adminpanel.warn.edit` | Clear every warn for a player |
-| `checkwarn` | none | View your own warns |
+| `checkwarn` | `arcadia.adminpanel.open` | View your own warns (read-only) |
 | `mute <player> <minutes> [reason]` | `arcadia.adminpanel.mute` + Staff MOD+ | Mute |
 | `unmute <player>` | `arcadia.adminpanel.mute` + Staff MOD+ | Unmute |
 | `staffchat <message>` | Staff HELPER+ | Send message to the staff channel |
@@ -48,6 +48,53 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `clearnextspawn <player>` | `arcadia.adminpanel.nextspawn` | Clear a pending next-login spawn |
 | `nextspawnlist` | `arcadia.adminpanel.nextspawn` | List pending next-login spawns |
 | `jailradius [blocks]` | `arcadia.adminpanel.setjail` | Show/set the jail-zone radius + enable anti-escape |
+| `loginqueue [on\|off]` | `arcadia.adminpanel.loginqueue` | Show/toggle the post-reboot login throttle at runtime |
+
+### GUI-only permission nodes
+
+These actions are reachable only from the in-game panel (no slash command). Every button is gated
+twice — hidden when the viewer lacks the node, and re-checked in the click handler so a forged packet
+cannot trigger it.
+
+| Node | Unlocks |
+|---|---|
+| `arcadia.adminpanel.teams` | FTB Teams browser (team list → team detail → member TP) |
+| `arcadia.adminpanel.teleport` | Teleport to/here, homes, teleport history, team-member last-seen |
+| `arcadia.adminpanel.invsee` | View a player's inventory |
+| `arcadia.adminpanel.clearinv` | Clear a player's inventory |
+| `arcadia.adminpanel.resetprogress` | Revoke all advancements |
+| `arcadia.adminpanel.gamemode` | Cycle a player's game mode |
+| `arcadia.adminpanel.heal` | Heal / feed a player |
+| `arcadia.adminpanel.kick` | Kick a player |
+| `arcadia.adminpanel.ban` | Ban / unban a player |
+| `arcadia.adminpanel.info` | Open a player's info sheet (ban/whitelist/login history) |
+
+### LuckPerms quick-start
+
+OP level ≥ 2 implicitly grants every node, so vanilla admins need no config. For granular staff roles,
+grant these node sets (or `arcadia.adminpanel.*` for full access). On a dedicated server the permission
+backend **fails closed** — without LuckPerms (or another backend) bound, only OPs pass.
+
+```yaml
+# Moderator — day-to-day moderation
+arcadia.adminpanel.open
+arcadia.adminpanel.info
+arcadia.adminpanel.warn.view
+arcadia.adminpanel.warn.edit
+arcadia.adminpanel.kick
+arcadia.adminpanel.mute          # also needs the MOD staff grade
+arcadia.adminpanel.jail
+arcadia.adminpanel.teleport
+
+# Admin — everything (or simply grant arcadia.adminpanel.*)
+arcadia.adminpanel.*
+
+# Dashboard card visibility (lib-side; lets the panel card appear and open)
+arcadia.hub.adminpanel
+```
+
+> `arcadia.hub.adminpanel` is what Arcadia Lib's dashboard uses to show the panel card; it also opens
+> the panel. The legacy `arcadia.staff.mod` node is still accepted for backward compatibility.
 
 ## Requirements
 
@@ -56,7 +103,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.219+ |
 | Java | 21 |
-| Arcadia Lib | ≥ 1.2.9 |
+| Arcadia Lib | ≥ 1.2.13 |
 | FTB Essentials | optional (unlocks homes / last-seen) |
 | FTB Teams | optional (unlocks the team browser) |
 | FTB Chunks | optional (unlocks claim counters) |
@@ -64,8 +111,8 @@ All commands use the prefix `/arcadia_adminpanel`.
 
 ## Installation
 
-1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.9 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.2.5.jar` in your `mods/` folder
+1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.13 in your `mods/` folder
+2. Place `arcadia-admin-panel-1.2.6.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -143,7 +190,7 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `warnlist <joueur>` | `arcadia.adminpanel.warn.view` | Ouvrir le GUI de liste des warns |
 | `delwarn <joueur> <index>` | `arcadia.adminpanel.warn.edit` | Supprimer un warn spécifique |
 | `clearwarns <joueur>` | `arcadia.adminpanel.warn.edit` | Vider tous les warns d'un joueur |
-| `checkwarn` | aucune | Voir ses propres warns |
+| `checkwarn` | `arcadia.adminpanel.open` | Voir ses propres warns (lecture seule) |
 | `mute <joueur> <minutes> [raison]` | `arcadia.adminpanel.mute` + Staff MOD+ | Mute |
 | `unmute <joueur>` | `arcadia.adminpanel.mute` + Staff MOD+ | Unmute |
 | `staffchat <message>` | Staff HELPER+ | Envoyer un message au canal staff |
@@ -159,6 +206,54 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `clearnextspawn <joueur>` | `arcadia.adminpanel.nextspawn` | Annuler un spawn de prochaine connexion en attente |
 | `nextspawnlist` | `arcadia.adminpanel.nextspawn` | Lister les spawns de prochaine connexion en attente |
 | `jailradius [blocs]` | `arcadia.adminpanel.setjail` | Afficher/régler le rayon de la zone de prison + activer l'anti-évasion |
+| `loginqueue [on\|off]` | `arcadia.adminpanel.loginqueue` | Afficher/basculer la file d'attente de connexion à chaud |
+
+### Nodes de permission réservés au GUI
+
+Ces actions ne sont accessibles que depuis le panneau en jeu (pas de commande). Chaque bouton est
+gardé deux fois — masqué si le joueur n'a pas le node, et re-vérifié dans le gestionnaire de clic pour
+qu'un paquet forgé ne puisse pas le déclencher.
+
+| Node | Débloque |
+|---|---|
+| `arcadia.adminpanel.teams` | Navigateur FTB Teams (liste → détail → TP membre) |
+| `arcadia.adminpanel.teleport` | TP vers/ici, homes, historique de téléportation, dernière position d'un membre |
+| `arcadia.adminpanel.invsee` | Voir l'inventaire d'un joueur |
+| `arcadia.adminpanel.clearinv` | Vider l'inventaire d'un joueur |
+| `arcadia.adminpanel.resetprogress` | Révoquer tous les advancements |
+| `arcadia.adminpanel.gamemode` | Changer le mode de jeu d'un joueur |
+| `arcadia.adminpanel.heal` | Soigner / nourrir un joueur |
+| `arcadia.adminpanel.kick` | Expulser un joueur |
+| `arcadia.adminpanel.ban` | Bannir / débannir un joueur |
+| `arcadia.adminpanel.info` | Ouvrir la fiche d'info (ban/whitelist/historique de connexion) |
+
+### Démarrage rapide LuckPerms
+
+Un niveau OP ≥ 2 accorde implicitement tous les nodes — les admins vanilla n'ont rien à configurer.
+Pour des rôles staff granulaires, accordez ces ensembles (ou `arcadia.adminpanel.*` pour tout). Sur un
+serveur dédié, le backend de permission **échoue fermé** : sans LuckPerms (ou autre backend) lié, seuls
+les OP passent.
+
+```yaml
+# Modérateur — modération courante
+arcadia.adminpanel.open
+arcadia.adminpanel.info
+arcadia.adminpanel.warn.view
+arcadia.adminpanel.warn.edit
+arcadia.adminpanel.kick
+arcadia.adminpanel.mute          # nécessite aussi le grade staff MOD
+arcadia.adminpanel.jail
+arcadia.adminpanel.teleport
+
+# Admin — tout (ou simplement arcadia.adminpanel.*)
+arcadia.adminpanel.*
+
+# Visibilité de la carte dashboard (côté lib ; affiche et ouvre le panneau)
+arcadia.hub.adminpanel
+```
+
+> `arcadia.hub.adminpanel` est le node utilisé par le dashboard d'Arcadia Lib pour afficher la carte du
+> panneau ; il l'ouvre aussi. L'ancien node `arcadia.staff.mod` reste accepté pour la compatibilité.
 
 ## Prérequis
 
@@ -167,7 +262,7 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.219+ |
 | Java | 21 |
-| Arcadia Lib | ≥ 1.2.9 |
+| Arcadia Lib | ≥ 1.2.13 |
 | FTB Essentials | optionnel (débloque homes / dernière position) |
 | FTB Teams | optionnel (débloque le navigateur de teams) |
 | FTB Chunks | optionnel (débloque les compteurs de claims) |
@@ -175,8 +270,8 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 
 ## Installation
 
-1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.9 dans votre dossier `mods/`
-2. Placez `arcadia-admin-panel-1.2.5.jar` dans votre dossier `mods/`
+1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.13 dans votre dossier `mods/`
+2. Placez `arcadia-admin-panel-1.2.6.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
 5. Démarrez le serveur

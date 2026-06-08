@@ -2,6 +2,7 @@ package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
 import com.arcadia.lib.scheduler.SchedulerService;
+import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.OfflinePlayerManager;
@@ -140,8 +141,8 @@ public class AdminPanelMenu extends ChestMenu {
                 .addLore(Component.literal("§7" + LanguageHelper.getText("action.search.hint", admin)))
                 .build());
 
-        // Teams browser (slot 46) — only if FTB Teams data exists on this server.
-        if (FTBTeamsReader.isAvailable()) {
+        // Teams browser (slot 46) — only if FTB Teams data exists AND the viewer holds TEAMS.
+        if (FTBTeamsReader.isAvailable() && AdminPermissions.TEAMS.check(admin)) {
             this.getContainer().setItem(46, ItemBuilder.of(Items.WHITE_BANNER)
                     .name(Component.literal("§b" + LanguageHelper.getText("team.browse", admin)))
                     .addLore(Component.literal("§7" + LanguageHelper.getText("team.browse.hint", admin)))
@@ -228,8 +229,10 @@ public class AdminPanelMenu extends ChestMenu {
             return;
         }
 
-        // Teams browser (46)
+        // Teams browser (46) — re-check TEAMS (layer 2) so a forged click can't open the roster
+        // without the node. Mirrors the gate PlayerDetailMenu uses for the same feature.
         if (slotId == 46 && FTBTeamsReader.isAvailable()) {
+            if (!AdminPermissions.TEAMS.check(sp)) return;
             sp.closeContainer();
             TeamListMenu.open(sp);
             return;

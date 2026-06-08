@@ -119,6 +119,12 @@ public final class JailEnforcer {
         int r = cfg.jailProximityRadius;
         long rSq = (long) r * r;
 
+        // Parse the jail dimension to a ResourceLocation ONCE so the per-player comparison below
+        // compares ResourceLocation objects directly instead of allocating a fresh String from
+        // each player's dimension every sweep tick.
+        net.minecraft.resources.ResourceLocation jailDim =
+                net.minecraft.resources.ResourceLocation.tryParse(loc.dimension());
+
         // Iterate the jailed set directly rather than every online player — on a 100-player server
         // with 0 jailed entries the previous code did 100 HashMap lookups per second for nothing.
         // The jailed map is typically 0-3 entries.
@@ -128,7 +134,7 @@ public final class JailEnforcer {
             ServerPlayer sp = server.getPlayerList().getPlayer(entry.getKey());
             if (sp == null) continue; // offline; nothing to enforce
             // Different dimension OR outside the radius -> bounce them back.
-            boolean wrongDim = !sp.serverLevel().dimension().location().toString().equals(loc.dimension());
+            boolean wrongDim = !sp.serverLevel().dimension().location().equals(jailDim);
             double dx = sp.getX() - loc.x();
             double dy = sp.getY() - loc.y();
             double dz = sp.getZ() - loc.z();

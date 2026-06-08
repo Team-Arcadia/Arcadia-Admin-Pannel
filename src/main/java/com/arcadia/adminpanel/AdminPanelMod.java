@@ -31,7 +31,7 @@ import java.nio.file.Paths;
  * Arcadia Admin Panel — Steampunk-themed server management mod.
  * Both-sided mod powered by Arcadia Lib.
  *
- * @version 1.2.5
+ * @version 1.2.6
  * @author vyrriox
  */
 @Mod("arcadiaadminpanel")

@@ -3,6 +3,7 @@ package com.arcadia.adminpanel.gui;
 import com.arcadia.lib.ArcadiaMessages;
 import com.arcadia.lib.item.ItemBuilder;
 import com.arcadia.lib.util.SoundHelper;
+import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBChunksReader;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
@@ -96,6 +97,9 @@ public class TeamDetailMenu extends ChestMenu {
         // of the comparator) so we don't do O(n log n) profile-cache lookups, and we no longer read
         // each member's FTB data file from disk on the server thread per redraw — last-seen is
         // fetched lazily on right-click instead.
+        // Visibility gate (layer 1): only render member skulls for viewers holding the TEAMS node —
+        // matches the gate that exposes the team browser in the first place.
+        boolean canSeeMembers = AdminPermissions.TEAMS.check(admin);
         Map<UUID, String> memberNames = new HashMap<>();
         for (var mm : team.members) memberNames.computeIfAbsent(mm.uuid(), this::resolveName);
 
@@ -103,7 +107,7 @@ public class TeamDetailMenu extends ChestMenu {
 
         int start = page * MEMBERS_PER_PAGE;
         int end = Math.min(start + MEMBERS_PER_PAGE, members.size());
-        for (int i = start; i < end; i++) {
+        for (int i = canSeeMembers ? start : end; i < end; i++) {
             FTBTeamsReader.Member m = members.get(i);
             String name = memberNames.get(m.uuid());
             var skull = SkullCache.createSkull(m.uuid(), name);
@@ -199,6 +203,9 @@ public class TeamDetailMenu extends ChestMenu {
 
         // Member click — left-click: open player detail, right-click: TP to last-seen.
         if (slotId >= 0 && slotId < MEMBERS_PER_PAGE) {
+            // Action gate (layer 2): seeing/acting on members requires the TEAMS node. A forged
+            // slot-click packet can't reach the member roster without it.
+            if (!AdminPermissions.TEAMS.check(sp)) return;
             FTBTeamsReader.Team team = resolveTeam();
             if (team == null) return;
             Map<UUID, String> names = new HashMap<>();
@@ -209,7 +216,9 @@ public class TeamDetailMenu extends ChestMenu {
             FTBTeamsReader.Member m = members.get(index);
 
             if (button == 1) {
-                // Right-click — TP to member's last-known position.
+                // Right-click — TP to member's last-known position. Re-check TELEPORT (layer 2):
+                // a forged right-click must not teleport a viewer who lacks the teleport node.
+                if (!AdminPermissions.TELEPORT.check(sp)) return;
                 FTBDataReader.PlayerFTBData fd = FTBDataReader.readPlayerData(m.uuid());
                 if (fd != null && fd.lastSeen != null) {
                     teleport(sp, fd.lastSeen.dimension, fd.lastSeen.x, fd.lastSeen.y, fd.lastSeen.z);

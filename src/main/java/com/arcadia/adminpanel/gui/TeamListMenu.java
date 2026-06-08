@@ -1,6 +1,7 @@
 package com.arcadia.adminpanel.gui;
 
 import com.arcadia.lib.item.ItemBuilder;
+import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBChunksReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.LanguageHelper;
@@ -152,6 +153,8 @@ public class TeamListMenu extends ChestMenu {
         var clicked = this.getContainer().getItem(slotId);
         if (clicked.isEmpty() || clicked.is(Items.GRAY_STAINED_GLASS_PANE)) return;
 
+        // Navigation (back / paginate / toggle) stays free so a permission flush mid-session can
+        // never trap a viewer in the menu — only opening a team detail requires the TEAMS node.
         if (slotId == 49) {
             sp.closeContainer();
             AdminPanelMenu.open(sp);
@@ -161,6 +164,8 @@ public class TeamListMenu extends ChestMenu {
         if (slotId == 53) { page++; buildMenu(); return; }
         if (slotId == 47) { showPlayerTeams = !showPlayerTeams; page = 0; buildMenu(); return; }
 
+        // Content action (open a team's detail) — re-check TEAMS (layer 2).
+        if (!AdminPermissions.TEAMS.check(sp)) return;
         if (slotId >= 0 && slotId < ITEMS_PER_PAGE) {
             List<FTBTeamsReader.Team> teams = collectTeams();
             int index = page * ITEMS_PER_PAGE + slotId;

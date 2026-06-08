@@ -208,7 +208,9 @@ public final class JailManager {
         // this specific entry — protects against duplicate firing if isJailed() raced and already
         // cleared it, or if the player was re-jailed in the meantime (different JailEntry value).
         if (durationMs > 0) {
-            int delayTicks = (int) (durationMs / 50L); // ms -> ticks
+            // Clamp to >= 1 tick. Mirrors init() / unjail scheduling — a huge durationMs would
+            // overflow the int cast to a negative tick delay and fire the release immediately.
+            int delayTicks = Math.max(1, (int) Math.min(durationMs / 50L, Integer.MAX_VALUE));
             JailEntry scheduledEntry = entry;
             SchedulerService.delayed(delayTicks, () -> {
                 if (!jailCache.remove(targetUUID, scheduledEntry)) return;
