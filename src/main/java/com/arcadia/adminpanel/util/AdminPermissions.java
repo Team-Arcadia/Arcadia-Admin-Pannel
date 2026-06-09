@@ -71,7 +71,11 @@ public enum AdminPermissions {
     /** Change a player's game mode from the panel. */
     GAMEMODE("arcadia.adminpanel.gamemode"),
     /** Heal / feed a player from the panel. */
-    HEAL("arcadia.adminpanel.heal");
+    HEAL("arcadia.adminpanel.heal"),
+    /** Edit a player's name-tag colour / effect / style ({@code /arcadia_adminpanel nametag …}). */
+    NAMETAG_EDIT("arcadia.adminpanel.nametag"),
+    /** Toggle the global hide-names-behind-walls switch and per-player exemptions. */
+    NAMETAG_HIDE("arcadia.adminpanel.nametag.hide");
 
     public final String node;
     AdminPermissions(String node) { this.node = node; }

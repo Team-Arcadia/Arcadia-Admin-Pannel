@@ -46,6 +46,9 @@ public class AdminPanelMod {
         // Common setup (database tables, module registration)
         modEventBus.addListener(this::onCommonSetup);
 
+        // Network payload registration (name-tag sync S2C packets).
+        modEventBus.addListener(com.arcadia.adminpanel.network.AdminPanelNet::registerPayloads);
+
         // Game events
         NeoForge.EVENT_BUS.addListener(this::onRegisterCommands);
         NeoForge.EVENT_BUS.addListener(this::onServerStarted);
@@ -122,6 +125,7 @@ public class AdminPanelMod {
         JailManager.getInstance().init();
         LoginTracker.getInstance().init();
         NextSpawnManager.getInstance().init();
+        com.arcadia.adminpanel.util.NameTagManager.getInstance().init();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {

@@ -54,6 +54,20 @@ public final class AdminConfig {
         /** Tick interval for the anti-glitch sweep (20 ticks = 1 second). */
         public int jailEnforceTickInterval = 20;
 
+        // ── Name tags ───────────────────────────────────────────────────────
+        /**
+         * Master switch for "hide names behind walls". When ON (default), a player's floating
+         * name tag is suppressed client-side whenever a block sits on the line of sight between the
+         * observer's camera and that player — you can't read who is hiding behind a wall. Enforced
+         * by the client renderer; the server only broadcasts this flag. Operator-requested default.
+         */
+        public boolean nameTagHideBehindWalls = true;
+        /**
+         * When true, transparent/non-solid blocks (glass, water, leaves…) also occlude the name.
+         * Default false: only fully opaque blocks hide a name, matching the "behind a wall" intent.
+         */
+        public boolean nameTagOccludeTransparent = false;
+
         static Data defaults() { return new Data(); }
     }
 

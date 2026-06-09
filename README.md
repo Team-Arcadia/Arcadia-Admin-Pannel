@@ -16,7 +16,8 @@ Arcadia Admin Panel is a NeoForge Minecraft mod that gives server staff a comple
 - **FTB Teams Browser** — List every party + server team (and, via a toggle, per-player personal teams) with member count + claim count + force-loaded chunk count. Member counts include the team owner. Click a member to open their detail panel or right-click to teleport to their last-seen position. Parses `<world>/ftbteams/*.snbt` directly — no runtime dependency on the FTB Teams mod, and discovery is independent of FTB Essentials.
 - **FTB Chunks Integration** — Per-team total claims and force-loaded chunks surfaced in the GUI, parsed from `<world>/ftbchunks/<team-uuid>.snbt`.
 - **Login Queue** — Optional connection throttle (off by default). Token-bucket rolling window holds excess players in the negotiation phase — no slot, no chunk loads — until their turn. Saves heavy modpacks from post-reboot TPS death.
-- **Granular Permissions** — One LuckPerms node per action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.open`). Buttons the viewer can't use are hidden from the GUI entirely. **To grant panel access, the simplest single node is `arcadia.hub.adminpanel`** — it is the node Arcadia Lib's dashboard uses to show the card, and as of 1.2.5 it also opens the panel (so one grant both reveals and opens it). OP level ≥ 2 short-circuits everything; legacy `arcadia.staff.mod` still grants full access for backwards compatibility.
+- **Name Tags — Hide-behind-walls + Colours & Effects** — Server-authoritative floating-name control. **Hide behind walls** (ON by default): a player's name is suppressed client-side when a solid block sits between the observer's camera and that player (a line-of-sight raytrace), so you can't read who is hiding behind a wall; transparent blocks (glass/leaves) don't occlude unless configured, and any player can be made permanently visible (`exempt`). **Styling**: named colours, true RGB, static multi-stop gradients, ten animated effects (**solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random**), the five text decorations (bold/italic/underline/strikethrough/obfuscated) and an animation speed. State persists to `nametags.json` and syncs to clients on join; effects animate off a client tick. Two nodes: `arcadia.adminpanel.nametag` and `arcadia.adminpanel.nametag.hide`.
+- **Granular Permissions** — One LuckPerms node per action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.nametag`, `.nametag.hide`, `.open`). Buttons the viewer can't use are hidden from the GUI entirely. **To grant panel access, the simplest single node is `arcadia.hub.adminpanel`** — it is the node Arcadia Lib's dashboard uses to show the card, and as of 1.2.5 it also opens the panel (so one grant both reveals and opens it). OP level ≥ 2 short-circuits everything; legacy `arcadia.staff.mod` still grants full access for backwards compatibility.
 - **Bilingual UI** — English and French lang files, automatic locale detection.
 
 ## Commands
@@ -49,6 +50,16 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `nextspawnlist` | `arcadia.adminpanel.nextspawn` | List pending next-login spawns |
 | `jailradius [blocks]` | `arcadia.adminpanel.setjail` | Show/set the jail-zone radius + enable anti-escape |
 | `loginqueue [on\|off]` | `arcadia.adminpanel.loginqueue` | Show/toggle the post-reboot login throttle at runtime |
+| `nametag color <player> <named>` | `arcadia.adminpanel.nametag` | Solid named colour on a player's name |
+| `nametag rgb <player> <#hex>` | `arcadia.adminpanel.nametag` | True 24-bit RGB colour |
+| `nametag gradient <player> <#hex> <#hex> [#hex] [#hex]` | `arcadia.adminpanel.nametag` | Static multi-stop gradient |
+| `nametag effect <player> <effect>` | `arcadia.adminpanel.nametag` | Animated effect: solid/gradient/rainbow/breathing/chase/wave/blink/fade/typewriter/random |
+| `nametag style <player> <flag> <on\|off>` | `arcadia.adminpanel.nametag` | Toggle bold/italic/underline/strikethrough/obfuscated |
+| `nametag speed <player> <1-10>` | `arcadia.adminpanel.nametag` | Animation speed |
+| `nametag reset <player>` | `arcadia.adminpanel.nametag` | Clear all name styling |
+| `nametag show <player>` | `arcadia.adminpanel.nametag` | Print a player's current styling |
+| `nametag exempt <player>` | `arcadia.adminpanel.nametag.hide` | Toggle a player's exemption from hiding (always visible) |
+| `nametag hide [on\|off]` | `arcadia.adminpanel.nametag.hide` | Show/toggle the global hide-names-behind-walls switch |
 
 ### GUI-only permission nodes
 
@@ -174,7 +185,8 @@ Arcadia Admin Panel est un mod NeoForge pour Minecraft qui offre au staff serveu
 - **Navigateur FTB Teams** — Liste toutes les parties + teams serveur (et, via une bascule, les teams personnelles par joueur) avec compteur de membres + compteur de claims + chunks force-loaded. Le compteur de membres inclut le propriétaire de la team. Clic sur un membre pour ouvrir son panneau détail ou clic droit pour téléporter à sa dernière position. Parse `<world>/ftbteams/*.snbt` directement — aucune dépendance d'exécution sur le mod FTB Teams, et la découverte est indépendante de FTB Essentials.
 - **Intégration FTB Chunks** — Total des claims et chunks force-loaded par team affiché dans le GUI, parsé depuis `<world>/ftbchunks/<team-uuid>.snbt`.
 - **File d'Attente Connexion** — Throttle de connexion optionnel (désactivé par défaut). Fenêtre glissante token-bucket maintient l'excès de joueurs en phase de négociation — pas de slot, pas de chargement de chunks — jusqu'à leur tour. Sauve les modpacks lourds de la mort TPS post-reboot.
-- **Permissions Granulaires** — Un node LuckPerms par action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.open`). Les boutons que le viewer ne peut pas utiliser sont entièrement cachés du GUI. **Pour accorder l'accès au panel, le node unique le plus simple est `arcadia.hub.adminpanel`** — c'est le node qu'utilise le dashboard d'Arcadia Lib pour afficher la carte, et depuis la 1.2.5 il ouvre aussi le panel (un seul grant révèle ET ouvre). OP level ≥ 2 court-circuite tout ; le legacy `arcadia.staff.mod` accorde toujours l'accès complet pour rétrocompatibilité.
+- **Pseudos — Masquage derrière les murs + Couleurs & Effets** — Contrôle du pseudo flottant, autoritaire côté serveur. **Masquage derrière les murs** (activé par défaut) : le pseudo d'un joueur est supprimé côté client quand un bloc plein se trouve entre la caméra de l'observateur et ce joueur (raytrace de ligne de vue) — impossible de lire qui se cache derrière un mur ; les blocs transparents (verre/feuilles) ne masquent pas sauf configuration, et tout joueur peut être rendu toujours visible (`exempt`). **Stylisation** : couleurs nommées, vraie RGB, dégradés multi-couleurs figés, dix effets animés (**solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random**), les cinq décorations de texte (gras/italique/souligné/barré/obfusqué) et une vitesse d'animation. L'état persiste dans `nametags.json` et est synchronisé aux clients à la connexion ; les effets s'animent via un tick client. Deux nodes : `arcadia.adminpanel.nametag` et `arcadia.adminpanel.nametag.hide`.
+- **Permissions Granulaires** — Un node LuckPerms par action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.nametag`, `.nametag.hide`, `.open`). Les boutons que le viewer ne peut pas utiliser sont entièrement cachés du GUI. **Pour accorder l'accès au panel, le node unique le plus simple est `arcadia.hub.adminpanel`** — c'est le node qu'utilise le dashboard d'Arcadia Lib pour afficher la carte, et depuis la 1.2.5 il ouvre aussi le panel (un seul grant révèle ET ouvre). OP level ≥ 2 court-circuite tout ; le legacy `arcadia.staff.mod` accorde toujours l'accès complet pour rétrocompatibilité.
 - **Interface Bilingue** — Fichiers de langue anglais et français, détection automatique de la locale.
 
 ## Commandes
@@ -207,6 +219,16 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `nextspawnlist` | `arcadia.adminpanel.nextspawn` | Lister les spawns de prochaine connexion en attente |
 | `jailradius [blocs]` | `arcadia.adminpanel.setjail` | Afficher/régler le rayon de la zone de prison + activer l'anti-évasion |
 | `loginqueue [on\|off]` | `arcadia.adminpanel.loginqueue` | Afficher/basculer la file d'attente de connexion à chaud |
+| `nametag color <joueur> <nom>` | `arcadia.adminpanel.nametag` | Couleur nommée unie sur le pseudo |
+| `nametag rgb <joueur> <#hex>` | `arcadia.adminpanel.nametag` | Vraie couleur RGB 24 bits |
+| `nametag gradient <joueur> <#hex> <#hex> [#hex] [#hex]` | `arcadia.adminpanel.nametag` | Dégradé multi-couleurs figé |
+| `nametag effect <joueur> <effet>` | `arcadia.adminpanel.nametag` | Effet animé : solid/gradient/rainbow/breathing/chase/wave/blink/fade/typewriter/random |
+| `nametag style <joueur> <option> <on\|off>` | `arcadia.adminpanel.nametag` | Basculer gras/italique/souligné/barré/obfusqué |
+| `nametag speed <joueur> <1-10>` | `arcadia.adminpanel.nametag` | Vitesse d'animation |
+| `nametag reset <joueur>` | `arcadia.adminpanel.nametag` | Réinitialiser tout le style du pseudo |
+| `nametag show <joueur>` | `arcadia.adminpanel.nametag` | Afficher le style actuel d'un joueur |
+| `nametag exempt <joueur>` | `arcadia.adminpanel.nametag.hide` | Basculer l'exemption de masquage d'un joueur (toujours visible) |
+| `nametag hide [on\|off]` | `arcadia.adminpanel.nametag.hide` | Afficher/basculer le masquage global des pseudos derrière les murs |
 
 ### Nodes de permission réservés au GUI
 

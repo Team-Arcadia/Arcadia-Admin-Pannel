@@ -102,6 +102,14 @@
 <p><span style="color: #ffa500;"><strong>🛡️ Hardened by audit</strong></span><br>Multiple rounds of code review. Permission checks on every menu click (defense-in-depth vs crafted packets), atomic jail expiry, thread-safe formatters, command-injection guards on offline-mode names. Production-ready.</p>
 </td>
 </tr>
+<tr>
+<td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
+<p><span style="color: #ffa500;"><strong>👻 Hide Names Behind Walls</strong></span><br><strong>ON by default.</strong> A player's floating name vanishes when a solid block sits between your camera and them — you can't read who's hiding behind a wall (line-of-sight raytrace, client-side). Glass &amp; leaves don't occlude unless configured. Any player can be made permanently visible (<code>nametag exempt</code>).</p>
+</td>
+<td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
+<p><span style="color: #ffa500;"><strong>🌈 Name Colours &amp; Effects</strong></span><br>Named colours, true <strong>RGB</strong>, static gradients, and <strong>ten animated effects</strong> — solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random — plus bold/italic/underline/strikethrough/obfuscated and an animation speed. Server-authoritative &amp; synced to every client. <code>/arcadia_adminpanel nametag …</code></p>
+</td>
+</tr>
 </tbody>
 </table>
 
@@ -282,6 +290,14 @@
 </td>
 <td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
 <p><span style="color: #ffa500;"><strong>🛡️ Durci par audit</strong></span><br>Plusieurs tours de revue de code. Checks de permission sur chaque clic de menu (défense en profondeur vs packets forgés), expiration de jail atomique, formatters thread-safe, gardes contre l'injection de commandes sur les noms en mode offline. Production-ready.</p>
+</td>
+</tr>
+<tr>
+<td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
+<p><span style="color: #ffa500;"><strong>👻 Masquer les pseudos derrière les murs</strong></span><br><strong>Activé par défaut.</strong> Le pseudo flottant d'un joueur disparaît dès qu'un bloc plein se trouve entre votre caméra et lui — impossible de lire qui se cache derrière un mur (raytrace de ligne de vue, côté client). Le verre &amp; les feuilles ne masquent pas sauf configuration. Tout joueur peut être rendu toujours visible (<code>nametag exempt</code>).</p>
+</td>
+<td style="padding: 12px 16px; vertical-align: top; width: 50%; border: 1px solid #FFA500; text-align: center;">
+<p><span style="color: #ffa500;"><strong>🌈 Couleurs &amp; effets de pseudo</strong></span><br>Couleurs nommées, vraie <strong>RGB</strong>, dégradés figés, et <strong>dix effets animés</strong> — solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random — plus gras/italique/souligné/barré/obfusqué et une vitesse d'animation. Autoritaire côté serveur &amp; synchronisé à chaque client. <code>/arcadia_adminpanel nametag …</code></p>
 </td>
 </tr>
 </tbody>

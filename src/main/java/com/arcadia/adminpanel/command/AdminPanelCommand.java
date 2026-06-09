@@ -307,6 +307,13 @@ public final class AdminPanelCommand {
                                         .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                                 new String[]{"on", "off"}, b))
                                         .executes(AdminPanelCommand::executeLoginQueueSet)))
+
+                        // /arcadia_adminpanel nametag … — colour / effect / style + hide-behind-walls.
+                        // The whole tree gates on NAMETAG_EDIT; the global hide switch + exemptions
+                        // additionally gate on NAMETAG_HIDE (a higher-impact, server-wide toggle).
+                        .then(com.arcadia.adminpanel.command.NameTagCommand.build(
+                                require(AdminPermissions.NAMETAG_EDIT),
+                                require(AdminPermissions.NAMETAG_HIDE)))
         );
     }
 
@@ -534,6 +541,9 @@ public final class AdminPanelCommand {
         AdminPermissions.invalidateAll();
         WarnManager.getInstance().reload();
         com.arcadia.adminpanel.util.NextSpawnManager.getInstance().reload();
+        com.arcadia.adminpanel.util.NameTagManager.getInstance().reload();
+        // Push the freshly-loaded name-tag state back to every online client.
+        com.arcadia.adminpanel.util.NameTagManager.getInstance().syncAll(source.getServer());
 
         source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);
         return 1;

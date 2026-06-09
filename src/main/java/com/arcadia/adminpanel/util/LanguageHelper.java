@@ -179,6 +179,26 @@ public final class LanguageHelper {
         en.put("loginqueue.state", "Login queue is currently %state%.");
         en.put("loginqueue.set", "Login queue turned %state%.");
         en.put("loginqueue.invalid", "Invalid state — use 'on' or 'off'.");
+        // ── Name tags ───────────────────────────────────────────────────────
+        en.put("nametag.set.color", "Set %player%'s name colour to %value%.");
+        en.put("nametag.set.rgb", "Set %player%'s name to RGB %value%.");
+        en.put("nametag.set.gradient", "Set %player%'s name to a %value%-stop gradient.");
+        en.put("nametag.set.effect", "Set %player%'s name effect to %value%.");
+        en.put("nametag.set.style_on", "Enabled %value% on %player%'s name.");
+        en.put("nametag.set.style_off", "Disabled %value% on %player%'s name.");
+        en.put("nametag.set.speed", "Set %player%'s name animation speed to %value%.");
+        en.put("nametag.reset", "Cleared %player%'s name styling.");
+        en.put("nametag.reset_none", "%player% had no name styling.");
+        en.put("nametag.show", "%player%: effect=%effect% colours=[%colors%] speed=%speed% styles=%flags%");
+        en.put("nametag.show_none", "%player% uses the default name (no styling).");
+        en.put("nametag.exempt_on", "%player% is now exempt — their name is always visible.");
+        en.put("nametag.exempt_off", "%player% is no longer exempt from name hiding.");
+        en.put("nametag.hide.state", "Hide names behind walls is currently %state%.");
+        en.put("nametag.hide.set", "Hide names behind walls turned %state%.");
+        en.put("nametag.invalid_color", "Invalid colour name. Use a vanilla colour like red, gold, aqua…");
+        en.put("nametag.invalid_hex", "Invalid hex colour. Use #RRGGBB (e.g. #FF8800).");
+        en.put("nametag.invalid_effect", "Unknown effect. Try: solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random.");
+        en.put("nametag.invalid_flag", "Unknown style flag. Use: bold, italic, underline, strikethrough, obfuscated.");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -344,6 +364,26 @@ public final class LanguageHelper {
         fr.put("loginqueue.state", "La file d'attente de connexion est actuellement %state%.");
         fr.put("loginqueue.set", "File d'attente de connexion : %state%.");
         fr.put("loginqueue.invalid", "État invalide — utilisez 'on' ou 'off'.");
+        // ── Pseudos (name tags) ─────────────────────────────────────────────
+        fr.put("nametag.set.color", "Couleur du pseudo de %player% définie sur %value%.");
+        fr.put("nametag.set.rgb", "Pseudo de %player% défini en RGB %value%.");
+        fr.put("nametag.set.gradient", "Pseudo de %player% défini en dégradé à %value% couleurs.");
+        fr.put("nametag.set.effect", "Effet du pseudo de %player% défini sur %value%.");
+        fr.put("nametag.set.style_on", "%value% activé sur le pseudo de %player%.");
+        fr.put("nametag.set.style_off", "%value% désactivé sur le pseudo de %player%.");
+        fr.put("nametag.set.speed", "Vitesse d'animation du pseudo de %player% réglée sur %value%.");
+        fr.put("nametag.reset", "Style du pseudo de %player% réinitialisé.");
+        fr.put("nametag.reset_none", "%player% n'avait aucun style de pseudo.");
+        fr.put("nametag.show", "%player% : effet=%effect% couleurs=[%colors%] vitesse=%speed% styles=%flags%");
+        fr.put("nametag.show_none", "%player% utilise le pseudo par défaut (aucun style).");
+        fr.put("nametag.exempt_on", "%player% est désormais exempté — son pseudo est toujours visible.");
+        fr.put("nametag.exempt_off", "%player% n'est plus exempté du masquage des pseudos.");
+        fr.put("nametag.hide.state", "Le masquage des pseudos derrière les murs est actuellement %state%.");
+        fr.put("nametag.hide.set", "Masquage des pseudos derrière les murs : %state%.");
+        fr.put("nametag.invalid_color", "Nom de couleur invalide. Utilisez une couleur vanilla : red, gold, aqua…");
+        fr.put("nametag.invalid_hex", "Couleur hex invalide. Utilisez #RRGGBB (ex. #FF8800).");
+        fr.put("nametag.invalid_effect", "Effet inconnu. Essayez : solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random.");
+        fr.put("nametag.invalid_flag", "Style inconnu. Utilisez : bold, italic, underline, strikethrough, obfuscated.");
         translations.put("fr", fr);
     }
 
