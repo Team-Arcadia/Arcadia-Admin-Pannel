@@ -25,7 +25,7 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ### Changed
 
-- **Arcadia Lib 1.2.9 → 1.2.13** — Picks up the lib's fail-closed permission backend (`PermissionBackend.DENY` is the dedicated-server default, so a missing/uninitialized LuckPerms no longer implicitly grants every node), the UUID-based debug-mode hardening, and the safe-command allow-list. No API changes affect the admin panel.
+- **Arcadia Lib 1.2.9 → 1.2.14** — Picks up the lib's fail-closed permission backend (`PermissionBackend.DENY` is the dedicated-server default, so a missing/uninitialized LuckPerms no longer implicitly grants every node), the UUID-based debug-mode hardening, and the safe-command allow-list. 1.2.14 adds the **lazy LuckPerms backend binding** fix (a late provider registration no longer pins the whole session to fail-closed `DENY`, which had locked every `arcadia.*` node — the panel's permission checks included — until restart), a synchronous user-cache fallback so a permission probe on the join tick resolves correctly, and `DashboardScreen` / `ArcadiaHubScreen` per-frame allocation cuts. No API changes affect the admin panel.
 
 ### Performance
 
@@ -52,7 +52,7 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ### Modifications
 
-- **Arcadia Lib 1.2.9 → 1.2.13** — Récupère le backend de permission fail-closed de la lib (`PermissionBackend.DENY` est le défaut sur serveur dédié, donc un LuckPerms manquant/non initialisé n'accorde plus implicitement tous les nœuds), le durcissement du mode debug basé UUID et la liste blanche de commandes sûres. Aucun changement d'API n'affecte le panneau.
+- **Arcadia Lib 1.2.9 → 1.2.14** — Récupère le backend de permission fail-closed de la lib (`PermissionBackend.DENY` est le défaut sur serveur dédié, donc un LuckPerms manquant/non initialisé n'accorde plus implicitement tous les nœuds), le durcissement du mode debug basé UUID et la liste blanche de commandes sûres. 1.2.14 ajoute le correctif de **liaison paresseuse du backend LuckPerms** (un enregistrement tardif du provider ne fige plus toute la session en `DENY` fail-closed, ce qui verrouillait tous les nœuds `arcadia.*` — y compris les vérifications de permission du panneau — jusqu'au redémarrage), un repli synchrone sur le cache utilisateur pour qu'une sonde de permission au tick de connexion se résolve correctement, et des réductions d'allocations par frame dans `DashboardScreen` / `ArcadiaHubScreen`. Aucun changement d'API n'affecte le panneau.
 
 ### Performance
 

@@ -65,7 +65,7 @@ neoForge {
 sourceSets.main.resources { srcDir 'src/generated/resources' }
 
 dependencies {
-    implementation files("libs/arcadia-lib-1.2.13.jar")
+    implementation files("libs/arcadia-lib-1.2.14.jar")
 }
 
 tasks.withType(JavaCompile).configureEach {

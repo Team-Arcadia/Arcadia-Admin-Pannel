@@ -163,7 +163,7 @@
 </tr>
 <tr style="background-color: rgba(255, 165, 0, 0.10);">
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;"><strong>Arcadia Lib</strong></td>
-<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.13</td>
+<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.14</td>
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">Required</td>
 </tr>
 <tr>
@@ -345,7 +345,7 @@
 </tr>
 <tr style="background-color: rgba(255, 165, 0, 0.10);">
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;"><strong>Arcadia Lib</strong></td>
-<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.13</td>
+<td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">≥ 1.2.14</td>
 <td style="text-align: center; padding: 8px; border: 1px solid #FFA500;">Requis</td>
 </tr>
 <tr>

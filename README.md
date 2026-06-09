@@ -103,7 +103,7 @@ arcadia.hub.adminpanel
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.219+ |
 | Java | 21 |
-| Arcadia Lib | ≥ 1.2.13 |
+| Arcadia Lib | ≥ 1.2.14 |
 | FTB Essentials | optional (unlocks homes / last-seen) |
 | FTB Teams | optional (unlocks the team browser) |
 | FTB Chunks | optional (unlocks claim counters) |
@@ -111,7 +111,7 @@ arcadia.hub.adminpanel
 
 ## Installation
 
-1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.13 in your `mods/` folder
+1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 in your `mods/` folder
 2. Place `arcadia-admin-panel-1.2.6.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
@@ -262,7 +262,7 @@ arcadia.hub.adminpanel
 | Minecraft | 1.21.1 |
 | NeoForge | 21.1.219+ |
 | Java | 21 |
-| Arcadia Lib | ≥ 1.2.13 |
+| Arcadia Lib | ≥ 1.2.14 |
 | FTB Essentials | optionnel (débloque homes / dernière position) |
 | FTB Teams | optionnel (débloque le navigateur de teams) |
 | FTB Chunks | optionnel (débloque les compteurs de claims) |
@@ -270,7 +270,7 @@ arcadia.hub.adminpanel
 
 ## Installation
 
-1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.13 dans votre dossier `mods/`
+1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 dans votre dossier `mods/`
 2. Placez `arcadia-admin-panel-1.2.6.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
