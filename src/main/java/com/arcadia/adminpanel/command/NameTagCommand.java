@@ -36,6 +36,8 @@ import java.util.stream.Stream;
  *   <li>{@code rgb <player> <#hex>} — solid true-colour RGB</li>
  *   <li>{@code gradient <player> <#hex> <#hex> [#hex] [#hex]} — static multi-stop gradient</li>
  *   <li>{@code effect <player> <effect>} — animated effect (rainbow, breathing, chase, …)</li>
+ *   <li>{@code name <player> <pseudo…>} — custom display pseudo ({@code reset} clears it)</li>
+ *   <li>{@code grade <player> <on|off>} — show / hide the grade (team prefix/suffix) by the name</li>
  *   <li>{@code style <player> <flag> <on|off>} — bold / italic / underline / strikethrough / obfuscated</li>
  *   <li>{@code speed <player> <1-10>} — animation speed</li>
  *   <li>{@code reset <player>} — clear styling (back to vanilla)</li>
@@ -134,6 +136,22 @@ public final class NameTagCommand {
                                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(
                                                         new String[]{"on", "off"}, b))
                                                 .executes(NameTagCommand::execStyle)))))
+
+                // name <player> <pseudo…> — custom display pseudo (use "reset" to clear)
+                .then(Commands.literal("name")
+                        .then(Commands.argument("target", StringArgumentType.string())
+                                .suggests(PLAYER_SUGGESTIONS)
+                                .then(Commands.argument("pseudo", StringArgumentType.greedyString())
+                                        .executes(NameTagCommand::execName))))
+
+                // grade <player> <on|off> — show or hide the grade next to the name
+                .then(Commands.literal("grade")
+                        .then(Commands.argument("target", StringArgumentType.string())
+                                .suggests(PLAYER_SUGGESTIONS)
+                                .then(Commands.argument("state", StringArgumentType.word())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                new String[]{"on", "off"}, b))
+                                        .executes(NameTagCommand::execGrade))))
 
                 // speed <player> <1-10>
                 .then(Commands.literal("speed")
@@ -269,6 +287,52 @@ public final class NameTagCommand {
         return 1;
     }
 
+    private static int execName(CommandContext<CommandSourceStack> ctx) {
+        ResolvedTarget t = resolve(ctx);
+        if (t == null) return 0;
+        String pseudo = StringArgumentType.getString(ctx, "pseudo").trim();
+        // "reset" / "clear" / blank removes the custom pseudo (back to the real name).
+        boolean clearing = pseudo.isEmpty() || pseudo.equalsIgnoreCase("reset") || pseudo.equalsIgnoreCase("clear");
+        if (clearing) {
+            // A solid white base keeps any cleared name a no-op so the style is dropped when nothing
+            // else is set; if other styling exists it's preserved and only the name is removed.
+            NameTagStyle style = baseOf(t.uuid).withName("");
+            apply(t, style, "nametag.name.cleared", t.name);
+            return 1;
+        }
+        if (pseudo.length() > NameTagStyle.MAX_NAME_LENGTH) {
+            t.source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("nametag.name.too_long", t.admin)));
+            return 0;
+        }
+        // A custom name with no effect still needs one to render — default to SOLID white.
+        NameTagStyle base = baseOf(t.uuid);
+        if (base.effect() == NameTagEffect.NONE) base = base.withEffect(NameTagEffect.SOLID);
+        NameTagStyle style = base.withName(pseudo);
+        apply(t, style, "nametag.name.set", pseudo);
+        return 1;
+    }
+
+    private static int execGrade(CommandContext<CommandSourceStack> ctx) {
+        ResolvedTarget t = resolve(ctx);
+        if (t == null) return 0;
+        boolean show = parseOnOff(StringArgumentType.getString(ctx, "state"));
+        // Hiding the grade needs an active style to take effect on the tag; seed a SOLID base if the
+        // player is otherwise unstyled so "grade off" alone still works.
+        NameTagStyle base = baseOf(t.uuid);
+        if (show && base.effect() == NameTagEffect.NONE && !base.hasCustomName()) {
+            // "grade on" with no other styling = vanilla default; just clear any style.
+            NameTagManager.getInstance().clearStyle(t.uuid);
+            NameTagManager.getInstance().broadcastUpdate(t.source.getServer(), t.uuid);
+            t.source.sendSuccess(() -> ArcadiaMessages.success(
+                    LanguageHelper.getText("nametag.grade.on", t.admin).replace("%player%", t.name)), true);
+            return 1;
+        }
+        if (!show && base.effect() == NameTagEffect.NONE) base = base.withEffect(NameTagEffect.SOLID);
+        NameTagStyle style = base.withShowGrade(show);
+        apply(t, style, show ? "nametag.grade.on" : "nametag.grade.off", t.name);
+        return 1;
+    }
+
     private static int execReset(CommandContext<CommandSourceStack> ctx) {
         ResolvedTarget t = resolve(ctx);
         if (t == null) return 0;
@@ -299,6 +363,8 @@ public final class NameTagCommand {
         for (int c : style.colors()) cols.append(String.format("#%06X ", c));
         final String summary = LanguageHelper.getText("nametag.show", t.admin)
                 .replace("%player%", t.name)
+                .replace("%name%", style.hasCustomName() ? style.name() : "-")
+                .replace("%grade%", style.showGrade() ? "ON" : "OFF")
                 .replace("%effect%", style.effect().id())
                 .replace("%colors%", cols.toString().trim())
                 .replace("%speed%", String.valueOf(style.speed()))

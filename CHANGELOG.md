@@ -4,7 +4,37 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.6] - 2026-06-08 (latest)
+## [1.2.7] - 2026-06-14 (latest)
+
+### Added
+
+- **Custom display name (pseudo) per player** — `/arcadia_adminpanel nametag name <player> <pseudo…>` overrides the text shown for a player on their floating head-tag **and** in the TAB player list. The pseudo accepts spaces (greedy argument), is capped at 32 characters, and inherits the same colour/effect styling as the real name. `nametag name <player> reset` (or `clear`) removes the override and restores the real name. The chat and command-targeting names are intentionally left untouched, so `/msg`, bans, and teleports keep working on the real username.
+- **Grade visibility toggle** — `/arcadia_adminpanel nametag grade <player> <on|off>` shows or hides the player's grade (the scoreboard-team prefix/suffix that LuckPerms & similar plugins set) next to their name, on both the floating tag and the TAB list. Defaults to ON.
+
+### Fixed
+
+- **Grade disappeared when a name-tag style was applied** — Styling a player's name rebuilt the floating tag from the bare player name with `event.setContent`, which discarded the team prefix/suffix and made the player's grade vanish next to their pseudo. The renderer now re-attaches the scoreboard-team prefix and suffix around the styled name (reading them straight off the player's team, exactly as vanilla composes the display name), so the grade stays put unless explicitly hidden with `nametag grade off`.
+
+### Changed
+
+- **Name-tag styling now reflects in the TAB list** — Previously colours/effects and the (new) custom pseudo only showed on the floating head-tag. A server-side `TabListNameFormat` handler now composes the same `grade + styled name` for the TAB player list, refreshed live after every `nametag` mutation via `ServerPlayer.refreshTabListName()` (no relog needed). The TAB list is a static snapshot, so animated effects appear with their colours but do not animate there.
+
+### Ajouts
+
+- **Pseudo personnalisé par joueur** — `/arcadia_adminpanel nametag name <joueur> <pseudo…>` remplace le texte affiché pour un joueur sur son pseudo flottant **et** dans la liste TAB. Le pseudo accepte les espaces (argument glouton), est limité à 32 caractères et hérite de la même stylisation couleur/effet que le vrai pseudo. `nametag name <joueur> reset` (ou `clear`) retire le remplacement et restaure le vrai pseudo. Les noms du chat et du ciblage de commandes sont volontairement laissés intacts, donc `/msg`, bans et téléportations continuent de fonctionner sur le vrai pseudo.
+- **Bascule d'affichage du grade** — `/arcadia_adminpanel nametag grade <joueur> <on|off>` affiche ou masque le grade du joueur (le préfixe/suffixe de team scoreboard que posent LuckPerms et plugins similaires) à côté de son pseudo, à la fois sur le pseudo flottant et dans la liste TAB. Activé par défaut.
+
+### Correctifs
+
+- **Le grade disparaissait quand un style de pseudo était appliqué** — Styliser le pseudo d'un joueur reconstruisait le pseudo flottant à partir du pseudo brut avec `event.setContent`, ce qui supprimait le préfixe/suffixe de team et faisait disparaître le grade à côté du pseudo. Le moteur de rendu ré-attache désormais le préfixe et le suffixe de team scoreboard autour du pseudo stylisé (lus directement sur la team du joueur, exactement comme vanilla compose le nom d'affichage), de sorte que le grade reste en place sauf s'il est explicitement masqué avec `nametag grade off`.
+
+### Modifications
+
+- **La stylisation des pseudos se reflète maintenant dans la liste TAB** — Auparavant, les couleurs/effets et le (nouveau) pseudo personnalisé n'apparaissaient que sur le pseudo flottant. Un gestionnaire `TabListNameFormat` côté serveur compose désormais le même `grade + pseudo stylisé` pour la liste TAB, rafraîchi en direct après chaque modification `nametag` via `ServerPlayer.refreshTabListName()` (aucune reconnexion nécessaire). La liste TAB est un instantané statique : les effets animés y apparaissent avec leurs couleurs mais ne s'y animent pas.
+
+---
+
+## [1.2.6] - 2026-06-08
 
 ### Security
 

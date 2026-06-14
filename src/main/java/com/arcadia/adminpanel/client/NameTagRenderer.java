@@ -78,15 +78,42 @@ public final class NameTagRenderer {
             return; // hidden — no point styling it
         }
 
-        // ── 2. Styling: recolour / animate the name ────────────────────────────
+        // ── 2. Styling: recolour / animate the name, keep the grade ────────────
         NameTagStyle style = ClientNameTagState.styleFor(uuid);
         if (style == null || style.isNoOp()) return; // vanilla name
 
-        // Render from the player's PLAIN name so we never double-apply formatting. The vanilla
-        // content may carry team colours; we intentionally override with the admin-set style.
-        String plain = player.getName().getString();
-        Component styled = NameTagEffect.render(plain, style, animTick, event.getPartialTick());
-        event.setContent(styled);
+        // The base text is the admin-set custom pseudo if any, otherwise the real player name.
+        String base = style.hasCustomName() ? style.name() : player.getName().getString();
+        Component styledName = NameTagEffect.render(base, style, animTick, event.getPartialTick());
+
+        // Re-attach the grade (the scoreboard-team prefix/suffix that LuckPerms & co. set) so it
+        // never disappears when we override the content. Vanilla builds the floating name from these
+        // exact pieces; reading them straight off the team gives us the same prefix without having to
+        // string-split the original content. Dropped entirely when the admin hid the grade.
+        if (style.showGrade()) {
+            event.setContent(withGrade(player, styledName));
+        } else {
+            event.setContent(styledName);
+        }
+    }
+
+    /**
+     * Wraps the styled name with the player's scoreboard-team prefix and suffix (the "grade"). If the
+     * player is on no team, or the team carries no prefix/suffix, the styled name is returned as-is.
+     */
+    private static Component withGrade(Player player, Component styledName) {
+        var team = player.getTeam();
+        if (team == null) return styledName;
+        Component prefix = team.getPlayerPrefix();
+        Component suffix = team.getPlayerSuffix();
+        boolean hasPrefix = prefix != null && !prefix.getString().isEmpty();
+        boolean hasSuffix = suffix != null && !suffix.getString().isEmpty();
+        if (!hasPrefix && !hasSuffix) return styledName;
+        net.minecraft.network.chat.MutableComponent out = net.minecraft.network.chat.Component.empty();
+        if (hasPrefix) out.append(prefix);
+        out.append(styledName);
+        if (hasSuffix) out.append(suffix);
+        return out;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────

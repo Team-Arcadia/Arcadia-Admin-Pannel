@@ -153,6 +153,19 @@ public final class NameTagManager {
      */
     public void broadcastUpdate(MinecraftServer server, UUID uuid) {
         com.arcadia.adminpanel.network.AdminPanelNet.broadcastNameTagUpdate(server, uuid, styles.get(uuid));
+        refreshTabName(server, uuid);
+    }
+
+    /**
+     * Re-pushes the target's tab-list display name to every client by re-firing the NeoForge
+     * {@code TabListNameFormat} event (which {@code NameTagTabList} answers) and broadcasting the
+     * resulting display-name packet. No-op if the player is offline. This is what makes a custom
+     * pseudo / grade toggle appear in the tab list live, without a relog.
+     */
+    public void refreshTabName(MinecraftServer server, UUID uuid) {
+        if (server == null) return;
+        ServerPlayer target = server.getPlayerList().getPlayer(uuid);
+        if (target != null) target.refreshTabListName();
     }
 
     /** Pushes the full state (all styles + hide config + exemptions) to one player on login. */
@@ -170,7 +183,12 @@ public final class NameTagManager {
     private void load() {
         if (!Files.exists(file)) return;
         try (FileReader reader = new FileReader(file.toFile())) {
-            Persisted loaded = GSON.fromJson(reader, new TypeToken<Persisted>() {}.getType());
+            com.google.gson.JsonObject root = GSON.fromJson(reader, com.google.gson.JsonObject.class);
+            // Backward-compat: styles persisted before the grade toggle existed have no "showGrade"
+            // key. A primitive boolean defaults to false on parse, which would wrongly hide every
+            // legacy grade — so inject showGrade=true for any style entry missing it.
+            defaultMissingShowGrade(root);
+            Persisted loaded = GSON.fromJson(root, new TypeToken<Persisted>() {}.getType());
             if (loaded != null) {
                 if (loaded.styles != null) {
                     loaded.styles.forEach((k, v) -> {
@@ -181,6 +199,19 @@ public final class NameTagManager {
             }
         } catch (Exception e) {
             LOGGER.error("[AdminPanel] Failed to load nametags.json", e);
+        }
+    }
+
+    /** Walks every persisted style object and adds {@code showGrade=true} where it's absent, so
+     *  styles written before the grade toggle keep their grade instead of silently hiding it. */
+    private static void defaultMissingShowGrade(com.google.gson.JsonObject root) {
+        if (root == null || !root.has("styles") || !root.get("styles").isJsonObject()) return;
+        com.google.gson.JsonObject styles = root.getAsJsonObject("styles");
+        for (Map.Entry<String, com.google.gson.JsonElement> e : styles.entrySet()) {
+            if (e.getValue().isJsonObject()) {
+                com.google.gson.JsonObject style = e.getValue().getAsJsonObject();
+                if (!style.has("showGrade")) style.addProperty("showGrade", true);
+            }
         }
     }
 
