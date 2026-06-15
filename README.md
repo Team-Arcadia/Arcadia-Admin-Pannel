@@ -125,7 +125,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.2.7.jar` in your `mods/` folder
+2. Place `arcadia-admin-panel-1.2.8.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -297,7 +297,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 dans votre dossier `mods/`
-2. Placez `arcadia-admin-panel-1.2.7.jar` dans votre dossier `mods/`
+2. Placez `arcadia-admin-panel-1.2.8.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
 5. Démarrez le serveur

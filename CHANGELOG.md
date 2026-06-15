@@ -4,7 +4,19 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.7] - 2026-06-14 (latest)
+## [1.2.8] - 2026-06-15 (latest)
+
+### Fixed
+
+- **"Couldn't place player in world" after reloading a single-player world** — `LoginTracker` is a static singleton whose coalescing IO executor was created once in its constructor and terminated by `shutdown()` on `ServerStopping`. On an integrated (single-player) server the singleton outlives the world, so loading a second world in the same client session reused the dead executor: the first `recordLogin` called `io.schedule(...)` on a terminated pool, threw `RejectedExecutionException`, and aborted the player-placement step — surfacing as the vanilla *"Couldn't place player in world"* disconnect. The IO executor is now (re)created on every `init()` (`ServerStarted`) and the reference is dropped after `shutdown()`, so each world session gets a live pool. `markDirty()` additionally falls back to a synchronous write if the pool is ever absent or shutting down, so a login can never throw or lose its write.
+
+### Correctifs
+
+- **« Couldn't place player in world » après le rechargement d'un monde solo** — `LoginTracker` est un singleton statique dont l'exécuteur d'écriture coalescé était créé une seule fois dans le constructeur puis arrêté par `shutdown()` au `ServerStopping`. Sur un serveur intégré (solo), le singleton survit au monde : recharger un second monde dans la même session client réutilisait l'exécuteur mort — le premier `recordLogin` appelait `io.schedule(...)` sur un pool terminé, levait `RejectedExecutionException` et interrompait le placement du joueur, ce qui se manifestait par la déconnexion vanilla *« Couldn't place player in world »*. L'exécuteur d'écriture est désormais (re)créé à chaque `init()` (`ServerStarted`) et la référence est libérée après `shutdown()`, de sorte que chaque session de monde dispose d'un pool actif. `markDirty()` bascule en plus sur une écriture synchrone si le pool est absent ou en cours d'arrêt, afin qu'une connexion ne puisse jamais lever d'exception ni perdre son écriture.
+
+---
+
+## [1.2.7] - 2026-06-14
 
 ### Added
 

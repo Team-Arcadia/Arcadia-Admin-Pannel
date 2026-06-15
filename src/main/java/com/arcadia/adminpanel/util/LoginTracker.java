@@ -21,6 +21,7 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -78,13 +79,25 @@ public final class LoginTracker {
      * every {@link #FLUSH_DELAY_SECONDS} seconds on a daemon IO thread.
      */
     private static final long FLUSH_DELAY_SECONDS = 5L;
-    private final ScheduledExecutorService io =
-            Executors.newSingleThreadScheduledExecutor(r -> {
-                Thread t = new Thread(r, "Arcadia-LoginTracker-IO");
-                t.setDaemon(true);
-                return t;
-            });
+    /**
+     * Coalescing IO executor. <strong>Not</strong> final: this is a static singleton that outlives a
+     * single-player integrated server, so {@link #shutdown()} terminates the pool on {@code ServerStopping}
+     * and {@link #init()} must spin up a fresh one on the next {@code ServerStarted}. Loading a second world
+     * in the same client session previously reused the dead pool, and {@code io.schedule(...)} threw
+     * {@link java.util.concurrent.RejectedExecutionException} during login — surfacing as the vanilla
+     * "Couldn't place player in world" disconnect. {@code volatile} so the cross-thread read in
+     * {@link #markDirty()} sees the latest reference.
+     */
+    private volatile ScheduledExecutorService io;
     private final AtomicBoolean dirty = new AtomicBoolean(false);
+
+    private static ScheduledExecutorService newIoExecutor() {
+        return Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "Arcadia-LoginTracker-IO");
+            t.setDaemon(true);
+            return t;
+        });
+    }
 
     private LoginTracker() {
         Path configDir = FMLPaths.CONFIGDIR.get().resolve("arcadia/arcadiaadminpanel");
@@ -98,6 +111,12 @@ public final class LoginTracker {
     }
 
     public void init() {
+        // (Re)create the IO pool every server start. On an integrated (single-player) server the static
+        // INSTANCE survives world unload, so a prior shutdown() may have left a terminated executor here.
+        ScheduledExecutorService current = io;
+        if (current == null || current.isShutdown()) {
+            io = newIoExecutor();
+        }
         load();
         loaded = true;
         LOGGER.info("[AdminPanel] LoginTracker initialized ({} records)", cache.size());
@@ -153,7 +172,21 @@ public final class LoginTracker {
     /** Schedule a single coalesced flush; subsequent dirties within the window are folded in. */
     private void markDirty() {
         if (dirty.compareAndSet(false, true)) {
-            io.schedule(() -> { dirty.set(false); save(); }, FLUSH_DELAY_SECONDS, TimeUnit.SECONDS);
+            ScheduledExecutorService current = io;
+            if (current == null || current.isShutdown()) {
+                // Pool not ready (or already torn down between ServerStopping and the next init).
+                // Persist inline rather than dropping the write or throwing RejectedExecutionException.
+                dirty.set(false);
+                save();
+                return;
+            }
+            try {
+                current.schedule(() -> { dirty.set(false); save(); }, FLUSH_DELAY_SECONDS, TimeUnit.SECONDS);
+            } catch (RejectedExecutionException e) {
+                // Lost a race with shutdown() — fall back to a synchronous write so nothing is lost.
+                dirty.set(false);
+                save();
+            }
         }
     }
 
@@ -161,7 +194,10 @@ public final class LoginTracker {
     public void shutdown() {
         dirty.set(false);
         save();
-        io.shutdown();
+        ScheduledExecutorService current = io;
+        if (current != null) current.shutdown();
+        // Drop the reference so a stale terminated pool can never be reused; init() builds a fresh one.
+        io = null;
     }
 
     /**
