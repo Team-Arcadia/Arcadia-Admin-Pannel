@@ -83,6 +83,17 @@ public final class AdminConfig {
          */
         public int nameTagHideMaxDistance = 128;
 
+        // ── Disguise ─────────────────────────────────────────────────────────
+        /**
+         * Play the disguise mob's sounds (1.2.9): periodic ambient calls (e.g. a pig oinks), plus the
+         * mob's hurt and death sounds when the disguised player is damaged / dies. Server-broadcast so
+         * everyone nearby hears them in sync. ON by default; flip OFF to keep events fully silent.
+         */
+        public boolean disguiseSounds = true;
+        /** Min / max ticks between a disguise's ambient sounds (random in range). Default 100–300 (5–15 s). */
+        public int disguiseAmbientMinTicks = 100;
+        public int disguiseAmbientMaxTicks = 300;
+
         static Data defaults() { return new Data(); }
     }
 

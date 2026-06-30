@@ -44,6 +44,12 @@ public final class DisguiseRenderer {
     /** One reusable dummy entity per disguised player (keyed by player UUID). */
     private static final Map<UUID, Dummy> DUMMIES = new ConcurrentHashMap<>();
 
+    /** Entity types whose renderer threw — skipped from then on so a bad modded model can't crash
+     *  the client or spam exceptions every frame. The player keeps their normal model instead. */
+    private static final java.util.Set<EntityType<?>> FAILED_TYPES = ConcurrentHashMap.newKeySet();
+
+    private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
+
     /** Holds a dummy together with the entity type it was created for, so a type change recreates it. */
     private record Dummy(EntityType<?> type, LivingEntity entity) {}
 
@@ -57,6 +63,7 @@ public final class DisguiseRenderer {
         Player player = event.getEntity();
         EntityType<?> type = ClientDisguiseState.disguiseFor(player.getUUID());
         if (type == null) return;
+        if (FAILED_TYPES.contains(type)) return; // known-bad renderer → keep the vanilla player model
 
         Minecraft mc = Minecraft.getInstance();
         // Respect invisibility: an invisible disguised player shows nothing, like vanilla.
@@ -68,15 +75,23 @@ public final class DisguiseRenderer {
         LivingEntity dummy = dummyFor(player, type);
         if (dummy == null) return; // creation failed (unknown type / no level) → leave vanilla model
 
-        // From here we own the render: skip the vanilla player body, armor, held items and name.
-        event.setCanceled(true);
-
         float partialTick = event.getPartialTick();
         syncPose(dummy, player);
 
         EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
-        renderDummy(dispatcher, dummy, bodyYaw, partialTick, event);
+        // Only cancel the vanilla render once the mob render itself succeeds — if a (modded) renderer
+        // throws, we catch it, blacklist the type, and fall through to the normal player model rather
+        // than crashing the client or leaving an empty space where the player was.
+        try {
+            renderDummy(dispatcher, dummy, bodyYaw, partialTick, event);
+            event.setCanceled(true); // mob drawn — suppress the vanilla player body, armor, name
+        } catch (Throwable t) {
+            FAILED_TYPES.add(type);
+            DUMMIES.remove(player.getUUID());
+            LOGGER.warn("[AdminPanel] Disguise renderer for {} failed; falling back to the player model",
+                    EntityType.getKey(type), t);
+        }
     }
 
     @SuppressWarnings({"unchecked", "rawtypes"})

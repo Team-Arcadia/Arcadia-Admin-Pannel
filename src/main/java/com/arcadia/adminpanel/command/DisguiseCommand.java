@@ -52,13 +52,15 @@ public final class DisguiseCommand {
         return SharedSuggestionProvider.suggest(Stream.concat(online, offline).distinct(), builder);
     };
 
-    /** A short list of popular, fun disguises shown as tab suggestions (any living mob still works). */
-    private static final String[] POPULAR = {
-            "minecraft:pig", "minecraft:cow", "minecraft:chicken", "minecraft:sheep",
-            "minecraft:villager", "minecraft:zombie", "minecraft:skeleton", "minecraft:creeper",
-            "minecraft:allay", "minecraft:armadillo", "minecraft:fox", "minecraft:cat",
-            "minecraft:wolf", "minecraft:axolotl", "minecraft:bee", "minecraft:slime"
-    };
+    /**
+     * Tab suggestions for the entity argument: every registered entity type (vanilla <em>and</em>
+     * modpack mobs). Brigadier filters by the typed prefix client-side, so the full list — even a few
+     * hundred entries on a big modpack — is fine. Non-living types still autocomplete but are rejected
+     * at execution by {@link #isLivingType}.
+     */
+    private static final SuggestionProvider<CommandSourceStack> ENTITY_SUGGESTIONS =
+            (ctx, builder) -> SharedSuggestionProvider.suggestResource(
+                    BuiltInRegistries.ENTITY_TYPE.keySet(), builder);
 
     public static LiteralArgumentBuilder<CommandSourceStack> build(Predicate<CommandSourceStack> gate) {
         return Commands.literal("disguise")
@@ -67,9 +69,9 @@ public final class DisguiseCommand {
                         .suggests(PLAYER_SUGGESTIONS)
                         // reset → clear the disguise
                         .then(Commands.literal("reset").executes(DisguiseCommand::execReset))
-                        // <entity> → set the disguise
+                        // <entity> → set the disguise (any living mob, vanilla or modded)
                         .then(Commands.argument("entity", ResourceLocationArgument.id())
-                                .suggests((c, b) -> SharedSuggestionProvider.suggest(POPULAR, b))
+                                .suggests(ENTITY_SUGGESTIONS)
                                 .executes(DisguiseCommand::execSet)));
     }
 
