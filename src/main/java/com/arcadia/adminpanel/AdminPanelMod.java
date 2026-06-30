@@ -31,7 +31,7 @@ import java.nio.file.Paths;
  * Arcadia Admin Panel — Steampunk-themed server management mod.
  * Both-sided mod powered by Arcadia Lib.
  *
- * @version 1.2.6
+ * @version 1.2.9
  * @author vyrriox
  */
 @Mod("arcadiaadminpanel")
@@ -126,6 +126,7 @@ public class AdminPanelMod {
         LoginTracker.getInstance().init();
         NextSpawnManager.getInstance().init();
         com.arcadia.adminpanel.util.NameTagManager.getInstance().init();
+        com.arcadia.adminpanel.util.DisguiseManager.getInstance().init();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {

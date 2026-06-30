@@ -54,12 +54,18 @@ public final class NameTagRenderer {
     @SubscribeEvent
     public static void onClientTick(ClientTickEvent.Post event) {
         animTick++;
+        // Drop occlusion-cache entries for players we haven't queried in a while (out of view /
+        // left). Cheap sweep once a second; keeps the map bounded without per-frame work.
+        if ((animTick & 0x1F) == 0 && !OCCLUSION_CACHE.isEmpty()) {
+            OCCLUSION_CACHE.values().removeIf(r -> animTick - r.tick > 40);
+        }
     }
 
     /** Wipe synced state on disconnect so a relog / server switch never shows stale names. */
     @SubscribeEvent
     public static void onLoggingOut(ClientPlayerNetworkEvent.LoggingOut event) {
         ClientNameTagState.clear();
+        OCCLUSION_CACHE.clear();
     }
 
     @SubscribeEvent
@@ -68,11 +74,30 @@ public final class NameTagRenderer {
 
         Minecraft mc = Minecraft.getInstance();
         UUID uuid = player.getUUID();
+        boolean self = isSelf(mc, player);
+
+        // ── 0. Total hide (1.2.9) ──────────────────────────────────────────────
+        // A player force-hidden by an admin is invisible to everyone, always. The global event
+        // blackout hides everyone too — but exempt players (staff) stay visible through it. Both
+        // win over occlusion/styling: nothing below runs once we suppress.
+        if (!self && ClientDisguiseState.isDisguised(uuid)) {
+            // A disguised player shows the mob, not their name (decision: hide the pseudo).
+            event.setCanRender(TriState.FALSE);
+            return;
+        }
+        if (!self && ClientNameTagState.isForceHidden(uuid)) {
+            event.setCanRender(TriState.FALSE);
+            return;
+        }
+        if (!self && ClientNameTagState.isHideAll() && !ClientNameTagState.isHideExempt(uuid)) {
+            event.setCanRender(TriState.FALSE);
+            return;
+        }
 
         // ── 1. Occlusion: hide the name if a wall is in the way ────────────────
         if (ClientNameTagState.isHideEnabled()
                 && !ClientNameTagState.isHideExempt(uuid)
-                && !isSelf(mc, player)
+                && !self
                 && isOccluded(mc, player)) {
             event.setCanRender(TriState.FALSE);
             return; // hidden — no point styling it
@@ -123,20 +148,48 @@ public final class NameTagRenderer {
     }
 
     /**
+     * Per-player occlusion cache. The {@link RenderNameTagEvent} fires once per <em>frame</em> per
+     * visible named player — at 120 fps that is 120 raytraces/s per player, almost all redundant
+     * since neither the camera nor the player moves perceptibly between frames. We therefore recompute
+     * the raytrace at most once every {@link #OCCLUSION_RECHECK_TICKS} client ticks and reuse the
+     * cached verdict in between. This is the "optimise" half of the 1.2.9 wall-occlusion work: the
+     * heavy {@code level.clip} now runs ~10×/s instead of per-frame, with no visible lag (a name
+     * blinks at most ~100 ms late when someone steps behind a wall). Keyed on UUID; entries are
+     * pruned when their player isn't re-queried for a while, and wiped on disconnect.
+     */
+    private record OcclusionResult(boolean occluded, int tick) {}
+    private static final java.util.Map<UUID, OcclusionResult> OCCLUSION_CACHE = new java.util.concurrent.ConcurrentHashMap<>();
+    /** Re-run the raytrace at most this often (2 ticks ≈ 100 ms). */
+    private static final int OCCLUSION_RECHECK_TICKS = 2;
+
+    /**
      * Raytrace from the active camera position to the target player's eye height. A non-MISS hit
      * means a block sits between camera and player → the name is occluded. When the config does not
      * count transparent blocks, a hit on a non-opaque block (glass, leaves, fences…) is treated as
-     * "not occluding" so you still see names through windows.
+     * "not occluding" so you still see names through windows. Result is cached for a couple of ticks
+     * (see {@link #OCCLUSION_CACHE}) to keep the per-frame cost negligible.
      */
     private static boolean isOccluded(Minecraft mc, Player player) {
+        UUID uuid = player.getUUID();
+        OcclusionResult cached = OCCLUSION_CACHE.get(uuid);
+        if (cached != null && animTick - cached.tick < OCCLUSION_RECHECK_TICKS) {
+            return cached.occluded;
+        }
+        boolean result = computeOccluded(mc, player);
+        OCCLUSION_CACHE.put(uuid, new OcclusionResult(result, animTick));
+        return result;
+    }
+
+    private static boolean computeOccluded(Minecraft mc, Player player) {
         Camera camera = mc.gameRenderer.getMainCamera();
         if (camera == null) return false;
         Level level = player.level();
         Vec3 from = camera.getPosition();
         Vec3 to = new Vec3(player.getX(), player.getEyeY(), player.getZ());
 
-        // Same distance gate vanilla uses (64 blocks) — beyond it the tag isn't drawn anyway.
-        if (from.distanceToSqr(to) > 4096.0) return false;
+        // Beyond the configured range (default 128 blocks, raised from the old hard 64-block gate
+        // that let distant players stay readable through walls) we skip the raytrace and show the name.
+        if (from.distanceToSqr(to) > ClientNameTagState.maxHideDistanceSqr()) return false;
 
         ClipContext ctx = new ClipContext(
                 from, to,

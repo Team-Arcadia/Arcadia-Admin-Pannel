@@ -186,7 +186,22 @@ public final class NameTagCommand {
                         .executes(NameTagCommand::execHideShow)
                         .then(Commands.argument("state", StringArgumentType.word())
                                 .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"on", "off"}, b))
-                                .executes(NameTagCommand::execHideSet)));
+                                .executes(NameTagCommand::execHideSet)))
+
+                // hideall <on|off> — event blackout: hide EVERY player's name at once
+                .then(Commands.literal("hideall")
+                        .requires(hideGate)
+                        .executes(NameTagCommand::execHideAllShow)
+                        .then(Commands.argument("state", StringArgumentType.word())
+                                .suggests((c, b) -> SharedSuggestionProvider.suggest(new String[]{"on", "off"}, b))
+                                .executes(NameTagCommand::execHideAllSet)))
+
+                // forcehide <player> — toggle a player's permanent name hide
+                .then(Commands.literal("forcehide")
+                        .requires(hideGate)
+                        .then(Commands.argument("target", StringArgumentType.string())
+                                .suggests(PLAYER_SUGGESTIONS)
+                                .executes(NameTagCommand::execForceHide)));
     }
 
     // ── Style mutators ──────────────────────────────────────────────────────
@@ -403,6 +418,40 @@ public final class NameTagCommand {
         NameTagManager.getInstance().broadcastUpdate(t.source.getServer(), t.uuid);
         t.source.sendSuccess(() -> ArcadiaMessages.success(
                 LanguageHelper.getText(nowExempt ? "nametag.exempt_on" : "nametag.exempt_off", t.admin)
+                        .replace("%player%", t.name)), true);
+        return 1;
+    }
+
+    // ── Hide-all (event blackout) + force-hide ───────────────────────────────
+
+    private static int execHideAllShow(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        boolean on = NameTagManager.getInstance().isHideAll();
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("nametag.hideall.state", admin).replace("%state%", on ? "ON" : "OFF")), false);
+        return 1;
+    }
+
+    private static int execHideAllSet(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        boolean on = parseOnOff(StringArgumentType.getString(ctx, "state"));
+        NameTagManager.getInstance().setHideAll(on);
+        // Re-sync everyone so the blackout takes effect / lifts immediately.
+        NameTagManager.getInstance().syncAll(source.getServer());
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("nametag.hideall.set", admin).replace("%state%", on ? "ON" : "OFF")), true);
+        return 1;
+    }
+
+    private static int execForceHide(CommandContext<CommandSourceStack> ctx) {
+        ResolvedTarget t = resolve(ctx);
+        if (t == null) return 0;
+        boolean nowHidden = NameTagManager.getInstance().toggleForceHidden(t.uuid);
+        NameTagManager.getInstance().broadcastUpdate(t.source.getServer(), t.uuid);
+        t.source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText(nowHidden ? "nametag.forcehide_on" : "nametag.forcehide_off", t.admin)
                         .replace("%player%", t.name)), true);
         return 1;
     }

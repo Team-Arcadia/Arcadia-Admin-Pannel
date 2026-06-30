@@ -1,5 +1,6 @@
 package com.arcadia.adminpanel.network;
 
+import com.arcadia.adminpanel.util.DisguiseManager;
 import com.arcadia.adminpanel.util.NameTagManager;
 import com.arcadia.adminpanel.util.NameTagStyle;
 import net.minecraft.server.MinecraftServer;
@@ -40,6 +41,18 @@ public final class AdminPanelNet {
                 S2CNameTagUpdate.STREAM_CODEC,
                 (p, ctx) -> p.handle(ctx)
         );
+
+        registrar.playToClient(
+                S2CDisguiseSync.TYPE,
+                S2CDisguiseSync.STREAM_CODEC,
+                (p, ctx) -> p.handle(ctx)
+        );
+
+        registrar.playToClient(
+                S2CDisguiseUpdate.TYPE,
+                S2CDisguiseUpdate.STREAM_CODEC,
+                (p, ctx) -> p.handle(ctx)
+        );
     }
 
     /** Sends the complete name-tag state to one player (on login or after /reload). */
@@ -48,18 +61,42 @@ public final class AdminPanelNet {
         PacketDistributor.sendToPlayer(player, new S2CNameTagSync(
                 mgr.isHideEnabled(),
                 mgr.occludeThroughTransparent(),
+                mgr.isHideAll(),
+                mgr.hideMaxDistance(),
                 mgr.getAllStyles(),
-                mgr.getHideExempt()
+                mgr.getHideExempt(),
+                mgr.getForceHidden()
         ));
     }
 
     /**
-     * Broadcasts one player's current style + exemption to every online client. {@code style} may
-     * be {@code null} (meaning "cleared back to vanilla").
+     * Broadcasts one player's current style + exemption + force-hidden flag to every online client.
+     * {@code style} may be {@code null} (meaning "cleared back to vanilla").
      */
     public static void broadcastNameTagUpdate(MinecraftServer server, UUID uuid, NameTagStyle style) {
         boolean exempt = NameTagManager.getInstance().isHideExempt(uuid);
-        S2CNameTagUpdate pkt = new S2CNameTagUpdate(uuid, style != null, style, exempt);
+        boolean forceHidden = NameTagManager.getInstance().isForceHidden(uuid);
+        S2CNameTagUpdate pkt = new S2CNameTagUpdate(uuid, style != null, style, exempt, forceHidden);
+        for (ServerPlayer p : server.getPlayerList().getPlayers()) {
+            PacketDistributor.sendToPlayer(p, pkt);
+        }
+    }
+
+    // ── Disguise senders ──────────────────────────────────────────────────────
+
+    /** Sends the complete disguise map to one player (on login or after /reload). */
+    public static void sendDisguiseFullSync(ServerPlayer player) {
+        PacketDistributor.sendToPlayer(player,
+                new S2CDisguiseSync(DisguiseManager.getInstance().getAll()));
+    }
+
+    /**
+     * Broadcasts one player's disguise to every online client. {@code entityType} may be {@code null}
+     * (meaning "disguise cleared, back to the normal player model").
+     */
+    public static void broadcastDisguiseUpdate(MinecraftServer server, UUID uuid,
+                                               net.minecraft.resources.ResourceLocation entityType) {
+        S2CDisguiseUpdate pkt = new S2CDisguiseUpdate(uuid, entityType != null, entityType);
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             PacketDistributor.sendToPlayer(p, pkt);
         }

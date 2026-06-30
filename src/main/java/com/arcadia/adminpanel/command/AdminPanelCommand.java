@@ -314,6 +314,10 @@ public final class AdminPanelCommand {
                         .then(com.arcadia.adminpanel.command.NameTagCommand.build(
                                 require(AdminPermissions.NAMETAG_EDIT),
                                 require(AdminPermissions.NAMETAG_HIDE)))
+
+                        // /arcadia_adminpanel disguise … — turn a player into a mob (visual only).
+                        .then(com.arcadia.adminpanel.command.DisguiseCommand.build(
+                                require(AdminPermissions.DISGUISE)))
         );
     }
 
@@ -544,6 +548,8 @@ public final class AdminPanelCommand {
         com.arcadia.adminpanel.util.NameTagManager.getInstance().reload();
         // Push the freshly-loaded name-tag state back to every online client.
         com.arcadia.adminpanel.util.NameTagManager.getInstance().syncAll(source.getServer());
+        com.arcadia.adminpanel.util.DisguiseManager.getInstance().reload();
+        com.arcadia.adminpanel.util.DisguiseManager.getInstance().syncAll(source.getServer());
 
         source.sendSuccess(() -> ArcadiaMessages.success(LanguageHelper.getText("reload.done", admin)), true);
         return 1;

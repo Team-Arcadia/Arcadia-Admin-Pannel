@@ -200,10 +200,19 @@ public final class LanguageHelper {
         en.put("nametag.exempt_off", "%player% is no longer exempt from name hiding.");
         en.put("nametag.hide.state", "Hide names behind walls is currently %state%.");
         en.put("nametag.hide.set", "Hide names behind walls turned %state%.");
+        en.put("nametag.hideall.state", "Event name blackout is currently %state%.");
+        en.put("nametag.hideall.set", "Event name blackout turned %state% — every player's name is now affected.");
+        en.put("nametag.forcehide_on", "%player%'s name is now permanently hidden for everyone.");
+        en.put("nametag.forcehide_off", "%player%'s name is no longer permanently hidden.");
         en.put("nametag.invalid_color", "Invalid colour name. Use a vanilla colour like red, gold, aqua…");
         en.put("nametag.invalid_hex", "Invalid hex colour. Use #RRGGBB (e.g. #FF8800).");
         en.put("nametag.invalid_effect", "Unknown effect. Try: solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random.");
         en.put("nametag.invalid_flag", "Unknown style flag. Use: bold, italic, underline, strikethrough, obfuscated.");
+        en.put("disguise.set", "Disguised %player% as %value%.");
+        en.put("disguise.cleared", "Removed %player%'s disguise.");
+        en.put("disguise.none", "%player% was not disguised.");
+        en.put("disguise.invalid_entity", "Unknown entity type '%value%'. Use an id like minecraft:pig.");
+        en.put("disguise.not_living", "'%value%' is not a living mob and can't be used as a disguise.");
         translations.put("en", en);
 
         Map<String, String> fr = new HashMap<>();
@@ -390,10 +399,19 @@ public final class LanguageHelper {
         fr.put("nametag.exempt_off", "%player% n'est plus exempté du masquage des pseudos.");
         fr.put("nametag.hide.state", "Le masquage des pseudos derrière les murs est actuellement %state%.");
         fr.put("nametag.hide.set", "Masquage des pseudos derrière les murs : %state%.");
+        fr.put("nametag.hideall.state", "Le masquage total des pseudos (mode event) est actuellement %state%.");
+        fr.put("nametag.hideall.set", "Masquage total des pseudos (mode event) : %state% — tous les pseudos des joueurs sont concernés.");
+        fr.put("nametag.forcehide_on", "Le pseudo de %player% est désormais masqué en permanence pour tout le monde.");
+        fr.put("nametag.forcehide_off", "Le pseudo de %player% n'est plus masqué en permanence.");
         fr.put("nametag.invalid_color", "Nom de couleur invalide. Utilisez une couleur vanilla : red, gold, aqua…");
         fr.put("nametag.invalid_hex", "Couleur hex invalide. Utilisez #RRGGBB (ex. #FF8800).");
         fr.put("nametag.invalid_effect", "Effet inconnu. Essayez : solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random.");
         fr.put("nametag.invalid_flag", "Style inconnu. Utilisez : bold, italic, underline, strikethrough, obfuscated.");
+        fr.put("disguise.set", "%player% est déguisé en %value%.");
+        fr.put("disguise.cleared", "Déguisement de %player% retiré.");
+        fr.put("disguise.none", "%player% n'était pas déguisé.");
+        fr.put("disguise.invalid_entity", "Type d'entité inconnu « %value% ». Utilisez un id comme minecraft:pig.");
+        fr.put("disguise.not_living", "« %value% » n'est pas un mob vivant et ne peut pas servir de déguisement.");
         translations.put("fr", fr);
     }
 

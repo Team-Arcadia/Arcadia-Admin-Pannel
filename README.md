@@ -62,6 +62,9 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `nametag show <player>` | `arcadia.adminpanel.nametag` | Print a player's current styling |
 | `nametag exempt <player>` | `arcadia.adminpanel.nametag.hide` | Toggle a player's exemption from hiding (always visible) |
 | `nametag hide [on\|off]` | `arcadia.adminpanel.nametag.hide` | Show/toggle the global hide-names-behind-walls switch |
+| `nametag hideall [on\|off]` | `arcadia.adminpanel.nametag.hide` | Event blackout: hide **every** player's name at once (hide-and-seek) |
+| `nametag forcehide <player>` | `arcadia.adminpanel.nametag.hide` | Toggle hiding one player's name permanently for everyone |
+| `disguise <player> <entity>` | `arcadia.adminpanel.disguise` | Disguise a player as any living mob (e.g. `minecraft:pig`); `reset` clears it |
 
 ### GUI-only permission nodes
 
@@ -81,6 +84,7 @@ cannot trigger it.
 | `arcadia.adminpanel.kick` | Kick a player |
 | `arcadia.adminpanel.ban` | Ban / unban a player |
 | `arcadia.adminpanel.info` | Open a player's info sheet (ban/whitelist/login history) |
+| `arcadia.adminpanel.disguise` | Disguise a player as a mob (`disguise …`) |
 
 ### LuckPerms quick-start
 
@@ -125,7 +129,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.2.8.jar` in your `mods/` folder
+2. Place `arcadia-admin-panel-1.2.9.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -233,6 +237,9 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `nametag show <joueur>` | `arcadia.adminpanel.nametag` | Afficher le style actuel d'un joueur |
 | `nametag exempt <joueur>` | `arcadia.adminpanel.nametag.hide` | Basculer l'exemption de masquage d'un joueur (toujours visible) |
 | `nametag hide [on\|off]` | `arcadia.adminpanel.nametag.hide` | Afficher/basculer le masquage global des pseudos derrière les murs |
+| `nametag hideall [on\|off]` | `arcadia.adminpanel.nametag.hide` | Mode event : masquer **tous** les pseudos d'un coup (cache-cache) |
+| `nametag forcehide <joueur>` | `arcadia.adminpanel.nametag.hide` | Basculer le masquage permanent du pseudo d'un joueur pour tous |
+| `disguise <joueur> <entité>` | `arcadia.adminpanel.disguise` | Déguiser un joueur en n'importe quel mob vivant (ex. `minecraft:pig`) ; `reset` l'enlève |
 
 ### Nodes de permission réservés au GUI
 
@@ -252,6 +259,7 @@ qu'un paquet forgé ne puisse pas le déclencher.
 | `arcadia.adminpanel.kick` | Expulser un joueur |
 | `arcadia.adminpanel.ban` | Bannir / débannir un joueur |
 | `arcadia.adminpanel.info` | Ouvrir la fiche d'info (ban/whitelist/historique de connexion) |
+| `arcadia.adminpanel.disguise` | Déguiser un joueur en mob (`disguise …`) |
 
 ### Démarrage rapide LuckPerms
 
@@ -297,7 +305,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 dans votre dossier `mods/`
-2. Placez `arcadia-admin-panel-1.2.8.jar` dans votre dossier `mods/`
+2. Placez `arcadia-admin-panel-1.2.9.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
 5. Démarrez le serveur

@@ -47,16 +47,19 @@ public final class NameTagManager {
     private final Map<UUID, NameTagStyle> styles = new ConcurrentHashMap<>();
     /** Players exempt from the global hide-behind-walls rule (their name is always visible). */
     private final Set<UUID> hideExempt = ConcurrentHashMap.newKeySet();
+    /** Players whose name is force-hidden at all times (1.2.9), regardless of walls/distance. */
+    private final Set<UUID> forceHidden = ConcurrentHashMap.newKeySet();
 
     private final Path file;
     private final Path tempFile;
     /** Guards only the temp-write + atomic-rename so disk I/O never blocks map mutations. */
     private final Object ioLock = new Object();
 
-    /** On-disk shape — two collections in one document. */
+    /** On-disk shape — the styled players plus the two per-player UUID sets. */
     private static final class Persisted {
         Map<UUID, NameTagStyle> styles;
         Set<UUID> hideExempt;
+        Set<UUID> forceHidden;
     }
 
     private NameTagManager() {
@@ -81,6 +84,7 @@ public final class NameTagManager {
     public void reload() {
         styles.clear();
         hideExempt.clear();
+        forceHidden.clear();
         load();
     }
 
@@ -121,6 +125,37 @@ public final class NameTagManager {
 
     /** Whether transparent blocks (glass, water…) also occlude. Default false (only opaque). */
     public boolean occludeThroughTransparent() { return AdminConfig.get().nameTagOccludeTransparent; }
+
+    /** Max distance (blocks) the wall-occlusion raytrace runs at (operator config, default 128). */
+    public int hideMaxDistance() { return AdminConfig.get().nameTagHideMaxDistance; }
+
+    // ── Hide-all (event blackout) + force-hidden ─────────────────────────────
+
+    /** The global "blackout" event switch (operator config, OFF by default). */
+    public boolean isHideAll() { return AdminConfig.get().nameTagHideAll; }
+
+    public void setHideAll(boolean on) {
+        AdminConfig.get().nameTagHideAll = on;
+        AdminConfig.save();
+    }
+
+    public boolean isForceHidden(UUID uuid) { return forceHidden.contains(uuid); }
+
+    /** Toggle a player's permanent name-hide; returns the new state (true = now force-hidden).
+     *  TOCTOU-free via the atomic return values of {@code add}/{@code remove} (see {@link #toggleExempt}). */
+    public boolean toggleForceHidden(UUID uuid) {
+        boolean nowHidden = forceHidden.add(uuid);
+        if (!nowHidden) forceHidden.remove(uuid);
+        save();
+        return nowHidden;
+    }
+
+    public void setForceHidden(UUID uuid, boolean hidden) {
+        boolean changed = hidden ? forceHidden.add(uuid) : forceHidden.remove(uuid);
+        if (changed) save();
+    }
+
+    public Set<UUID> getForceHidden() { return Collections.unmodifiableSet(forceHidden); }
 
     public boolean isHideExempt(UUID uuid) { return hideExempt.contains(uuid); }
 
@@ -196,6 +231,7 @@ public final class NameTagManager {
                     });
                 }
                 if (loaded.hideExempt != null) hideExempt.addAll(loaded.hideExempt);
+                if (loaded.forceHidden != null) forceHidden.addAll(loaded.forceHidden);
             }
         } catch (Exception e) {
             LOGGER.error("[AdminPanel] Failed to load nametags.json", e);
@@ -223,6 +259,7 @@ public final class NameTagManager {
         Persisted out = new Persisted();
         out.styles = new java.util.HashMap<>(styles);
         out.hideExempt = new java.util.HashSet<>(hideExempt);
+        out.forceHidden = new java.util.HashSet<>(forceHidden);
         final String json = GSON.toJson(out);
         synchronized (ioLock) {
             try (FileWriter writer = new FileWriter(tempFile.toFile())) {

@@ -24,7 +24,8 @@ public record S2CNameTagUpdate(
         UUID uuid,
         boolean hasStyle,
         NameTagStyle style,   // valid only when hasStyle == true
-        boolean exempt
+        boolean exempt,
+        boolean forceHidden
 ) implements CustomPacketPayload {
 
     public static final Type<S2CNameTagUpdate> TYPE =
@@ -36,13 +37,15 @@ public record S2CNameTagUpdate(
                 buf.writeBoolean(pkt.hasStyle);
                 if (pkt.hasStyle) pkt.style.write(buf);
                 buf.writeBoolean(pkt.exempt);
+                buf.writeBoolean(pkt.forceHidden);
             },
             buf -> {
                 UUID u = buf.readUUID();
                 boolean has = buf.readBoolean();
                 NameTagStyle st = has ? NameTagStyle.read(buf) : null;
                 boolean exempt = buf.readBoolean();
-                return new S2CNameTagUpdate(u, has, st, exempt);
+                boolean forceHidden = buf.readBoolean();
+                return new S2CNameTagUpdate(u, has, st, exempt, forceHidden);
             }
     );
 
@@ -52,6 +55,6 @@ public record S2CNameTagUpdate(
     @OnlyIn(Dist.CLIENT)
     public void handle(IPayloadContext ctx) {
         ctx.enqueueWork(() ->
-                com.arcadia.adminpanel.client.ClientNameTagState.applyUpdate(uuid, hasStyle, style, exempt));
+                com.arcadia.adminpanel.client.ClientNameTagState.applyUpdate(uuid, hasStyle, style, exempt, forceHidden));
     }
 }

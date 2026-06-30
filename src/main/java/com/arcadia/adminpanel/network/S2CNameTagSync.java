@@ -27,8 +27,11 @@ import java.util.UUID;
 public record S2CNameTagSync(
         boolean hideEnabled,
         boolean occludeTransparent,
+        boolean hideAll,
+        int maxHideDistance,
         Map<UUID, NameTagStyle> styles,
-        Set<UUID> hideExempt
+        Set<UUID> hideExempt,
+        Set<UUID> forceHidden
 ) implements CustomPacketPayload {
 
     public static final Type<S2CNameTagSync> TYPE =
@@ -43,6 +46,8 @@ public record S2CNameTagSync(
             (buf, pkt) -> {
                 buf.writeBoolean(pkt.hideEnabled);
                 buf.writeBoolean(pkt.occludeTransparent);
+                buf.writeBoolean(pkt.hideAll);
+                buf.writeVarInt(pkt.maxHideDistance);
                 buf.writeVarInt(pkt.styles.size());
                 for (Map.Entry<UUID, NameTagStyle> e : pkt.styles.entrySet()) {
                     buf.writeUUID(e.getKey());
@@ -50,10 +55,14 @@ public record S2CNameTagSync(
                 }
                 buf.writeVarInt(pkt.hideExempt.size());
                 for (UUID u : pkt.hideExempt) buf.writeUUID(u);
+                buf.writeVarInt(pkt.forceHidden.size());
+                for (UUID u : pkt.forceHidden) buf.writeUUID(u);
             },
             buf -> {
                 boolean hide = buf.readBoolean();
                 boolean trans = buf.readBoolean();
+                boolean hideAll = buf.readBoolean();
+                int maxDist = buf.readVarInt();
                 int n = Math.min(Math.max(0, buf.readVarInt()), MAX_ENTRIES);
                 Map<UUID, NameTagStyle> styles = new HashMap<>(Math.max(4, n));
                 for (int i = 0; i < n; i++) {
@@ -63,7 +72,10 @@ public record S2CNameTagSync(
                 int m = Math.min(Math.max(0, buf.readVarInt()), MAX_ENTRIES);
                 Set<UUID> exempt = new HashSet<>(Math.max(4, m));
                 for (int i = 0; i < m; i++) exempt.add(buf.readUUID());
-                return new S2CNameTagSync(hide, trans, styles, exempt);
+                int k = Math.min(Math.max(0, buf.readVarInt()), MAX_ENTRIES);
+                Set<UUID> forceHidden = new HashSet<>(Math.max(4, k));
+                for (int i = 0; i < k; i++) forceHidden.add(buf.readUUID());
+                return new S2CNameTagSync(hide, trans, hideAll, maxDist, styles, exempt, forceHidden);
             }
     );
 
@@ -74,6 +86,7 @@ public record S2CNameTagSync(
     public void handle(IPayloadContext ctx) {
         ctx.enqueueWork(() ->
                 com.arcadia.adminpanel.client.ClientNameTagState.applyFullSync(
-                        hideEnabled, occludeTransparent, styles, hideExempt));
+                        hideEnabled, occludeTransparent, hideAll, maxHideDistance,
+                        styles, hideExempt, forceHidden));
     }
 }

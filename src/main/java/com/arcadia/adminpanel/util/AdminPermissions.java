@@ -75,7 +75,9 @@ public enum AdminPermissions {
     /** Edit a player's name-tag colour / effect / style ({@code /arcadia_adminpanel nametag …}). */
     NAMETAG_EDIT("arcadia.adminpanel.nametag"),
     /** Toggle the global hide-names-behind-walls switch and per-player exemptions. */
-    NAMETAG_HIDE("arcadia.adminpanel.nametag.hide");
+    NAMETAG_HIDE("arcadia.adminpanel.nametag.hide"),
+    /** Disguise a player as a mob ({@code /arcadia_adminpanel disguise …}). */
+    DISGUISE("arcadia.adminpanel.disguise");
 
     public final String node;
     AdminPermissions(String node) { this.node = node; }

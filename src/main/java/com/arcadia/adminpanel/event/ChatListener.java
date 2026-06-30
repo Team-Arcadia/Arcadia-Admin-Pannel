@@ -193,7 +193,10 @@ public class ChatListener {
         // client renders colours/effects and wall-occlusion correctly from the first frame. Deferred
         // one tick so the player's connection is fully established before the payload is sent.
         com.arcadia.lib.scheduler.SchedulerService.delayed(1, () -> {
-            if (!sp.hasDisconnected()) com.arcadia.adminpanel.util.NameTagManager.getInstance().syncTo(sp);
+            if (!sp.hasDisconnected()) {
+                com.arcadia.adminpanel.util.NameTagManager.getInstance().syncTo(sp);
+                com.arcadia.adminpanel.util.DisguiseManager.getInstance().syncTo(sp);
+            }
         });
     }
 

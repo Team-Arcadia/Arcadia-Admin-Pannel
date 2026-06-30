@@ -67,6 +67,21 @@ public final class AdminConfig {
          * Default false: only fully opaque blocks hide a name, matching the "behind a wall" intent.
          */
         public boolean nameTagOccludeTransparent = false;
+        /**
+         * Event "blackout" switch (1.2.9). When ON, <em>every</em> player's floating name is hidden
+         * for everyone — the hide-and-seek mode. Exempt players (see the per-player exemption set)
+         * still show, so staff can be made visible during a game. OFF by default. Persisted here so a
+         * running event survives a restart; flipped live by {@code /arcadia_adminpanel nametag hideall}.
+         */
+        public boolean nameTagHideAll = false;
+        /**
+         * Max distance (blocks) at which the wall-occlusion raytrace runs (1.2.9). Beyond it the name
+         * is left visible — raycasting every frame for very distant players isn't worth the cost. The
+         * old hard-coded 64-block gate was too small: vanilla draws player names well past 64 blocks,
+         * so a distant player behind a wall stayed readable. 128 covers any realistic "read the name"
+         * range while bounding the per-frame work. Squared on the client.
+         */
+        public int nameTagHideMaxDistance = 128;
 
         static Data defaults() { return new Data(); }
     }

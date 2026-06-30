@@ -4,7 +4,39 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.8] - 2026-06-15 (latest)
+## [1.2.9] - 2026-06-30 (latest)
+
+### Added
+
+- **Total name blackout (hide-and-seek event mode)** — `/arcadia_adminpanel nametag hideall <on|off>` instantly hides **every** player's floating name for everyone on the server — perfect for a hide-and-seek event. Players in the hide-exemption set (e.g. staff) stay visible through the blackout. The switch is persisted, so a running event survives a restart, and re-syncs live to every client the moment it's flipped.
+- **Per-player permanent hide** — `/arcadia_adminpanel nametag forcehide <player>` toggles a single player's name off for everyone, at all times, independent of walls, distance, or the event blackout. Useful for hiding one disguised seeker or a spectator.
+- **Mob disguise** — `/arcadia_adminpanel disguise <player> <entity>` turns a player into any living mob (e.g. `minecraft:pig`), rendered client-side with full appearance and animation: the mob stands, walks, sprints, sneaks, and tracks its head exactly like the player. `disguise <player> reset` restores the normal model. The disguise is **visual only** — the player keeps their real hitbox, reach, and physics — and is server-authoritative, persisted, and synced to every client (the disguised player's real name is hidden automatically). Gated behind the new `arcadia.adminpanel.disguise` permission node.
+
+### Performance
+
+- **Wall-occlusion is now cached per player** — the "hide names behind walls" raytrace previously ran once **per frame** for every visible named player (≈120×/s each at high frame rates), nearly all of it redundant. The verdict is now computed at most once every ~100 ms and reused between frames, cutting the raytrace count by roughly 10× with no visible lag. Stale entries are pruned automatically.
+
+### Fixed
+
+- **Names stayed readable through walls at long range** — the occlusion check bailed out beyond a hard-coded 64-block gate, but vanilla draws player names well past that distance, so a faraway player behind a wall stayed perfectly readable. The cutoff is now a configurable distance (`nameTagHideMaxDistance`, default 128 blocks), so the wall-hide keeps working as far as the name is actually drawn.
+
+### Ajouts
+
+- **Masquage total des pseudos (mode event cache-cache)** — `/arcadia_adminpanel nametag hideall <on|off>` masque instantanément **tous** les pseudos flottants de tous les joueurs du serveur — idéal pour un événement cache-cache. Les joueurs présents dans la liste d'exemption (ex. le staff) restent visibles malgré le masquage. L'interrupteur est persisté (un événement en cours survit donc à un redémarrage) et se resynchronise en direct sur chaque client dès qu'on le bascule.
+- **Masquage permanent par joueur** — `/arcadia_adminpanel nametag forcehide <joueur>` bascule le masquage du pseudo d'un joueur pour tout le monde, en permanence, indépendamment des murs, de la distance ou du mode event. Pratique pour cacher un chercheur déguisé ou un spectateur.
+- **Déguisement en mob** — `/arcadia_adminpanel disguise <joueur> <entité>` transforme un joueur en n'importe quel mob vivant (ex. `minecraft:pig`), rendu côté client avec apparence et animation complètes : le mob est debout, marche, sprinte, se baisse et suit la tête exactement comme le joueur. `disguise <joueur> reset` restaure le modèle normal. Le déguisement est **purement visuel** — le joueur conserve sa vraie hitbox, sa portée et sa physique — et est géré par le serveur, persisté et synchronisé à chaque client (le vrai pseudo du joueur déguisé est masqué automatiquement). Protégé par le nouveau nœud de permission `arcadia.adminpanel.disguise`.
+
+### Performance
+
+- **L'occlusion derrière les murs est désormais mise en cache par joueur** — le raycast de « masquage des pseudos derrière les murs » s'exécutait auparavant une fois **par image** pour chaque joueur nommé visible (≈120×/s chacun en haut framerate), presque toujours pour rien. Le résultat est maintenant calculé au plus une fois toutes les ~100 ms et réutilisé entre les images, divisant le nombre de raycasts par environ 10 sans latence visible. Les entrées périmées sont purgées automatiquement.
+
+### Correctifs
+
+- **Les pseudos restaient lisibles à travers les murs à longue distance** — la vérification d'occlusion s'arrêtait au-delà d'une limite codée en dur de 64 blocs, alors que le jeu affiche les pseudos bien plus loin : un joueur lointain derrière un mur restait donc parfaitement lisible. La limite est désormais une distance configurable (`nameTagHideMaxDistance`, 128 blocs par défaut), pour que le masquage derrière les murs fonctionne aussi loin que le pseudo est réellement affiché.
+
+---
+
+## [1.2.8] - 2026-06-15
 
 ### Fixed
 
