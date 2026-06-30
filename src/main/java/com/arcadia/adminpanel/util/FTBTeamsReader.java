@@ -161,14 +161,22 @@ public final class FTBTeamsReader {
             return List.of();
         }
         List<Team> teams = new ArrayList<>();
+        int[] fileCount = {0};
         try (Stream<Path> stream = Files.list(dir)) {
             // Filter on filename (not full path) — a parent dir containing ".snbt" would otherwise pass.
             stream.filter(p -> p.getFileName().toString().endsWith(".snbt")).forEach(file -> {
+                fileCount[0]++;
                 Team t = parseTeam(file, type);
                 if (t != null) teams.add(t);
             });
         } catch (IOException e) {
             LOGGER.warn("[AdminPanel] Failed to list FTB Teams dir {}: {}", dir, e.getMessage());
+        }
+        // Visible diagnostic: a mismatch (files seen but 0 parsed) points straight at an SNBT parse
+        // problem rather than a discovery one.
+        if (fileCount[0] > 0) {
+            LOGGER.info("[AdminPanel] FTB Teams [{}]: parsed {} of {} .snbt file(s)",
+                    type.dir, teams.size(), fileCount[0]);
         }
         teams.sort((a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
         cache.put(type.dir, new CachedTeams(teams, System.currentTimeMillis()));
@@ -274,13 +282,63 @@ public final class FTBTeamsReader {
      */
     @Nullable
     private static CompoundTag readSnbt(Path file) {
+        String content;
         try {
-            String content = Files.readString(file);
-            return TagParser.parseTag(content);
+            content = Files.readString(file);
         } catch (Exception e) {
-            LOGGER.debug("[AdminPanel] Failed to read SNBT {}: {}", file, e.getMessage());
+            LOGGER.warn("[AdminPanel] Could not read FTB Teams file {}: {}", file.getFileName(), e.getMessage());
             return null;
         }
+        // First try the content as-is with the vanilla parser.
+        try {
+            return TagParser.parseTag(content);
+        } catch (Exception first) {
+            // FTB writes SNBT with its own (superset) library — it can include // line comments and
+            // trailing commas that the vanilla TagParser rejects. Sanitise and retry before giving up.
+            try {
+                return TagParser.parseTag(sanitizeSnbt(content));
+            } catch (Exception second) {
+                LOGGER.warn("[AdminPanel] Failed to parse FTB Teams file {} ({}). Sanitised retry also failed ({}).",
+                        file.getFileName(), first.getMessage(), second.getMessage());
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Best-effort cleanup so the vanilla {@link TagParser} accepts FTB-flavoured SNBT: strips
+     * {@code //} line comments (outside strings) and trailing commas before a {@code }} / {@code ]}.
+     * Conservative — only runs after the verbatim parse already failed, so the common case is untouched.
+     */
+    private static String sanitizeSnbt(String in) {
+        StringBuilder out = new StringBuilder(in.length());
+        boolean inString = false;
+        boolean escaped = false;
+        for (int i = 0; i < in.length(); i++) {
+            char c = in.charAt(i);
+            if (inString) {
+                out.append(c);
+                if (escaped) escaped = false;
+                else if (c == '\\') escaped = true;
+                else if (c == '"') inString = false;
+                continue;
+            }
+            // Strip a // line comment (to end of line) when not inside a string.
+            if (c == '/' && i + 1 < in.length() && in.charAt(i + 1) == '/') {
+                while (i < in.length() && in.charAt(i) != '\n') i++;
+                if (i < in.length()) out.append('\n');
+                continue;
+            }
+            if (c == '"') { inString = true; out.append(c); continue; }
+            // Drop a trailing comma: a comma followed (after whitespace) by a closing brace/bracket.
+            if (c == ',') {
+                int j = i + 1;
+                while (j < in.length() && Character.isWhitespace(in.charAt(j))) j++;
+                if (j < in.length() && (in.charAt(j) == '}' || in.charAt(j) == ']')) continue;
+            }
+            out.append(c);
+        }
+        return out.toString();
     }
 
     private static String stripFormatting(String s) {
