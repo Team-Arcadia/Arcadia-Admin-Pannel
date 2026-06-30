@@ -196,20 +196,31 @@ public final class FTBTeamsReader {
 
     @Nullable
     private static Team parseTeam(Path file, TeamType type) {
+        String content;
         try {
-            CompoundTag tag = readSnbt(file);
-            if (tag == null) return null;
+            content = Files.readString(file);
+        } catch (Exception e) {
+            LOGGER.warn("[AdminPanel] Could not read FTB Teams file {}: {}", file.getFileName(), e.getMessage());
+            return null;
+        }
+        // Preferred path: parse the SNBT into a tag and read the fields off it.
+        CompoundTag tag = tryParseSnbt(content, file);
+        if (tag != null) {
+            Team t = fromTag(tag, file, type);
+            if (t != null) return t;
+        }
+        // Last resort: the SNBT parser choked on FTB's dialect (or the tag was missing fields). Pull
+        // the handful of fields we actually need straight out of the raw text by regex, so one quirky
+        // file format can never blank the whole browser. The id always comes from the filename.
+        return parseTeamLenient(content, file, type);
+    }
 
-            String idStr = tag.getString("id");
-            UUID id;
-            try { id = UUID.fromString(idStr); }
-            catch (IllegalArgumentException e) {
-                // Some FTB versions omit "id" from disk (it's the filename).
-                String fn = file.getFileName().toString();
-                if (fn.endsWith(".snbt")) fn = fn.substring(0, fn.length() - 5);
-                try { id = UUID.fromString(fn); }
-                catch (IllegalArgumentException e2) { return null; }
-            }
+    /** Reads a {@link Team} out of an already-parsed SNBT compound. Returns null on a bad/empty tag. */
+    @Nullable
+    private static Team fromTag(CompoundTag tag, Path file, TeamType type) {
+        try {
+            UUID id = uuidFromFileOrField(tag.getString("id"), file);
+            if (id == null) return null;
 
             String displayName = id.toString().substring(0, 8);
             String color = "#FFFFFF";
@@ -238,42 +249,114 @@ public final class FTBTeamsReader {
                 try { owner = UUID.fromString(tag.getString("owner")); }
                 catch (IllegalArgumentException ignored) {}
             }
-            if (owner == null && type == TeamType.PLAYER) {
-                owner = id; // PlayerTeam id == player uuid.
-            }
+            if (owner == null && type == TeamType.PLAYER) owner = id;
 
             List<Member> members = new ArrayList<>();
             if (tag.contains("ranks", Tag.TAG_COMPOUND)) {
                 CompoundTag ranks = tag.getCompound("ranks");
                 for (String key : ranks.getAllKeys()) {
                     try {
-                        UUID memberId = UUID.fromString(key);
-                        Rank rank = Rank.fromString(ranks.getString(key));
-                        members.add(new Member(memberId, rank));
+                        members.add(new Member(UUID.fromString(key), Rank.fromString(ranks.getString(key))));
                     } catch (IllegalArgumentException ignored) {}
                 }
             }
-
-            // FTB Teams never writes the owner into the "ranks" map: for a PartyTeam the owner lives
-            // only in the top-level "owner" string, and for a PlayerTeam the owner is the team id
-            // itself (injected as `owner` above). FTB re-applies the OWNER rank at runtime via
-            // getRankForPlayer(). Without mirroring that here, every solo team (owner only, no other
-            // ranks) parses to memberCount()==0 and getEffectiveTeamFor() can't match the owner —
-            // which is the core "teams show empty / aren't found" bug. Verified against FTB Teams
-            // 2101.x AbstractTeam.serializeNBT + PartyTeam/PlayerTeam.getRankForPlayer.
-            if (owner != null) {
-                boolean ownerListed = false;
-                for (Member m : members) {
-                    if (m.uuid.equals(owner)) { ownerListed = true; break; }
-                }
-                if (!ownerListed) members.add(new Member(owner, Rank.OWNER));
-            }
-
-            return new Team(id, type, displayName, color, description, owner, members);
+            return finishTeam(id, type, displayName, color, description, owner, members);
         } catch (Exception e) {
-            LOGGER.debug("[AdminPanel] Failed to parse team file {}: {}", file, e.getMessage());
+            LOGGER.debug("[AdminPanel] fromTag failed for {}: {}", file.getFileName(), e.getMessage());
             return null;
         }
+    }
+
+    /**
+     * Regex fallback used when the SNBT parser can't read the file. We only need a few fields for the
+     * browser (id, display name, colour, owner, ranks), so we lift them straight out of the text. The
+     * id is taken from the filename (FTB names each file by the team UUID), which is the most reliable
+     * source of all.
+     */
+    @Nullable
+    private static Team parseTeamLenient(String content, Path file, TeamType type) {
+        UUID id = uuidFromFileOrField(group(content, ID_PATTERN), file);
+        if (id == null) return null;
+
+        String displayName = id.toString().substring(0, 8);
+        String dn = group(content, DISPLAY_NAME_PATTERN);
+        if (dn != null && !dn.isBlank()) displayName = stripFormatting(unescape(dn));
+        else if (type == TeamType.PLAYER) {
+            String pn = group(content, PLAYER_NAME_PATTERN);
+            if (pn != null && !pn.isBlank()) displayName = pn;
+        }
+
+        String color = group(content, COLOR_PATTERN);
+        if (color == null || color.isBlank()) color = "#FFFFFF";
+
+        UUID owner = null;
+        String ownerStr = group(content, OWNER_PATTERN);
+        if (ownerStr != null) { try { owner = UUID.fromString(ownerStr); } catch (IllegalArgumentException ignored) {} }
+        if (owner == null && type == TeamType.PLAYER) owner = id;
+
+        // ranks: every `<uuid>: "<rank>"` pair in the file (they only occur in the ranks block).
+        List<Member> members = new ArrayList<>();
+        java.util.regex.Matcher m = RANK_ENTRY_PATTERN.matcher(content);
+        while (m.find()) {
+            try { members.add(new Member(UUID.fromString(m.group(1)), Rank.fromString(m.group(2)))); }
+            catch (IllegalArgumentException ignored) {}
+        }
+        LOGGER.info("[AdminPanel] FTB Teams: read {} via lenient parser ({})", file.getFileName(), displayName);
+        return finishTeam(id, type, displayName, color, "", owner, members);
+    }
+
+    /** Shared tail: inject the implicit OWNER rank FTB applies at runtime, then build the record. */
+    private static Team finishTeam(UUID id, TeamType type, String displayName, String color,
+                                   String description, @Nullable UUID owner, List<Member> members) {
+        // FTB Teams never writes the owner into the "ranks" map: for a PartyTeam the owner lives only
+        // in the top-level "owner" string, and for a PlayerTeam the owner is the team id itself. FTB
+        // re-applies the OWNER rank at runtime via getRankForPlayer(). Without mirroring that, a solo
+        // team parses to memberCount()==0 and getEffectiveTeamFor() can't match the owner.
+        if (owner != null) {
+            boolean listed = false;
+            for (Member mem : members) if (mem.uuid.equals(owner)) { listed = true; break; }
+            if (!listed) members.add(new Member(owner, Rank.OWNER));
+        }
+        return new Team(id, type, displayName, color, description, owner, members);
+    }
+
+    /** UUID from the (possibly empty) {@code id} field, falling back to the {@code <uuid>.snbt} filename. */
+    @Nullable
+    private static UUID uuidFromFileOrField(@Nullable String idField, Path file) {
+        if (idField != null && !idField.isBlank()) {
+            try { return UUID.fromString(idField.trim()); } catch (IllegalArgumentException ignored) {}
+        }
+        String fn = file.getFileName().toString();
+        if (fn.endsWith(".snbt")) fn = fn.substring(0, fn.length() - 5);
+        try { return UUID.fromString(fn); } catch (IllegalArgumentException e) { return null; }
+    }
+
+    // Lenient-parse field patterns (compiled once).
+    private static final java.util.regex.Pattern ID_PATTERN =
+            java.util.regex.Pattern.compile("\\bid\\s*:\\s*\"([0-9a-fA-F-]{36})\"");
+    private static final java.util.regex.Pattern OWNER_PATTERN =
+            java.util.regex.Pattern.compile("\\bowner\\s*:\\s*\"([0-9a-fA-F-]{36})\"");
+    private static final java.util.regex.Pattern DISPLAY_NAME_PATTERN =
+            java.util.regex.Pattern.compile("\"ftbteams:display_name\"\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+    private static final java.util.regex.Pattern COLOR_PATTERN =
+            java.util.regex.Pattern.compile("\"ftbteams:color\"\\s*:\\s*\"([^\"]*)\"");
+    private static final java.util.regex.Pattern PLAYER_NAME_PATTERN =
+            java.util.regex.Pattern.compile("\\bplayer_name\\s*:\\s*\"((?:\\\\.|[^\"\\\\])*)\"");
+    private static final java.util.regex.Pattern RANK_ENTRY_PATTERN =
+            java.util.regex.Pattern.compile(
+                    "\"?([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})\"?\\s*:\\s*"
+                            + "\"(owner|officer|member|ally|invited|none|enemy)\"",
+                    java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    @Nullable
+    private static String group(String content, java.util.regex.Pattern p) {
+        java.util.regex.Matcher m = p.matcher(content);
+        return m.find() ? m.group(1) : null;
+    }
+
+    /** Unescape SNBT string escapes we care about (\" and \\). */
+    private static String unescape(String s) {
+        return s.replace("\\\"", "\"").replace("\\\\", "\\");
     }
 
     /**
@@ -282,14 +365,17 @@ public final class FTBTeamsReader {
      */
     @Nullable
     private static CompoundTag readSnbt(Path file) {
-        String content;
         try {
-            content = Files.readString(file);
+            return tryParseSnbt(Files.readString(file), file);
         } catch (Exception e) {
             LOGGER.warn("[AdminPanel] Could not read FTB Teams file {}: {}", file.getFileName(), e.getMessage());
             return null;
         }
-        // First try the content as-is with the vanilla parser.
+    }
+
+    /** Parse SNBT text into a tag: vanilla parser first, then a sanitised retry for FTB's dialect. */
+    @Nullable
+    private static CompoundTag tryParseSnbt(String content, Path file) {
         try {
             return TagParser.parseTag(content);
         } catch (Exception first) {
@@ -298,8 +384,8 @@ public final class FTBTeamsReader {
             try {
                 return TagParser.parseTag(sanitizeSnbt(content));
             } catch (Exception second) {
-                LOGGER.warn("[AdminPanel] Failed to parse FTB Teams file {} ({}). Sanitised retry also failed ({}).",
-                        file.getFileName(), first.getMessage(), second.getMessage());
+                LOGGER.warn("[AdminPanel] SNBT parse failed for {} ({}); using lenient field extraction.",
+                        file.getFileName(), first.getMessage());
                 return null;
             }
         }
