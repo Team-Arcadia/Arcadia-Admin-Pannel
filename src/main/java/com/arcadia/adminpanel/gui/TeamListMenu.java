@@ -60,6 +60,10 @@ public class TeamListMenu extends ChestMenu {
     private void buildMenu() {
         if (admin == null) return;
 
+        // Self-heal: if the boot-time scan didn't locate the ftbteams dir (created lazily / scan
+        // timing), try again now from the server's world path before deciding it's unavailable.
+        FTBTeamsReader.ensureLocated(admin.getServer());
+
         var filler = ItemBuilder.of(Items.GRAY_STAINED_GLASS_PANE).name(Component.literal(" ")).build();
         for (int i = 0; i < 54; i++) this.getContainer().setItem(i, filler.copy());
 

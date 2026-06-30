@@ -4,6 +4,8 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagParser;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.world.level.storage.LevelResource;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -50,11 +52,45 @@ public final class FTBTeamsReader {
     public static void setBasePath(Path teamsDir) {
         basePath = teamsDir;
         cache.clear();
+        logContents(teamsDir);
+    }
+
+    /**
+     * Lazily (re)locate the {@code ftbteams} directory from the running server's world path, in case
+     * the async startup scan ran before FTB Teams created the directory (it's written lazily on the
+     * first team op), missed it, or got cleared. Called from the Teams browser when it's about to read,
+     * so opening the menu is self-healing rather than depending solely on the boot-time scan. No-op if
+     * already located.
+     */
+    public static void ensureLocated(@Nullable MinecraftServer server) {
+        if (isAvailable() || server == null) return;
+        try {
+            Path world = server.getWorldPath(LevelResource.ROOT);
+            if (world == null) return;
+            Path teams = world.resolve("ftbteams");
+            if (Files.isDirectory(teams)) {
+                setBasePath(teams);
+                LOGGER.info("[AdminPanel] Located FTB Teams data on demand at: {}", teams);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[AdminPanel] ensureLocated failed: {}", e.getMessage());
+        }
     }
 
     public static boolean isAvailable() {
         Path p = basePath;
         return p != null && Files.isDirectory(p);
+    }
+
+    /** One-shot diagnostic: list the children of the located ftbteams dir so an unexpected on-disk
+     *  layout (e.g. team files nested under a {@code teams/} folder) shows up in the log. */
+    private static void logContents(Path teamsDir) {
+        if (teamsDir == null) return;
+        try (Stream<Path> s = Files.list(teamsDir)) {
+            String children = s.map(p -> p.getFileName().toString()).sorted().limit(20)
+                    .reduce((a, b) -> a + ", " + b).orElse("(empty)");
+            LOGGER.info("[AdminPanel] ftbteams dir contents: {}", children);
+        } catch (IOException ignored) {}
     }
 
     @Nullable
@@ -119,8 +155,8 @@ public final class FTBTeamsReader {
         if (cached != null && System.currentTimeMillis() - cached.timestamp < CACHE_TTL_MS) {
             return cached.teams;
         }
-        Path dir = basePath.resolve(type.dir);
-        if (!Files.isDirectory(dir)) {
+        Path dir = resolveTypeDir(basePath, type);
+        if (dir == null) {
             cache.put(type.dir, new CachedTeams(List.of(), System.currentTimeMillis()));
             return List.of();
         }
@@ -137,6 +173,17 @@ public final class FTBTeamsReader {
         teams.sort((a, b) -> a.displayName.compareToIgnoreCase(b.displayName));
         cache.put(type.dir, new CachedTeams(teams, System.currentTimeMillis()));
         return teams;
+    }
+
+    /** Resolves a team-type folder, tolerating both the flat ({@code ftbteams/<type>}) and the
+     *  nested ({@code ftbteams/teams/<type>}) layouts FTB Teams has used. Null if neither exists. */
+    @Nullable
+    private static Path resolveTypeDir(Path base, TeamType type) {
+        Path flat = base.resolve(type.dir);
+        if (Files.isDirectory(flat)) return flat;
+        Path nested = base.resolve("teams").resolve(type.dir);
+        if (Files.isDirectory(nested)) return nested;
+        return null;
     }
 
     @Nullable

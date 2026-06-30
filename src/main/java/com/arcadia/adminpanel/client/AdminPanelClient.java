@@ -2,6 +2,8 @@ package com.arcadia.adminpanel.client;
 
 import com.arcadia.adminpanel.client.screen.AdminPanelScreen;
 import com.arcadia.adminpanel.client.screen.PlayerDetailScreen;
+import com.arcadia.adminpanel.client.screen.TeamDetailScreen;
+import com.arcadia.adminpanel.client.screen.TeamListScreen;
 import com.arcadia.adminpanel.client.screen.WarnListScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -27,6 +29,11 @@ public final class AdminPanelClient {
     private static final String TITLE_DETAIL_FR = "Joueur:";
     private static final String TITLE_WARNS_EN = "Warns:";
     private static final String TITLE_WARNS_FR = "Avertissements";
+    // Team browser titles (team.list.title / team.detail.title in LanguageHelper). The list title is
+    // the same in EN and FR ("FTB Teams"); the detail title differs per language.
+    private static final String TITLE_TEAM_LIST = "FTB Teams";
+    private static final String TITLE_TEAM_DETAIL_EN = "Team Details";
+    private static final String TITLE_TEAM_DETAIL_FR = "Détails de la Team";
 
     @SubscribeEvent
     public static void onScreenOpen(ScreenEvent.Opening event) {
@@ -51,6 +58,16 @@ public final class AdminPanelClient {
 
         if (title.startsWith(TITLE_WARNS_EN) || title.startsWith(TITLE_WARNS_FR)) {
             event.setNewScreen(new WarnListScreen(chestMenu, inv, cs.getTitle()));
+            return;
+        }
+
+        if (title.equals(TITLE_TEAM_LIST)) {
+            event.setNewScreen(new TeamListScreen(chestMenu, inv, cs.getTitle()));
+            return;
+        }
+
+        if (title.equals(TITLE_TEAM_DETAIL_EN) || title.equals(TITLE_TEAM_DETAIL_FR)) {
+            event.setNewScreen(new TeamDetailScreen(chestMenu, inv, cs.getTitle()));
         }
     }
 

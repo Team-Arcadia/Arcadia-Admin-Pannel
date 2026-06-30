@@ -82,6 +82,7 @@ public class TeamDetailMenu extends ChestMenu {
 
     private void buildMenu() {
         if (admin == null) return;
+        FTBTeamsReader.ensureLocated(admin.getServer());
         var filler = ItemBuilder.of(Items.GRAY_STAINED_GLASS_PANE).name(Component.literal(" ")).build();
         for (int i = 0; i < 54; i++) this.getContainer().setItem(i, filler.copy());
 

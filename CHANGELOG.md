@@ -20,6 +20,7 @@ All notable changes to Arcadia Admin Panel are documented here.
 ### Fixed
 
 - **Names stayed readable through walls at long range** — the occlusion check bailed out beyond a hard-coded 64-block gate, but vanilla draws player names well past that distance, so a faraway player behind a wall stayed perfectly readable. The cutoff is now a configurable distance (`nameTagHideMaxDistance`, default 128 blocks), so the wall-hide keeps working as far as the name is actually drawn.
+- **FTB Teams browser unthemed + empty** — the Teams list and detail menus opened as a plain vanilla chest (the ArcadiaTheme title-matcher had no entry for them) and could come up empty. They now render with the full steampunk theme like every other panel, and the `ftbteams` data directory is re-located on demand when the browser opens (covers the boot-time scan running before FTB Teams wrote its folder) with a fallback for the nested `ftbteams/teams/<type>` layout and a diagnostic log of the directory contents.
 
 ### Ajouts
 
@@ -35,6 +36,7 @@ All notable changes to Arcadia Admin Panel are documented here.
 ### Correctifs
 
 - **Les pseudos restaient lisibles à travers les murs à longue distance** — la vérification d'occlusion s'arrêtait au-delà d'une limite codée en dur de 64 blocs, alors que le jeu affiche les pseudos bien plus loin : un joueur lointain derrière un mur restait donc parfaitement lisible. La limite est désormais une distance configurable (`nameTagHideMaxDistance`, 128 blocs par défaut), pour que le masquage derrière les murs fonctionne aussi loin que le pseudo est réellement affiché.
+- **Navigateur FTB Teams non thémé + vide** — les menus liste et détail des Teams s'ouvraient en coffre vanilla brut (le matcher de thème ArcadiaTheme n'avait aucune entrée pour eux) et pouvaient apparaître vides. Ils utilisent désormais le thème steampunk complet comme les autres panneaux, et le dossier de données `ftbteams` est re-localisé à la demande à l'ouverture du navigateur (couvre le cas où le scan de démarrage tourne avant que FTB Teams écrive son dossier), avec un fallback pour le layout imbriqué `ftbteams/teams/<type>` et un log de diagnostic du contenu du dossier.
 
 ---
 
