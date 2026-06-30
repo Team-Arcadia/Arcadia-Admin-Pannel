@@ -9,6 +9,8 @@ import com.arcadia.lib.text.TextFormatter;
 import com.arcadia.lib.util.SoundHelper;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.gui.PlayerDetailMenu;
+import com.arcadia.adminpanel.gui.TeamDetailMenu;
+import com.arcadia.adminpanel.util.FTBTeamsReader;
 import com.arcadia.adminpanel.util.JailManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.NextSpawnManager;
@@ -36,8 +38,11 @@ public class ChatListener {
 
     private static final Map<UUID, WarnSession> warnSessions = new ConcurrentHashMap<>();
     private static final Map<UUID, Boolean> searchSessions = new ConcurrentHashMap<>();
+    /** Admin UUID → the team they're composing a message for (team moderation). */
+    private static final Map<UUID, TeamMessageSession> teamMessageSessions = new ConcurrentHashMap<>();
 
     public record WarnSession(UUID targetUUID, String targetName) {}
+    public record TeamMessageSession(UUID teamId, String teamName) {}
 
     // ── Warn session ────────────────────────────────────────────────────────
 
@@ -52,6 +57,15 @@ public class ChatListener {
     public static void startSearchSession(ServerPlayer admin) {
         searchSessions.put(admin.getUUID(), true);
         admin.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("action.search.prompt", admin)));
+        admin.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("warn.prompt.cancel", admin)));
+    }
+
+    // ── Team message session ────────────────────────────────────────────────
+
+    public static void startTeamMessageSession(ServerPlayer admin, UUID teamId, String teamName) {
+        teamMessageSessions.put(admin.getUUID(), new TeamMessageSession(teamId, teamName));
+        admin.sendSystemMessage(ArcadiaMessages.info(
+                LanguageHelper.getText("team.message.prompt", admin).replace("%team%", teamName)));
         admin.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("warn.prompt.cancel", admin)));
     }
 
@@ -92,6 +106,19 @@ public class ChatListener {
                 player.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("action.cancelled", player)));
                 return;
             }
+            if (teamMessageSessions.remove(playerUUID) != null) {
+                event.setCanceled(true);
+                player.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("action.cancelled", player)));
+                return;
+            }
+        }
+
+        // Team message session — broadcast the typed line to every online member of the team.
+        if (teamMessageSessions.containsKey(playerUUID)) {
+            TeamMessageSession session = teamMessageSessions.remove(playerUUID);
+            event.setCanceled(true);
+            handleTeamMessage(player, session, message.trim());
+            return;
         }
 
         // Warn session
@@ -137,6 +164,42 @@ public class ChatListener {
             player.getServer().execute(() -> AdminPanelMenu.open(player, searchQuery));
             return;
         }
+    }
+
+    /** Delivers the admin's typed message to every online member of the team, then reopens the menu. */
+    private void handleTeamMessage(ServerPlayer admin, TeamMessageSession session, String message) {
+        if (message.isEmpty()) {
+            admin.getServer().execute(() -> TeamDetailMenu.open(admin, session.teamId()));
+            return;
+        }
+        FTBTeamsReader.Team team = findTeam(session.teamId());
+        int delivered = 0;
+        if (team != null) {
+            Component line = Component.literal("§b[" + session.teamName() + "] §f"
+                    + LanguageHelper.getText("team.message.prefix", admin) + " §7" + message);
+            for (FTBTeamsReader.Member m : team.members) {
+                if (!m.rank().isInTeam()) continue; // owner/officer/member only — not allies/invites
+                ServerPlayer target = admin.getServer().getPlayerList().getPlayer(m.uuid());
+                if (target != null) {
+                    target.sendSystemMessage(line);
+                    SoundHelper.playAt(target, SoundHelper.SUCCESS, 0.5f, 1.2f);
+                    delivered++;
+                }
+            }
+        }
+        final int count = delivered;
+        admin.sendSystemMessage(ArcadiaMessages.success(
+                LanguageHelper.getText("team.message.sent", admin)
+                        .replace("%count%", String.valueOf(count))
+                        .replace("%team%", session.teamName())));
+        admin.getServer().execute(() -> TeamDetailMenu.open(admin, session.teamId()));
+    }
+
+    private static FTBTeamsReader.Team findTeam(UUID teamId) {
+        for (var t : FTBTeamsReader.getParties())     if (t.id.equals(teamId)) return t;
+        for (var t : FTBTeamsReader.getServerTeams()) if (t.id.equals(teamId)) return t;
+        for (var t : FTBTeamsReader.getPlayerTeams()) if (t.id.equals(teamId)) return t;
+        return null;
     }
 
     // ── Jail: block commands ────────────────────────────────────────────────
@@ -242,6 +305,7 @@ public class ChatListener {
         UUID uuid = sp.getUUID();
         warnSessions.remove(uuid);
         searchSessions.remove(uuid);
+        teamMessageSessions.remove(uuid);
         StaffChatService.onDisconnect(uuid);
         com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogout(sp);
         com.arcadia.adminpanel.util.AdminPermissions.invalidate(uuid);

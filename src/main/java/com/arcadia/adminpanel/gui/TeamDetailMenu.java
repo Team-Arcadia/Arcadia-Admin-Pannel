@@ -157,6 +157,20 @@ public class TeamDetailMenu extends ChestMenu {
         }
         this.getContainer().setItem(47, headerBuilder.build());
 
+        // ── Team moderation actions ───────────────────────────────────────────
+        // Gather: TP every online member to the admin. Gated on the teleport node.
+        if (AdminPermissions.TELEPORT.check(admin)) {
+            this.getContainer().setItem(48, ItemBuilder.of(Items.ENDER_PEARL)
+                    .name(Component.literal("§d" + LanguageHelper.getText("team.gather", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("team.gather.hint", admin)))
+                    .build());
+        }
+        // Message: type a line broadcast to every online member.
+        this.getContainer().setItem(50, ItemBuilder.of(Items.WRITABLE_BOOK)
+                .name(Component.literal("§b" + LanguageHelper.getText("team.message", admin)))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("team.message.hint", admin)))
+                .build());
+
         this.getContainer().setItem(49, backButton());
     }
 
@@ -202,6 +216,21 @@ public class TeamDetailMenu extends ChestMenu {
         if (slotId == 45 && page > 0) { page--; buildMenu(); return; }
         if (slotId == 53) { page++; buildMenu(); return; }
 
+        // ── Team moderation actions ───────────────────────────────────────────
+        if (slotId == 48) { // Gather online members to the admin
+            if (!AdminPermissions.TELEPORT.check(sp)) return;
+            gatherMembers(sp);
+            return;
+        }
+        if (slotId == 50) { // Compose a message to the whole team
+            if (!AdminPermissions.TEAMS.check(sp)) return;
+            FTBTeamsReader.Team team = resolveTeam();
+            if (team == null) return;
+            sp.closeContainer();
+            com.arcadia.adminpanel.event.ChatListener.startTeamMessageSession(sp, teamId, team.displayName);
+            return;
+        }
+
         // Member click — left-click: open player detail, right-click: TP to last-seen.
         if (slotId >= 0 && slotId < MEMBERS_PER_PAGE) {
             // Action gate (layer 2): seeing/acting on members requires the TEAMS node. A forged
@@ -245,6 +274,32 @@ public class TeamDetailMenu extends ChestMenu {
         sp.sendSystemMessage(ArcadiaMessages.success(
                 String.format(LanguageHelper.getText("tp.success", sp), x, y, z)));
         SoundHelper.playAt(sp, SoundHelper.TELEPORT);
+    }
+
+    /** Teleports every online member of the team (except the admin) to the admin's position. */
+    private void gatherMembers(ServerPlayer admin) {
+        FTBTeamsReader.Team team = resolveTeam();
+        if (team == null) return;
+        ServerLevel level = admin.serverLevel();
+        int gathered = 0;
+        for (FTBTeamsReader.Member m : team.members) {
+            if (!m.rank().isInTeam()) continue; // owner/officer/member only
+            if (m.uuid().equals(admin.getUUID())) continue;
+            ServerPlayer target = admin.getServer().getPlayerList().getPlayer(m.uuid());
+            if (target == null) continue;
+            target.teleportTo(level, admin.getX(), admin.getY(), admin.getZ(), target.getYRot(), target.getXRot());
+            target.sendSystemMessage(ArcadiaMessages.info(
+                    LanguageHelper.getText("team.gather.notify", target)
+                            .replace("%admin%", admin.getName().getString())));
+            SoundHelper.playAt(target, SoundHelper.TELEPORT);
+            gathered++;
+        }
+        final int count = gathered;
+        admin.sendSystemMessage(ArcadiaMessages.success(
+                LanguageHelper.getText("team.gather.done", admin)
+                        .replace("%count%", String.valueOf(count))
+                        .replace("%team%", team.displayName)));
+        SoundHelper.playAt(admin, SoundHelper.SUCCESS, 0.5f, 1.2f);
     }
 
     @Override
