@@ -4,7 +4,19 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.9] - 2026-06-30 (latest)
+## [1.2.10] - 2026-07-04 (latest)
+
+### Fixed
+
+- **Player homes invisible in the admin panel (regression since 1.2.6)** — the player detail menu stopped showing a player's homes for any admin who drives the panel through the `arcadia.adminpanel.*` LuckPerms nodes without also holding vanilla `/tp` op level. The 1.2.6 permission hardening gated the homes **display** on `canUseCommand("tp") && arcadia.adminpanel.teleport`, but the teleport itself calls `teleportTo(...)` directly and never runs the vanilla `/tp` command — so requiring `/tp` availability was both wrong and inconsistent with the click handler, which only re-checks `arcadia.adminpanel.teleport`. Homes are now rendered for any panel viewer (exactly like the teleport-history row already was), while the teleport **action** stays gated on `arcadia.adminpanel.teleport` at the click layer. The "click to teleport" hint only appears when the viewer actually holds the teleport node, so the UI never promises an action it will block. Restores the pre-1.2.6 behaviour without weakening the anti-privilege-escalation hardening.
+
+### Correctifs
+
+- **Homes des joueurs invisibles dans le panel admin (régression depuis la 1.2.6)** — la fiche détail d'un joueur n'affichait plus ses homes pour tout admin qui pilote le panel via les nœuds LuckPerms `arcadia.adminpanel.*` sans posséder en plus le niveau op vanilla `/tp`. Le durcissement des permissions de la 1.2.6 conditionnait l'**affichage** des homes à `canUseCommand("tp") && arcadia.adminpanel.teleport`, alors que la téléportation appelle directement `teleportTo(...)` sans jamais passer par la commande `/tp` vanilla — exiger la disponibilité de `/tp` était donc à la fois incorrect et incohérent avec le handler de clic, qui ne revérifie que `arcadia.adminpanel.teleport`. Les homes sont désormais affichés pour tout viewer du panel (exactement comme l'était déjà la ligne d'historique de téléportation), tandis que l'**action** de téléportation reste protégée par `arcadia.adminpanel.teleport` au niveau du clic. L'indice « cliquer pour se téléporter » n'apparaît que si le viewer possède réellement le nœud teleport, pour que l'interface ne promette jamais une action qu'elle bloquera. Restaure le comportement d'avant la 1.2.6 sans affaiblir le durcissement anti-élévation de privilèges.
+
+---
+
+## [1.2.9] - 2026-06-30
 
 ### Added
 

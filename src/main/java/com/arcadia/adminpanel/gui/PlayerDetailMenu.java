@@ -259,11 +259,16 @@ public class PlayerDetailMenu extends ChestMenu {
                     .name(Component.literal("§b" + LanguageHelper.getText("info.full", admin))).build());
         }
 
-        // Homes (slots 9-35) — teleport destinations, so visibility is gated on TELEPORT.
+        // Homes (slots 9-35) — informational, like the teleport-history row below: shown to any
+        // panel viewer so home coordinates are visible again (regression from 1.2.6, issue #208 —
+        // gating render on canUseCommand("tp") hid homes from every admin driving the panel through
+        // arcadia.adminpanel.* nodes without vanilla /tp op level). The teleport ACTION stays gated
+        // on TELEPORT at the click layer (see clicked()), so a viewer without the node sees the
+        // homes but cannot warp to them; the "click to TP" hint is therefore also conditional.
         FTBDataReader.PlayerFTBData ftbData = readFtbData();
-        boolean canTeleport = canUseCommand("tp") && AdminPermissions.TELEPORT.check(admin);
+        boolean canTeleport = AdminPermissions.TELEPORT.check(admin);
 
-        if (canTeleport && ftbData != null && !ftbData.homes.isEmpty()) {
+        if (ftbData != null && !ftbData.homes.isEmpty()) {
             List<Map.Entry<String, FTBDataReader.HomeLocation>> homes = new ArrayList<>(ftbData.homes.entrySet());
             homes.sort(Map.Entry.comparingByKey());
             int start = homePage * HOMES_PER_PAGE;
@@ -271,12 +276,14 @@ public class PlayerDetailMenu extends ChestMenu {
             for (int i = start; i < end; i++) {
                 int slot = 9 + (i - start);
                 var entry = homes.get(i);
-                this.getContainer().setItem(slot, ItemBuilder.of(getDimensionIcon(entry.getValue().dimension))
+                var builder = ItemBuilder.of(getDimensionIcon(entry.getValue().dimension))
                         .name(Component.literal("§e" + entry.getKey()))
                         .addLore(Component.literal("§7" + LanguageHelper.getText("misc.dim", admin) + " §f" + entry.getValue().getShortDimension()))
-                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.pos", admin) + " §f" + entry.getValue().getFormattedCoords()))
-                        .addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)))
-                        .build());
+                        .addLore(Component.literal("§7" + LanguageHelper.getText("misc.pos", admin) + " §f" + entry.getValue().getFormattedCoords()));
+                if (canTeleport) {
+                    builder = builder.addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)));
+                }
+                this.getContainer().setItem(slot, builder.build());
             }
         } else if (homePage == 0) {
             this.getContainer().setItem(22, ItemBuilder.of(Items.BARRIER)

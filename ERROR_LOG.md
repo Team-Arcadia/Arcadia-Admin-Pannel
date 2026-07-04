@@ -4,6 +4,14 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-07-04 17:40] — Homes hidden by a render gate inconsistent with the action gate (issue #208)
+
+**Context:** 1.2.6 permission hardening added a visibility gate on the homes grid in `PlayerDetailMenu.buildMenu()`: `canUseCommand("tp") && AdminPermissions.TELEPORT.check(admin)`.
+**Error:** Player homes disappeared from the admin panel for every admin who drives the panel via `arcadia.adminpanel.*` LuckPerms nodes but is not a vanilla OP level 2. Reported as "les home ne sont plus visible" — worked before 1.2.6.
+**Root cause:** Two-fold. (1) `canUseCommand("tp")` checks the vanilla `/tp` command node, which needs OP level 2 — but `executeTeleport()` calls `admin.teleportTo(...)` directly and never runs `/tp`, so that gate was spurious. (2) The render gate did not match the click handler, which re-checks only `AdminPermissions.TELEPORT` (not `/tp`). A render gate stricter than its own action gate hides content the user is actually allowed to act on.
+**Fix:** Render homes for any panel viewer (like the teleport-history row already did); keep the teleport action gated on `AdminPermissions.TELEPORT` at the click layer; show the "click to teleport" hint only when the viewer holds the node. `canTeleport` is now `AdminPermissions.TELEPORT.check(admin)` — the spurious `canUseCommand("tp")` dropped.
+**Prevention:** A render-time visibility gate must never be stricter than the action gate it fronts, or it hides content the user can use. When gating on `canUseCommand("<vanilla>")`, first confirm the action actually invokes that vanilla command — direct API calls (`teleportTo`, etc.) must be gated on the granular node only.
+
 ## [2026-06-08 14:50] — Menu soft-lock from a blanket permission gate before navigation slots
 
 **Context:** Hardening `TeamListMenu.clicked()` for 1.2.6 — added a `TEAMS` node re-check (layer 2) so a forged packet can't drive the team browser without the node.
