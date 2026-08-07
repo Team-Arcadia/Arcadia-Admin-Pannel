@@ -4,6 +4,14 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-08-07 11:05] — Vanilla TagParser cannot read FTB Library SNBT (issue #219)
+
+**Context:** #208 was closed in 1.2.10 by removing a spurious permission gate on the homes grid, but homes were still invisible in 1.2.11 testing. Investigated the data path instead of the render path.
+**Error:** `FTBDataReader.readPlayerData()` returned `null` for every player. Only visible as `LOGGER.debug`, so nothing showed in the server log: `Expected '}' at position 19: ...: false<--[HERE]`.
+**Root cause:** FTB Essentials / Teams / Chunks all serialise through FTB Library's SNBT writer, which separates compound entries and list elements with **line breaks, not commas**. Vanilla `TagParser.readStruct()` breaks out of its entry loop as soon as `hasElementSeparator()` finds no `,`, then throws on `expect('}')` — so `TagParser.parseTag()` fails on *every* FTB file, not just malformed ones. Three readers were affected; `FTBTeamsReader` masked it behind a regex fallback (which is why only homes and claim stats visibly broke), and its `sanitizeSnbt()` only stripped comments and trailing commas, never the actual quirk.
+**Fix:** New `SnbtCompat.parse()` — tries the strict vanilla parse first, then re-parses a normalised copy that inserts the implicit separators at line breaks (string-aware, so braces/commas inside quoted values are untouched), strips `#` and `//` line comments, and drops trailing commas. All three readers now go through it.
+**Prevention:** Never assume a third-party `.snbt` is vanilla-parseable — FTB's format is a superset. When a reader can silently return "no data", log the parse failure at `warn`, not `debug`: a `debug`-level swallow turned a total parse failure into an invisible empty UI for several releases. Verify a parser against a real on-disk file from the target mod version before shipping.
+
 ## [2026-07-04 17:40] — Homes hidden by a render gate inconsistent with the action gate (issue #208)
 
 **Context:** 1.2.6 permission hardening added a visibility gate on the homes grid in `PlayerDetailMenu.buildMenu()`: `canUseCommand("tp") && AdminPermissions.TELEPORT.check(admin)`.

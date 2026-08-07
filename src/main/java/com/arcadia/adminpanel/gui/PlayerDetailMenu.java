@@ -426,6 +426,10 @@ public class PlayerDetailMenu extends ChestMenu {
      */
     private FTBDataReader.PlayerFTBData readFtbData() {
         if (!ftbDataLoaded) {
+            // Self-heal the data location first: on a world where FTB Essentials created its
+            // playerdata dir after our boot scan, opening the menu now finds it instead of showing
+            // an empty homes grid until the next restart.
+            FTBDataReader.ensureLocated(admin != null ? admin.getServer() : null);
             cachedFtbData = FTBDataReader.readPlayerData(targetUUID);
             ftbDataLoaded = true;
         }

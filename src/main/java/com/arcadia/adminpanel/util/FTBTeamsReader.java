@@ -373,58 +373,17 @@ public final class FTBTeamsReader {
         }
     }
 
-    /** Parse SNBT text into a tag: vanilla parser first, then a sanitised retry for FTB's dialect. */
+    /** Parse SNBT text into a tag. {@link SnbtCompat} handles FTB Library's dialect (entries are
+     *  separated by line breaks, not commas), which vanilla {@link TagParser} rejects outright. */
     @Nullable
     private static CompoundTag tryParseSnbt(String content, Path file) {
         try {
-            return TagParser.parseTag(content);
-        } catch (Exception first) {
-            // FTB writes SNBT with its own (superset) library — it can include // line comments and
-            // trailing commas that the vanilla TagParser rejects. Sanitise and retry before giving up.
-            try {
-                return TagParser.parseTag(sanitizeSnbt(content));
-            } catch (Exception second) {
-                LOGGER.warn("[AdminPanel] SNBT parse failed for {} ({}); using lenient field extraction.",
-                        file.getFileName(), first.getMessage());
-                return null;
-            }
+            return SnbtCompat.parse(content);
+        } catch (Exception e) {
+            LOGGER.warn("[AdminPanel] SNBT parse failed for {} ({}); using lenient field extraction.",
+                    file.getFileName(), e.getMessage());
+            return null;
         }
-    }
-
-    /**
-     * Best-effort cleanup so the vanilla {@link TagParser} accepts FTB-flavoured SNBT: strips
-     * {@code //} line comments (outside strings) and trailing commas before a {@code }} / {@code ]}.
-     * Conservative — only runs after the verbatim parse already failed, so the common case is untouched.
-     */
-    private static String sanitizeSnbt(String in) {
-        StringBuilder out = new StringBuilder(in.length());
-        boolean inString = false;
-        boolean escaped = false;
-        for (int i = 0; i < in.length(); i++) {
-            char c = in.charAt(i);
-            if (inString) {
-                out.append(c);
-                if (escaped) escaped = false;
-                else if (c == '\\') escaped = true;
-                else if (c == '"') inString = false;
-                continue;
-            }
-            // Strip a // line comment (to end of line) when not inside a string.
-            if (c == '/' && i + 1 < in.length() && in.charAt(i + 1) == '/') {
-                while (i < in.length() && in.charAt(i) != '\n') i++;
-                if (i < in.length()) out.append('\n');
-                continue;
-            }
-            if (c == '"') { inString = true; out.append(c); continue; }
-            // Drop a trailing comma: a comma followed (after whitespace) by a closing brace/bracket.
-            if (c == ',') {
-                int j = i + 1;
-                while (j < in.length() && Character.isWhitespace(in.charAt(j))) j++;
-                if (j < in.length() && (in.charAt(j) == '}' || in.charAt(j) == ']')) continue;
-            }
-            out.append(c);
-        }
-        return out.toString();
     }
 
     private static String stripFormatting(String s) {

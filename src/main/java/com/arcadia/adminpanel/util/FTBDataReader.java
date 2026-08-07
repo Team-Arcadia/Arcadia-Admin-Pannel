@@ -57,6 +57,28 @@ public class FTBDataReader {
         return ftbDataPath;
     }
 
+    /**
+     * Lazily (re)locate {@code <world>/ftbessentials/playerdata} from the running server, in case the
+     * boot-time scan ran before FTB Essentials created the directory — it is written on the first
+     * player save, so on a fresh world the startup scan finds nothing and homes would stay invisible
+     * until the next restart. Mirrors {@link FTBTeamsReader#ensureLocated}. No-op once located.
+     */
+    public static void ensureLocated(@Nullable net.minecraft.server.MinecraftServer server) {
+        if (server == null || (ftbDataPath != null && Files.isDirectory(ftbDataPath))) return;
+        try {
+            Path world = server.getWorldPath(net.minecraft.world.level.storage.LevelResource.ROOT);
+            if (world == null) return;
+            Path dir = world.resolve("ftbessentials").resolve("playerdata");
+            if (Files.isDirectory(dir)) {
+                ftbDataPath = dir;
+                dataCache.clear();
+                LOGGER.info("[AdminPanel] Located FTB Essentials player data on demand at: {}", dir);
+            }
+        } catch (Exception e) {
+            LOGGER.debug("[AdminPanel] ensureLocated failed: {}", e.getMessage());
+        }
+    }
+
     @Nullable
     public static PlayerFTBData readPlayerData(UUID uuid) {
         if (ftbDataPath == null)
@@ -79,8 +101,10 @@ public class FTBDataReader {
         try {
             // Whole-file NBT parse. FTB Essentials writes pretty-printed multi-line SNBT; the prior
             // line-based scan only handled single-line values and thus returned empty homes / null
-            // last-seen / empty history on real installs.
-            CompoundTag root = TagParser.parseTag(Files.readString(dataFile));
+            // last-seen / empty history on real installs. It must go through SnbtCompat: FTB Library
+            // separates entries with line breaks instead of commas, which vanilla TagParser refuses
+            // outright (issue #219 — every player file failed to parse, so no homes ever showed).
+            CompoundTag root = SnbtCompat.parse(Files.readString(dataFile));
 
             Map<String, HomeLocation> homes = new HashMap<>();
             if (root.contains("homes", Tag.TAG_COMPOUND)) {
@@ -124,7 +148,9 @@ public class FTBDataReader {
             return data;
 
         } catch (IOException | RuntimeException | com.mojang.brigadier.exceptions.CommandSyntaxException e) {
-            LOGGER.debug("[AdminPanel] Failed to parse FTB player data {}: {}", dataFile, e.getMessage());
+            // WARN, not debug: this failing means the whole homes / last-seen / history block goes
+            // blank in the GUI. Swallowing it at debug is what let issue #219 stay invisible.
+            LOGGER.warn("[AdminPanel] Failed to parse FTB player data {}: {}", dataFile, e.getMessage());
             // Negative-cache parse failures too, so a malformed file isn't re-read every redraw.
             dataCache.put(uuid, new CachedData(null, System.currentTimeMillis()));
             return null;

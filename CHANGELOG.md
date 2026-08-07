@@ -4,7 +4,21 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.10] - 2026-07-04 (latest)
+## [1.2.11] - 2026-08-07 (latest)
+
+### Fixed
+
+- **Player homes still invisible, plus empty last-seen, teleport history and claim counts (#219)** — every FTB data file the panel reads failed to parse, so the homes grid always fell back to "no home". FTB Essentials, FTB Teams and FTB Chunks all serialise through FTB Library's SNBT writer, which separates entries with **line breaks instead of commas**. Vanilla's `TagParser` stops at the first missing comma and then fails on the closing brace, so `readPlayerData()` threw on every single player file and returned no data at all — the 1.2.10 permission fix removed a second obstacle, but the data behind it was never there. SNBT is now read through a shared `SnbtCompat` parser that restores the implicit separators (and tolerates the `#` / `//` comments FTB writes in its config files) before handing the text to the vanilla parser; a file that is already valid vanilla SNBT is passed through untouched. Verified against real FTB Essentials, FTB Teams and FTB Chunks files: homes, last-seen position, teleport history and claim statistics all come back. The FTB Teams browser no longer has to fall back to its regex reader, and FTB Chunks claim counts (which silently returned nothing) work again.
+- **Homes stayed hidden until a server restart on a young world** — FTB Essentials creates its `playerdata` folder on the first player save, so on a fresh world the boot-time scan found nothing and the panel kept showing an empty homes grid for the rest of the session. The data folder is now re-located on demand when a player detail menu is opened, the same self-healing lookup the FTB Teams browser already uses.
+
+### Correctifs
+
+- **Homes des joueurs toujours invisibles, et dernière position, historique de téléportation et décomptes de claims vides (#219)** — tous les fichiers de données FTB lus par le panel échouaient au parsing, la grille des homes retombait donc systématiquement sur « aucun home ». FTB Essentials, FTB Teams et FTB Chunks passent tous par l'écrivain SNBT de FTB Library, qui sépare les entrées par des **retours à la ligne au lieu de virgules**. Le `TagParser` vanilla s'arrête à la première virgule manquante puis échoue sur l'accolade fermante : `readPlayerData()` levait donc une exception sur absolument chaque fichier joueur et ne renvoyait aucune donnée — le correctif de permissions de la 1.2.10 avait levé un second obstacle, mais la donnée derrière n'était jamais arrivée. Le SNBT est désormais lu via un parseur partagé `SnbtCompat` qui rétablit les séparateurs implicites (et tolère les commentaires `#` / `//` que FTB écrit dans ses fichiers de config) avant de passer le texte au parseur vanilla ; un fichier déjà en SNBT vanilla valide est transmis tel quel. Vérifié sur de vrais fichiers FTB Essentials, FTB Teams et FTB Chunks : homes, dernière position connue, historique de téléportation et statistiques de claims sont tous de retour. Le navigateur FTB Teams n'a plus besoin de se rabattre sur son lecteur regex, et les décomptes de claims FTB Chunks (qui ne renvoyaient silencieusement rien) refonctionnent.
+- **Homes masqués jusqu'au redémarrage du serveur sur un monde récent** — FTB Essentials crée son dossier `playerdata` à la première sauvegarde de joueur : sur un monde neuf, le scan de démarrage ne trouvait rien et le panel affichait une grille de homes vide pour le reste de la session. Le dossier de données est maintenant re-localisé à la demande à l'ouverture d'une fiche joueur, la même recherche auto-réparatrice que celle déjà utilisée par le navigateur FTB Teams.
+
+---
+
+## [1.2.10] - 2026-07-04
 
 ### Fixed
 

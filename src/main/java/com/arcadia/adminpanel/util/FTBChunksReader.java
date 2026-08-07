@@ -4,7 +4,6 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.Tag;
-import net.minecraft.nbt.TagParser;
 import org.jetbrains.annotations.Nullable;
 import org.slf4j.Logger;
 
@@ -93,10 +92,10 @@ public final class FTBChunksReader {
     @Nullable
     private static ClaimStats parse(Path file) {
         try {
-            CompoundTag root = TagParser.parseTag(Files.readString(file));
+            CompoundTag root = SnbtCompat.parse(Files.readString(file));
             return parseRoot(root);
         } catch (IOException | RuntimeException | com.mojang.brigadier.exceptions.CommandSyntaxException e) {
-            LOGGER.debug("[AdminPanel] Failed to parse FTB Chunks file {}: {}", file, e.getMessage());
+            LOGGER.warn("[AdminPanel] Failed to parse FTB Chunks file {}: {}", file, e.getMessage());
             return null;
         }
     }
