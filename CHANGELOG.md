@@ -4,7 +4,21 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.11] - 2026-08-07 (latest)
+## [1.2.12] - 2026-08-11 (latest)
+
+### Fixed
+
+- **Staff chat leaked to the Discord bridge (#245)** — messages typed with staff-chat mode on (`/arcadia_adminpanel stafftoggle`) were relayed to Discord, while the same message sent through `/arcadia_adminpanel staffchat <message>` was not. The toggle worked by letting the line travel as a normal chat message and cancelling `ServerChatEvent` server-side, which only stops a Discord bridge that respects the cancel flag: a bridge that hooks the chat pipeline ahead of the event, listens for cancelled events, or reads the chat log still saw the message in full. The toggle now applies **before the message leaves the client**: while staff-chat mode is on, the client cancels its own chat line and re-sends it as `/arcadia_adminpanel staffchat <message>`, the path already proven not to be intercepted. The line never becomes a chat message at all, so there is nothing for any bridge to relay, whichever way it hooks in. The toggle state is synced to the client on login and on every toggle, and cleared on disconnect; the server-side cancel is kept as a safety net for the brief window before the state packet lands. Commands typed while staff-chat mode is on are unaffected.
+- **Staff chat could be used to talk while muted** — the `staffchat` command never checked the mute list, whereas the chat path did. Now that a toggled staff member's message is routed through that command, the gap would have turned staff chat into a mute bypass. The command now enforces the mute and reports the remaining time, exactly like the chat path.
+
+### Correctifs
+
+- **Le chat staff fuitait vers le lien Discord (#245)** — les messages écrits avec le mode chat staff activé (`/arcadia_adminpanel stafftoggle`) étaient relayés sur Discord, alors que le même message envoyé via `/arcadia_adminpanel staffchat <message>` ne l'était pas. Le mode toggle laissait la ligne partir comme un message de chat normal puis annulait `ServerChatEvent` côté serveur, ce qui n'arrête qu'un lien Discord qui respecte le drapeau d'annulation : un lien qui se branche sur le pipeline de chat avant l'événement, qui écoute les événements annulés, ou qui lit le log de chat voyait toujours le message en entier. Le mode s'applique désormais **avant que le message ne quitte le client** : tant que le chat staff est actif, le client annule sa propre ligne de chat et la renvoie sous forme de `/arcadia_adminpanel staffchat <message>`, le chemin dont on sait déjà qu'il n'est pas intercepté. La ligne ne devient jamais un message de chat, il n'y a donc plus rien à relayer pour aucun lien, quelle que soit sa méthode d'accroche. L'état du toggle est synchronisé au client à la connexion et à chaque bascule, et remis à zéro à la déconnexion ; l'annulation côté serveur est conservée en filet de sécurité pour le court instant avant l'arrivée du paquet d'état. Les commandes tapées pendant que le chat staff est actif ne sont pas affectées.
+- **Le chat staff permettait de parler en étant mute** — la commande `staffchat` ne vérifiait pas la liste des mutes, contrairement au chemin de chat. Maintenant que le message d'un membre du staff en mode toggle passe par cette commande, la faille aurait transformé le chat staff en contournement de mute. La commande applique désormais le mute et affiche le temps restant, exactement comme le chemin de chat.
+
+---
+
+## [1.2.11] - 2026-08-07
 
 ### Fixed
 

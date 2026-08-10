@@ -53,6 +53,12 @@ public final class AdminPanelNet {
                 S2CDisguiseUpdate.STREAM_CODEC,
                 (p, ctx) -> p.handle(ctx)
         );
+
+        registrar.playToClient(
+                S2CStaffChatState.TYPE,
+                S2CStaffChatState.STREAM_CODEC,
+                (p, ctx) -> p.handle(ctx)
+        );
     }
 
     /** Sends the complete name-tag state to one player (on login or after /reload). */
@@ -100,5 +106,16 @@ public final class AdminPanelNet {
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             PacketDistributor.sendToPlayer(p, pkt);
         }
+    }
+
+    // ── Staff chat ────────────────────────────────────────────────────────────
+
+    /**
+     * Tells one player whether staff-chat mode is on for them, so their client can route chat lines
+     * through the staff-chat command instead of the public chat pipeline (see
+     * {@code StaffChatClientHandler}). Sent on login and on every toggle.
+     */
+    public static void sendStaffChatState(ServerPlayer player, boolean enabled) {
+        PacketDistributor.sendToPlayer(player, new S2CStaffChatState(enabled));
     }
 }

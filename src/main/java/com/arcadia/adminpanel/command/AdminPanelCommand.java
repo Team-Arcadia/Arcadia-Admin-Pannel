@@ -15,6 +15,7 @@ import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.suggestion.SuggestionProvider;
 import com.arcadia.adminpanel.gui.AdminPanelMenu;
 import com.arcadia.adminpanel.gui.WarnListMenu;
+import com.arcadia.adminpanel.network.AdminPanelNet;
 import com.arcadia.adminpanel.util.AdminPermissions;
 import com.arcadia.adminpanel.util.FTBDataReader;
 import com.arcadia.adminpanel.util.FTBTeamsReader;
@@ -147,6 +148,10 @@ public final class AdminPanelCommand {
                                         .executes(ctx -> {
                                             if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
                                             if (!StaffService.requireRole(ctx.getSource(), StaffRole.HELPER)) return 0;
+                                            // A toggled staff member's chat is routed here by the client, so the
+                                            // mute that ChatListener enforces on the chat path must be enforced
+                                            // here too — otherwise staff chat would be a mute bypass.
+                                            if (isMutedFeedback(sp)) return 0;
                                             StaffChatService.broadcast(sp, StringArgumentType.getString(ctx, "message"));
                                             return 1;
                                         })))
@@ -157,6 +162,10 @@ public final class AdminPanelCommand {
                                     if (!(ctx.getSource().getEntity() instanceof ServerPlayer sp)) return 0;
                                     if (!StaffService.requireRole(ctx.getSource(), StaffRole.HELPER)) return 0;
                                     boolean on = StaffChatService.toggle(sp.getUUID());
+                                    // Push the new state to the client: while it is on, the client rewrites chat
+                                    // lines into /arcadia_adminpanel staffchat so they never enter the public
+                                    // chat pipeline (and can't be picked up by a Discord bridge).
+                                    AdminPanelNet.sendStaffChatState(sp, on);
                                     sp.sendSystemMessage(ArcadiaMessages.info(
                                             LanguageHelper.getText(on ? "staff.chat.enabled" : "staff.chat.disabled", sp)));
                                     return 1;
@@ -513,6 +522,20 @@ public final class AdminPanelCommand {
         } catch (Exception e) {
             return 0;
         }
+    }
+
+    /**
+     * Mirrors the mute enforcement {@code ChatListener} applies to the chat path. Returns
+     * {@code true} (and tells the player how long is left) when the sender is muted.
+     */
+    private static boolean isMutedFeedback(ServerPlayer sp) {
+        if (!StaffActions.isMuted(sp.getUUID())) return false;
+        String reason = StaffActions.getMuteReason(sp.getUUID());
+        sp.sendSystemMessage(ArcadiaMessages.error(
+                LanguageHelper.getText("mute.feedback", sp)
+                        .replace("%time%", TextFormatter.formatMs(StaffActions.getMuteRemaining(sp.getUUID())))
+                        .replace("%reason%", reason != null ? reason : "N/A")));
+        return true;
     }
 
     private static int executePanel(CommandContext<CommandSourceStack> context, String filter) {

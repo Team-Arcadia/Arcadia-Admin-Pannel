@@ -37,7 +37,7 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `mute <player> <minutes> [reason]` | `arcadia.adminpanel.mute` + Staff MOD+ | Mute |
 | `unmute <player>` | `arcadia.adminpanel.mute` + Staff MOD+ | Unmute |
 | `staffchat <message>` | Staff HELPER+ | Send message to the staff channel |
-| `stafftoggle` | Staff HELPER+ | Toggle staff chat mode |
+| `stafftoggle` | Staff HELPER+ | Toggle staff chat mode (every chat line goes to the staff channel, never to public chat or a Discord bridge) |
 | `stafflist` | Staff HELPER+ | List online staff |
 | `setjail` | `arcadia.adminpanel.setjail` | Set the jail location to your position |
 | `jail <player> <minutes> [reason]` | `arcadia.adminpanel.jail` | Jail a player (`0` = permanent) |
@@ -129,7 +129,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.2.11.jar` in your `mods/` folder
+2. Place `arcadia-admin-panel-1.2.12.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -212,7 +212,7 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `mute <joueur> <minutes> [raison]` | `arcadia.adminpanel.mute` + Staff MOD+ | Mute |
 | `unmute <joueur>` | `arcadia.adminpanel.mute` + Staff MOD+ | Unmute |
 | `staffchat <message>` | Staff HELPER+ | Envoyer un message au canal staff |
-| `stafftoggle` | Staff HELPER+ | Basculer le mode chat staff |
+| `stafftoggle` | Staff HELPER+ | Basculer le mode chat staff (chaque ligne de chat part vers le canal staff, jamais vers le chat public ni un lien Discord) |
 | `stafflist` | Staff HELPER+ | Lister le staff en ligne |
 | `setjail` | `arcadia.adminpanel.setjail` | Définir la position de la prison sur votre position |
 | `jail <joueur> <minutes> [raison]` | `arcadia.adminpanel.jail` | Emprisonner (`0` = permanent) |
@@ -305,7 +305,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 dans votre dossier `mods/`
-2. Placez `arcadia-admin-panel-1.2.11.jar` dans votre dossier `mods/`
+2. Placez `arcadia-admin-panel-1.2.12.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
 5. Démarrez le serveur

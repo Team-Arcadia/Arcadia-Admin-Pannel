@@ -88,6 +88,11 @@ public class ChatListener {
         }
 
         // ── Staff chat toggle redirect ──────────────────────────────────────
+        // Safety net only. A toggled staff member's client rewrites the line into
+        // /arcadia_adminpanel staffchat before it is ever sent (see StaffChatClientHandler), so this
+        // branch normally never runs. It stays for the window between the toggle command and the
+        // state packet landing — cancelling here is not enough on its own, because a Discord bridge
+        // that hooks the chat pipeline ahead of us still relays the message (#245).
         if (StaffChatService.isToggled(playerUUID) && StaffService.isStaff(player)) {
             StaffChatService.broadcast(player, message);
             event.setCanceled(true);
@@ -259,6 +264,11 @@ public class ChatListener {
             if (!sp.hasDisconnected()) {
                 com.arcadia.adminpanel.util.NameTagManager.getInstance().syncTo(sp);
                 com.arcadia.adminpanel.util.DisguiseManager.getInstance().syncTo(sp);
+                // Staff chat is cleared server-side on disconnect, so a fresh session always starts
+                // off. Pushing it explicitly keeps the client from carrying a stale toggle over from
+                // a previous server or session and silently swallowing public chat.
+                com.arcadia.adminpanel.network.AdminPanelNet.sendStaffChatState(
+                        sp, StaffChatService.isToggled(sp.getUUID()));
             }
         });
     }

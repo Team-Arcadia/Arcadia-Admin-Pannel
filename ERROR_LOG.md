@@ -4,6 +4,14 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-08-11 10:20] — Cancelling ServerChatEvent does not keep a message off a Discord bridge (issue #245)
+
+**Context:** Staff chat typed with `/arcadia_adminpanel stafftoggle` on was showing up on Discord, while the exact same text sent through `/arcadia_adminpanel staffchat <message>` was not.
+**Error:** No exception. `ChatListener.onChat()` cancelled the `ServerChatEvent` at `EventPriority.HIGHEST` and the message never reached public in-game chat, yet the Discord bridge relayed it in full.
+**Root cause:** `event.setCanceled(true)` is a request the rest of the chat pipeline is free to ignore. A bridge that registers with `receiveCanceled = true`, registers at the same `HIGHEST` priority but earlier in mod load order, mixins ahead of the event (`handleChat` / `chat`), or simply tails the chat log, all see the message regardless. There is no event priority that wins this reliably, because the leak is not an ordering problem — the message is a real chat message and anything hooked to the pipeline can read it.
+**Fix:** Apply the toggle before the message leaves the client. `StaffChatClientHandler` cancels `ClientChatEvent` while staff-chat mode is on and re-sends the line as `/arcadia_adminpanel staffchat <message>` (the command path already proven not to be intercepted); the toggle state is synced with the new `S2CStaffChatState` payload. The server-side cancel is kept only as a safety net for the window before the state packet lands.
+**Prevention:** To keep content out of a pipeline, do not let it enter the pipeline — a cancel flag only stops consumers that check it, and third-party mods often do not. When rerouting a chat path onto a command path, re-check every guard the chat path enforced: the `staffchat` command had no mute check, so the reroute would have silently turned staff chat into a mute bypass.
+
 ## [2026-08-07 11:05] — Vanilla TagParser cannot read FTB Library SNBT (issue #219)
 
 **Context:** #208 was closed in 1.2.10 by removing a spurious permission gate on the homes grid, but homes were still invisible in 1.2.11 testing. Investigated the data path instead of the render path.
