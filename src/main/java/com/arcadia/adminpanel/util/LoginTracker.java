@@ -55,15 +55,48 @@ public final class LoginTracker {
 
     public static LoginTracker getInstance() { return INSTANCE; }
 
-    public record LoginRecord(long firstSeenMs, long lastLoginMs, long lastLogoutMs, @Nullable String lastIp) {
-        public LoginRecord withLogin(long now, @Nullable String ip) {
-            return new LoginRecord(firstSeenMs == 0 ? now : firstSeenMs, now, lastLogoutMs, ip != null ? ip : lastIp);
+    /**
+     * One player's connection history.
+     *
+     * <p>1.3.0 added {@code totalPlayMs}, {@code sessions} and {@code ipHash}. Gson leaves missing
+     * fields at their zero value, so a {@code logins.json} written by 1.2.x loads unchanged and
+     * simply starts counting from this session.</p>
+     *
+     * <p>{@code lastIp} is the plain address and is only populated when the operator explicitly
+     * opts in ({@code storePlainIp}). Everything the panel does with an address, alt detection
+     * included, uses {@code ipHash}: a salted digest that answers "same origin?" and nothing
+     * else.</p>
+     */
+    public record LoginRecord(long firstSeenMs, long lastLoginMs, long lastLogoutMs,
+                              @Nullable String lastIp, long totalPlayMs, int sessions,
+                              @Nullable String ipHash) {
+
+        public LoginRecord withLogin(long now, @Nullable String ip, @Nullable String hash) {
+            return new LoginRecord(firstSeenMs == 0 ? now : firstSeenMs, now, lastLogoutMs,
+                    ip != null ? ip : lastIp, totalPlayMs, sessions + 1,
+                    hash != null ? hash : ipHash);
         }
+
         public LoginRecord withLogout(long now) {
-            return new LoginRecord(firstSeenMs, lastLoginMs, now, lastIp);
+            long session = lastLoginMs > 0 && now > lastLoginMs ? now - lastLoginMs : 0L;
+            return new LoginRecord(firstSeenMs, lastLoginMs, now, lastIp,
+                    totalPlayMs + session, sessions, ipHash);
         }
+
         public LoginRecord withFirstSeen(long firstMs) {
-            return new LoginRecord(firstMs, lastLoginMs, lastLogoutMs, lastIp);
+            return new LoginRecord(firstMs, lastLoginMs, lastLogoutMs, lastIp,
+                    totalPlayMs, sessions, ipHash);
+        }
+
+        /** Playtime including the session currently in progress, when there is one. */
+        public long playtimeMs(boolean online) {
+            if (!online || lastLoginMs <= 0) return totalPlayMs;
+            return totalPlayMs + Math.max(0L, System.currentTimeMillis() - lastLoginMs);
+        }
+
+        /** Mean session length, or 0 when the player has never completed one. */
+        public long averageSessionMs() {
+            return sessions <= 0 ? 0L : totalPlayMs / sessions;
         }
     }
 
@@ -153,10 +186,14 @@ public final class LoginTracker {
     public void recordLogin(ServerPlayer player) {
         if (!loaded) return;
         long now = System.currentTimeMillis();
-        String ip = extractIp(player);
+        String rawIp = extractIp(player);
+        // The hash is what the panel uses; the plain address is only kept when the operator asked
+        // for it, because it is personal data with no feature depending on it.
+        String hash = AltDetector.fingerprint(rawIp);
+        String storedIp = AdminConfig.get().storePlainIp ? rawIp : null;
         cache.merge(player.getUUID(),
-                new LoginRecord(now, now, 0L, ip),
-                (existing, fresh) -> existing.withLogin(now, ip));
+                new LoginRecord(now, now, 0L, storedIp, 0L, 1, hash),
+                (existing, fresh) -> existing.withLogin(now, storedIp, hash));
         markDirty();
     }
 
@@ -215,7 +252,7 @@ public final class LoginTracker {
         } catch (IOException ignored) {
             firstSeen = System.currentTimeMillis();
         }
-        cache.putIfAbsent(uuid, new LoginRecord(firstSeen, 0L, 0L, null));
+        cache.putIfAbsent(uuid, new LoginRecord(firstSeen, 0L, 0L, null, 0L, 0, null));
         // Caller (offline scan) is expected to invoke flush() once when done — saving per UUID
         // would hammer disk on first-time servers with thousands of player files.
     }

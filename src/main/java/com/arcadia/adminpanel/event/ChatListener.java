@@ -44,6 +44,64 @@ public class ChatListener {
     public record WarnSession(UUID targetUUID, String targetName) {}
     public record TeamMessageSession(UUID teamId, String teamName) {}
 
+    // ── Generic chat prompts (1.3.0) ────────────────────────────────────────
+
+    /**
+     * The 1.3.0 features that need a line of free text all take it the same way: the menu closes, the
+     * admin types, the panel reopens. Rather than a session map and a handler branch per feature,
+     * they share one map keyed by {@link PromptKind}.
+     */
+    public enum PromptKind {
+        NOTE, MAIL, BAN_REASON, FREEZE_REASON, WATCH_REASON, GIVE_ITEM, BULK_MESSAGE, BULK_WARN
+    }
+
+    /** {@code extra} carries whatever the kind needs: a duration for a ban, unused elsewhere. */
+    public record PromptSession(PromptKind kind, UUID targetUUID, String targetName, long extra) {}
+
+    private static final Map<UUID, PromptSession> promptSessions = new ConcurrentHashMap<>();
+
+    /** Opens a typed prompt and tells the admin what is expected. */
+    public static void startPrompt(ServerPlayer admin, PromptKind kind,
+                                   UUID targetUUID, String targetName, long extra) {
+        promptSessions.put(admin.getUUID(), new PromptSession(kind, targetUUID, targetName, extra));
+        admin.sendSystemMessage(ArcadiaMessages.info(
+                LanguageHelper.getText("prompt." + kind.name().toLowerCase(), admin)
+                        .replace("%player%", targetName == null ? "" : targetName)));
+        admin.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("warn.prompt.cancel", admin)));
+    }
+
+    public static void startNoteSession(ServerPlayer admin, UUID target, String name) {
+        startPrompt(admin, PromptKind.NOTE, target, name, 0L);
+    }
+
+    public static void startMailSession(ServerPlayer admin, UUID target, String name) {
+        startPrompt(admin, PromptKind.MAIL, target, name, 0L);
+    }
+
+    public static void startBanReasonSession(ServerPlayer admin, UUID target, String name, long minutes) {
+        startPrompt(admin, PromptKind.BAN_REASON, target, name, minutes);
+    }
+
+    public static void startFreezeReasonSession(ServerPlayer admin, UUID target, String name) {
+        startPrompt(admin, PromptKind.FREEZE_REASON, target, name, 0L);
+    }
+
+    public static void startWatchReasonSession(ServerPlayer admin, UUID target, String name) {
+        startPrompt(admin, PromptKind.WATCH_REASON, target, name, 0L);
+    }
+
+    public static void startGiveItemSession(ServerPlayer admin, UUID target, String name) {
+        startPrompt(admin, PromptKind.GIVE_ITEM, target, name, 0L);
+    }
+
+    public static void startBulkMessageSession(ServerPlayer admin) {
+        startPrompt(admin, PromptKind.BULK_MESSAGE, null, "", 0L);
+    }
+
+    public static void startBulkWarnSession(ServerPlayer admin) {
+        startPrompt(admin, PromptKind.BULK_WARN, null, "", 0L);
+    }
+
     // ── Warn session ────────────────────────────────────────────────────────
 
     public static void startWarnSession(ServerPlayer admin, UUID targetUUID, String targetName) {
@@ -87,6 +145,19 @@ public class ChatListener {
             return;
         }
 
+        // ── Chat lock ───────────────────────────────────────────────────────
+        // Runs after the mute check (a muted player must still be told they are muted) and before
+        // everything else, so a locked chat cannot be worked around through a panel session.
+        if (com.arcadia.adminpanel.util.ChatControl.shouldBlock(player)) {
+            player.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("chat.locked.blocked", player)));
+            event.setCanceled(true);
+            return;
+        }
+
+        // Typing counts as being at the keyboard.
+        com.arcadia.adminpanel.util.AfkTracker.markActive(player);
+
         // ── Staff chat toggle redirect ──────────────────────────────────────
         // Safety net only. A toggled staff member's client rewrites the line into
         // /arcadia_adminpanel staffchat before it is ever sent (see StaffChatClientHandler), so this
@@ -116,6 +187,19 @@ public class ChatListener {
                 player.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("action.cancelled", player)));
                 return;
             }
+            if (promptSessions.remove(playerUUID) != null) {
+                event.setCanceled(true);
+                player.sendSystemMessage(ArcadiaMessages.info(LanguageHelper.getText("action.cancelled", player)));
+                return;
+            }
+        }
+
+        // Generic 1.3.0 prompt (note, mail, ban reason, bulk message…).
+        if (promptSessions.containsKey(playerUUID)) {
+            PromptSession session = promptSessions.remove(playerUUID);
+            event.setCanceled(true);
+            handlePrompt(player, session, message.trim());
+            return;
         }
 
         // Team message session — broadcast the typed line to every online member of the team.
@@ -169,6 +253,166 @@ public class ChatListener {
             player.getServer().execute(() -> AdminPanelMenu.open(player, searchQuery));
             return;
         }
+    }
+
+    /**
+     * Carries out whatever the admin was prompted for, then puts them back where they came from.
+     *
+     * <p>Each branch re-checks its permission node. The prompt was opened from a button that was
+     * already gated, but a session survives the menu closing, so the check has to happen again at the
+     * point the action actually runs.</p>
+     */
+    private void handlePrompt(ServerPlayer admin, PromptSession session, String message) {
+        if (message.isEmpty()) {
+            reopenAfterPrompt(admin, session);
+            return;
+        }
+        var server = admin.getServer();
+        if (server == null) return;
+
+        switch (session.kind()) {
+            case NOTE -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.NOTES.check(admin)) return;
+                boolean pinned = message.startsWith("!");
+                String text = pinned ? message.substring(1).trim() : message;
+                com.arcadia.adminpanel.util.NotesManager.add(admin, session.targetUUID(),
+                        session.targetName(), text, pinned);
+                admin.sendSystemMessage(ArcadiaMessages.success(
+                        LanguageHelper.getText("note.added", admin)
+                                .replace("%player%", session.targetName())));
+            }
+            case MAIL -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.MAIL.check(admin)) return;
+                boolean immediate = com.arcadia.adminpanel.util.MailManager.send(
+                        admin, session.targetUUID(), session.targetName(), message);
+                admin.sendSystemMessage(ArcadiaMessages.success(
+                        LanguageHelper.getText(immediate ? "mail.delivered" : "mail.queued", admin)
+                                .replace("%player%", session.targetName())));
+            }
+            case BAN_REASON -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.BAN.check(admin)) return;
+                com.arcadia.adminpanel.util.BanManager.ban(admin, server, session.targetUUID(),
+                        session.targetName(), message, session.extra());
+                admin.sendSystemMessage(ArcadiaMessages.success(
+                        LanguageHelper.getText("ban.applied", admin)
+                                .replace("%player%", session.targetName())));
+            }
+            case FREEZE_REASON -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.FREEZE.check(admin)) return;
+                ServerPlayer target = server.getPlayerList().getPlayer(session.targetUUID());
+                if (target == null) {
+                    admin.sendSystemMessage(ArcadiaMessages.error(
+                            LanguageHelper.getText("error.player_offline", admin)));
+                } else {
+                    com.arcadia.adminpanel.util.FreezeManager.freeze(admin, target, message);
+                }
+            }
+            case WATCH_REASON -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.WATCHLIST.check(admin)) return;
+                com.arcadia.adminpanel.util.WatchlistManager.add(admin, session.targetUUID(),
+                        session.targetName(), message);
+                admin.sendSystemMessage(ArcadiaMessages.success(
+                        LanguageHelper.getText("watchlist.added", admin)
+                                .replace("%player%", session.targetName())));
+            }
+            case GIVE_ITEM -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.GIVE_ITEM.check(admin)) return;
+                giveByName(admin, server, session, message);
+            }
+            case BULK_MESSAGE -> {
+                int sent = 0;
+                Component line = Component.literal("§b[" + admin.getName().getString() + "§b] §f" + message);
+                for (ServerPlayer target : com.arcadia.adminpanel.util.SelectionManager.onlineTargets(admin)) {
+                    target.sendSystemMessage(line);
+                    SoundHelper.playAt(target, SoundHelper.SUCCESS, 0.5f, 1.2f);
+                    sent++;
+                }
+                admin.sendSystemMessage(ArcadiaMessages.success(
+                        LanguageHelper.getText("bulk.messaged", admin)
+                                .replace("%count%", String.valueOf(sent))));
+                com.arcadia.adminpanel.util.AuditManager.recordServer(admin,
+                        com.arcadia.adminpanel.util.AdminAction.BULK, "message " + sent);
+            }
+            case BULK_WARN -> {
+                if (!com.arcadia.adminpanel.util.AdminPermissions.WARN_EDIT.check(admin)) return;
+                int warned = 0;
+                for (var entry : com.arcadia.adminpanel.util.SelectionManager.entries(admin.getUUID())) {
+                    WarnManager.getInstance().addWarn(entry.getKey(), message,
+                            admin.getName().getString());
+                    com.arcadia.adminpanel.util.AuditManager.record(admin,
+                            com.arcadia.adminpanel.util.AdminAction.WARN,
+                            entry.getKey(), entry.getValue(), message);
+                    ServerPlayer target = server.getPlayerList().getPlayer(entry.getKey());
+                    if (target != null) {
+                        target.sendSystemMessage(ArcadiaMessages.error(
+                                String.format(LanguageHelper.getText("warn.notification", target),
+                                        admin.getName().getString())));
+                        SoundHelper.error(target);
+                    }
+                    warned++;
+                }
+                admin.sendSystemMessage(ArcadiaMessages.success(
+                        LanguageHelper.getText("bulk.warned", admin)
+                                .replace("%count%", String.valueOf(warned))));
+            }
+        }
+        reopenAfterPrompt(admin, session);
+    }
+
+    /** Parses {@code <item id> [count]} and hands the stack over. */
+    private static void giveByName(ServerPlayer admin, net.minecraft.server.MinecraftServer server,
+                                   PromptSession session, String message) {
+        String[] parts = message.split("\\s+");
+        var id = net.minecraft.resources.ResourceLocation.tryParse(
+                parts[0].contains(":") ? parts[0] : "minecraft:" + parts[0]);
+        if (id == null || !net.minecraft.core.registries.BuiltInRegistries.ITEM.containsKey(id)) {
+            admin.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("give.unknown_item", admin).replace("%item%", parts[0])));
+            return;
+        }
+        int count = 1;
+        if (parts.length > 1) {
+            try { count = Math.max(1, Math.min(6400, Integer.parseInt(parts[1]))); }
+            catch (NumberFormatException ignored) { count = 1; }
+        }
+        var item = net.minecraft.core.registries.BuiltInRegistries.ITEM.get(id);
+        ServerPlayer target = server.getPlayerList().getPlayer(session.targetUUID());
+        if (target == null) {
+            admin.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("error.player_offline", admin)));
+            return;
+        }
+        int remaining = count;
+        while (remaining > 0) {
+            var stack = new net.minecraft.world.item.ItemStack(item,
+                    Math.min(remaining, item.getDefaultMaxStackSize()));
+            remaining -= stack.getCount();
+            if (!target.getInventory().add(stack)) target.drop(stack, false);
+        }
+        target.containerMenu.broadcastChanges();
+        admin.sendSystemMessage(ArcadiaMessages.success(
+                LanguageHelper.getText("give.done", admin)
+                        .replace("%count%", String.valueOf(count))
+                        .replace("%item%", id.toString())
+                        .replace("%player%", session.targetName())));
+        com.arcadia.adminpanel.util.AuditManager.record(admin,
+                com.arcadia.adminpanel.util.AdminAction.GIVE_ITEM,
+                session.targetUUID(), session.targetName(), count + "x " + id);
+    }
+
+    /** Bulk prompts return to the bulk screen; per-player prompts return to that player's sheet. */
+    private static void reopenAfterPrompt(ServerPlayer admin, PromptSession session) {
+        var server = admin.getServer();
+        if (server == null) return;
+        server.execute(() -> {
+            if (session.kind() == PromptKind.BULK_MESSAGE || session.kind() == PromptKind.BULK_WARN) {
+                com.arcadia.adminpanel.gui.BulkActionsMenu.open(admin);
+                return;
+            }
+            if (session.targetUUID() == null) return;
+            boolean online = server.getPlayerList().getPlayer(session.targetUUID()) != null;
+            PlayerDetailMenu.open(admin, session.targetUUID(), session.targetName(), online);
+        });
     }
 
     /** Delivers the admin's typed message to every online member of the team, then reopens the menu. */
@@ -257,6 +501,17 @@ public class ChatListener {
         // Surface active warns on join (configurable via WarnPolicy).
         com.arcadia.adminpanel.util.WarnPolicy.notifyOnJoin(sp);
 
+        // ── 1.3.0 join hooks ────────────────────────────────────────────────
+        com.arcadia.adminpanel.util.AfkTracker.onJoin(sp);
+        com.arcadia.adminpanel.util.VanishManager.onJoin(sp);
+        com.arcadia.adminpanel.util.WatchlistManager.onJoin(sp);
+        com.arcadia.adminpanel.util.AltDetector.onJoin(sp);
+        com.arcadia.adminpanel.util.MailManager.onJoin(sp);
+        // A player who was frozen when the server went down comes back frozen; push the overlay
+        // state either way so a stale client flag from a previous session cannot survive.
+        com.arcadia.adminpanel.network.AdminPanelNet.sendFreezeState(
+                sp, com.arcadia.adminpanel.util.FreezeManager.isFrozen(sp.getUUID()));
+
         // Push the full name-tag state (hide switch + every styled player + exemptions) so this
         // client renders colours/effects and wall-occlusion correctly from the first frame. Deferred
         // one tick so the player's connection is fully established before the payload is sent.
@@ -316,8 +571,23 @@ public class ChatListener {
         warnSessions.remove(uuid);
         searchSessions.remove(uuid);
         teamMessageSessions.remove(uuid);
+        promptSessions.remove(uuid);
         StaffChatService.onDisconnect(uuid);
         com.arcadia.adminpanel.util.LoginTracker.getInstance().recordLogout(sp);
         com.arcadia.adminpanel.util.AdminPermissions.invalidate(uuid);
+
+        // ── 1.3.0 disconnect cleanup ────────────────────────────────────────
+        // Order matters: the spectate sessions are restored before the flags they depend on are
+        // dropped, so a staff member never persists as a spectator locked to a camera.
+        com.arcadia.adminpanel.util.SpectateManager.onStaffQuit(sp);
+        com.arcadia.adminpanel.util.SpectateManager.onTargetQuit(sp);
+        com.arcadia.adminpanel.util.VanishManager.onQuit(sp);
+        com.arcadia.adminpanel.util.FreezeManager.clearSilently(uuid);
+        com.arcadia.adminpanel.util.AfkTracker.onQuit(uuid);
+        com.arcadia.adminpanel.util.SpyManager.clear(uuid);
+        com.arcadia.adminpanel.util.SilentMode.clear(uuid);
+        com.arcadia.adminpanel.util.SelectionManager.clear(uuid);
+        com.arcadia.adminpanel.util.BackManager.clear(uuid);
+        com.arcadia.adminpanel.util.ClientModsRegistry.onQuit(uuid);
     }
 }

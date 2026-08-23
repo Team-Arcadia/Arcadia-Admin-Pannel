@@ -157,5 +157,9 @@
   "arcadiaadminpanel.team.filter.players_hint": "Afficher/masquer les teams personnelles dans la liste",
   "arcadiaadminpanel.team.member.actions": "Clic gauche : détails · Clic droit : TP dernière position",
   "arcadiaadminpanel.jail.radius.current": "Rayon de la zone de prison : %radius% blocs (anti-évasion : %state%)",
-  "arcadiaadminpanel.jail.radius.set": "Rayon de la zone de prison réglé à %radius% blocs (anti-évasion activé)."
+  "arcadiaadminpanel.jail.radius.set": "Rayon de la zone de prison réglé à %radius% blocs (anti-évasion activé).",
+  "arcadiaadminpanel.freeze.overlay.title": "VOUS ÊTES GELÉ",
+  "arcadiaadminpanel.freeze.overlay.line1": "Un modérateur vous a gelé pour une vérification.",
+  "arcadiaadminpanel.freeze.overlay.line2": "Répondez dans le chat. Ne vous déconnectez pas.",
+  "arcadiaadminpanel.freeze.overlay.elapsed": "Gelé depuis %s"
 }

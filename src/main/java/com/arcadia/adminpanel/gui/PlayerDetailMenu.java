@@ -290,9 +290,11 @@ public class PlayerDetailMenu extends ChestMenu {
                     .name(Component.literal("§c" + LanguageHelper.getText("homes.none", admin))).build());
         }
 
-        // Teleport history (slots 36-44)
+        // Teleport history (slots 36-43). The row lost its last slot in 1.3.0 to the player-tools
+        // button: the sheet had no free space left, and a ninth history entry is worth less than a
+        // door to the history, notes, freeze, inventory editor and death snapshots behind it.
         if (ftbData != null && ftbData.teleportHistory != null) {
-            for (int i = 0; i < Math.min(ftbData.teleportHistory.size(), 9); i++) {
+            for (int i = 0; i < Math.min(ftbData.teleportHistory.size(), 8); i++) {
                 FTBDataReader.TeleportRecord record = ftbData.teleportHistory.get(i);
                 this.getContainer().setItem(36 + i, ItemBuilder.of(Items.CHORUS_FRUIT)
                         .name(Component.literal("§d" + LanguageHelper.getText("detail.tp_history", admin) + " #" + (i + 1)))
@@ -302,6 +304,24 @@ public class PlayerDetailMenu extends ChestMenu {
                         .build());
             }
         }
+
+        // Player tools (slot 44) — the 1.3.0 door: history, notes, freeze, spectate, inventory
+        // editor, death snapshots, mail, templates and the rest.
+        int noteCount = com.arcadia.adminpanel.util.NotesManager.count(targetUUID);
+        var toolsIcon = ItemBuilder.of(Items.ENDER_CHEST)
+                .name(Component.literal("§d" + LanguageHelper.getText("tools.player", admin)))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("tools.player.hint", admin)));
+        if (noteCount > 0) {
+            toolsIcon.addLore(Component.literal("§6" + noteCount + " "
+                    + LanguageHelper.getText("notes.count", admin)));
+        }
+        if (com.arcadia.adminpanel.util.WatchlistManager.isWatched(targetUUID)) {
+            toolsIcon.addLore(Component.literal("§d" + LanguageHelper.getText("watchlist.flagged", admin)));
+        }
+        if (com.arcadia.adminpanel.util.FreezeManager.isFrozen(targetUUID)) {
+            toolsIcon.addLore(Component.literal("§b" + LanguageHelper.getText("freeze.flagged", admin)));
+        }
+        this.getContainer().setItem(44, toolsIcon.build());
 
         // ── Action bar (row 6) ──────────────────────────────────────────────
 
@@ -573,6 +593,10 @@ public class PlayerDetailMenu extends ChestMenu {
         }
 
         switch (slotId) {
+            case 44 -> { // Player tools (1.3.0)
+                admin.closeContainer();
+                PlayerToolsMenu.open(sp, targetUUID, targetName, isOnline);
+            }
             case 0 -> { // Jail/Unjail
                 if (!AdminPermissions.JAIL.check(sp)) return;
                 if (isOnline && JailManager.getInstance().hasJailLocation()) {

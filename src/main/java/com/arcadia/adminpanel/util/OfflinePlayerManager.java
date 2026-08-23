@@ -317,6 +317,16 @@ public class OfflinePlayerManager {
         return new ArrayList<>(offlineCache.values());
     }
 
+    /**
+     * Best-known display name for a UUID, or {@code null} when this server has never seen it.
+     * In-memory only: callers on the tick thread can use it freely.
+     */
+    @org.jetbrains.annotations.Nullable
+    public String getName(UUID uuid) {
+        CachedPlayerSummary summary = getCache().get(uuid);
+        return summary != null ? summary.name() : null;
+    }
+
     public Map<UUID, CachedPlayerSummary> getCache() {
         return offlineCache;
     }

@@ -18,6 +18,16 @@ Arcadia Admin Panel is a NeoForge Minecraft mod that gives server staff a comple
 - **Login Queue** — Optional connection throttle (off by default). Token-bucket rolling window holds excess players in the negotiation phase — no slot, no chunk loads — until their turn. Saves heavy modpacks from post-reboot TPS death.
 - **Name Tags — Custom pseudo, grade, hide-behind-walls + Colours & Effects** — Server-authoritative floating-name control that also drives the TAB list. **Custom pseudo**: `nametag name <player> <pseudo…>` overrides the displayed name on both the floating head-tag and the TAB list (the real username is kept for chat, `/msg`, bans and teleports). **Grade aware**: the player's grade (the scoreboard-team prefix/suffix set by LuckPerms & co.) is preserved around the styled name and can be shown/hidden per player with `nametag grade <player> <on|off>`. **Hide behind walls** (ON by default): a player's name is suppressed client-side when a solid block sits between the observer's camera and that player (a line-of-sight raytrace), so you can't read who is hiding behind a wall; transparent blocks (glass/leaves) don't occlude unless configured, and any player can be made permanently visible (`exempt`). **Styling**: named colours, true RGB, static multi-stop gradients, ten animated effects (**solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random**), the five text decorations (bold/italic/underline/strikethrough/obfuscated) and an animation speed. State persists to `nametags.json` and syncs to clients on join; floating-tag effects animate off a client tick (the TAB list shows colours statically). Two nodes: `arcadia.adminpanel.nametag` and `arcadia.adminpanel.nametag.hide`.
 - **Granular Permissions** — One LuckPerms node per action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.nametag`, `.nametag.hide`, `.open`). Buttons the viewer can't use are hidden from the GUI entirely. **To grant panel access, the simplest single node is `arcadia.hub.adminpanel`** — it is the node Arcadia Lib's dashboard uses to show the card, and as of 1.2.5 it also opens the panel (so one grant both reveals and opens it). OP level ≥ 2 short-circuits everything; legacy `arcadia.staff.mod` still grants full access for backwards compatibility.
+- **Staff Audit Log (1.3.0)** — Every staff action recorded with author, target, timestamp, server and reason. Browsable, filterable to one player or one staff member, synced across servers, with a configurable retention window. The unified **sanction history** merges warns, mutes, jails, kicks and bans into one timeline per player, and **private staff notes** hold the observations that are not warns.
+- **Vanish, Freeze and Spectate (1.3.0)** — Vanish is genuinely server-side: the entity and TAB entry are removed from other clients rather than hidden by a client that could ignore the instruction, and un-vanishing rebuilds the spawn packets instead of forcing a chunk reload. **Freeze** holds a suspect for a screenshare (no movement, no interaction, no damage, chat still open) with a dimmed client overlay. **Spectate** jumps to a player and puts you back exactly where you were, even if the session ends involuntarily.
+- **Temporary Bans, Ban List and Sanction Templates (1.3.0)** — Bans take a duration and a typed reason, the ban list is a screen with expiry countdowns and one-click unban, and bans replicate across servers and are enforced at negotiation time. **Templates** hold pre-written offences with an escalation ladder that picks its own severity from what the player already collected.
+- **Death Snapshots and the Inventory Editor (1.3.0)** — The full inventory is captured on every death (last five kept per player, with cause and position) and can be handed back in one click, online or offline. The **inventory editor** views and modifies any player's inventory including a disconnected one, with an explicit save and a refusal to write if they reconnected meanwhile.
+- **Performance Panel and Chunk Browser (1.3.0)** — TPS, tick time, memory, per-dimension entity and chunk counts, the hottest chunks with a teleport, and which players carry the most nearby entities. The chunk browser ranks FTB Chunks footprints by force-loaded count and lists vanilla forced chunks. Both compute only when opened and cache the result, so an idle server does no work.
+- **Watchlist, Shared-Connection Detection and Client Mods (1.3.0)** — Flag a player and get pinged when they connect. Accounts are grouped by a **salted hash** of their address, never the address itself, so the panel can say two accounts share an origin and can never say where. Clients running the mod declare their mod list, matched against a configurable blacklist and labelled throughout as self-declared.
+- **World Control, Chat Control and Scheduling (1.3.0)** — Time, weather, difficulty and fourteen game rules as buttons. Chat lock and clear chat for incidents. **Scheduled restarts** with warning marks and a countdown, **rotating auto-broadcasts**, and an **automatic post-reboot login queue** that arms and disarms itself.
+- **Offline Mail, Playtime, AFK list, Radar, Bulk Actions and Return Teleport (1.3.0)** — Leave a message for a disconnected player. Rank playtime and sessions. See who is idle and where. See who is nearby. Build a selection from the grid and message, gather, heal, warn or kick it. Walk back out of every panel teleport.
+- **Disguise, extended (1.3.0)** — A picker menu listing every living entity with its spawn egg, plus baby form, a render scale (visual only: the hitbox stays the player's), an optional mob name above the disguise, `random`, server-wide `--all` / `--random` / `--clear` / `--list`, and an optional clear-on-death.
+- **Filters and Sorting (1.3.0)** — The player grid filters by online, offline, jailed, muted, banned, warned, watched, frozen, vanished, AFK or selected, sorts by name, last seen, playtime or warn count, and marks each head with its current state.
 - **Bilingual UI** — English and French lang files, automatic locale detection.
 
 ## Commands
@@ -65,6 +75,50 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `nametag hideall [on\|off]` | `arcadia.adminpanel.nametag.hide` | Event blackout: hide **every** player's name at once (hide-and-seek) |
 | `nametag forcehide <player>` | `arcadia.adminpanel.nametag.hide` | Toggle hiding one player's name permanently for everyone |
 | `disguise <player> <entity>` | `arcadia.adminpanel.disguise` | Disguise a player as any living mob (e.g. `minecraft:pig`); `reset` clears it |
+| `tools` | `arcadia.adminpanel.open` | Open the Staff Tools screen (server-wide half of the panel) |
+| `vanish` | `arcadia.adminpanel.vanish` | Toggle your own invisibility |
+| `freeze <player> [reason]` | `arcadia.adminpanel.freeze` | Freeze a player for a screenshare |
+| `unfreeze <player>` | `arcadia.adminpanel.freeze` | Release a frozen player |
+| `spectate <player>` / `unspectate` | `arcadia.adminpanel.spectate` | Spectate a player, then return where you were |
+| `history <player>` | `arcadia.adminpanel.history` | Open the unified sanction history |
+| `audit [player]` | `arcadia.adminpanel.audit` | Open the staff audit log |
+| `note <player> <text>` | `arcadia.adminpanel.notes` | Add a private staff note (`!` prefix pins it) |
+| `notes <player>` | `arcadia.adminpanel.notes` | Open a player's notes |
+| `watch <player> [reason]` / `unwatch <player>` | `arcadia.adminpanel.watchlist` | Flag or unflag a player |
+| `watchlist` | `arcadia.adminpanel.watchlist` | Open the watchlist |
+| `tempban <player> <minutes> [reason]` | `arcadia.adminpanel.ban` | Ban with a duration (`0` = permanent) |
+| `banlist` | `arcadia.adminpanel.ban` | Open the ban list |
+| `templates <player>` | `arcadia.adminpanel.templates` | Apply a sanction template with escalation |
+| `invedit <player>` | `arcadia.adminpanel.invedit` | Edit an inventory, online or offline |
+| `deaths <player>` | `arcadia.adminpanel.deathrestore` | Browse and restore death snapshots |
+| `giveitem <player> <item> [count]` | `arcadia.adminpanel.giveitem` | Give an item by id |
+| `mail <player> <message>` | `arcadia.adminpanel.mail` | Leave a message for an offline player |
+| `sessions` | `arcadia.adminpanel.sessions` | Playtime and session ranking |
+| `afklist` | `arcadia.adminpanel.afk` | Who is idle and for how long |
+| `alts` | `arcadia.adminpanel.alts` | Accounts sharing a connection fingerprint |
+| `clientmods` | `arcadia.adminpanel.clientmods` | Mod lists declared by connected clients |
+| `lag` | `arcadia.adminpanel.performance` | One-line performance summary in chat |
+| `lagpanel` | `arcadia.adminpanel.performance` | Open the performance panel |
+| `chunks` | `arcadia.adminpanel.chunks` | Open the chunk browser |
+| `world` | `arcadia.adminpanel.world` | Open world control |
+| `radar` | `arcadia.adminpanel.radar` | Who is nearby |
+| `chatlock` | `arcadia.adminpanel.chatcontrol` | Lock or unlock public chat |
+| `clearchat` | `arcadia.adminpanel.chatcontrol` | Scroll everyone's chat away |
+| `restart <minutes> [reason]` / `restart cancel` | `arcadia.adminpanel.restart` | Schedule or cancel a restart |
+| `broadcast` / `broadcast toggle` | `arcadia.adminpanel.broadcast` | Send the next auto-broadcast, or toggle the rotation |
+| `cmdspy` / `socialspy` | `arcadia.adminpanel.spy` | Toggle the command and private-message feeds |
+| `silent` | `arcadia.adminpanel.silent` | Toggle silent mode (no public announcement) |
+| `select <player>` / `selectclear` | `arcadia.adminpanel.bulk` | Build or clear the bulk selection |
+| `back` | `arcadia.adminpanel.back` | Return to your position before the last panel teleport |
+| `disguise <player> baby <on\|off>` | `arcadia.adminpanel.disguise` | Baby form of the disguise |
+| `disguise <player> scale <0.25-4.0>` | `arcadia.adminpanel.disguise` | Render scale (visual only) |
+| `disguise <player> name <on\|off>` | `arcadia.adminpanel.disguise` | Show the mob name above the disguise |
+| `disguise <player> random` | `arcadia.adminpanel.disguise` | Random living mob |
+| `disguise <player> show` | `arcadia.adminpanel.disguise` | Print the current disguise and its options |
+| `disguise --all <entity>` | `arcadia.adminpanel.disguise` | Disguise every online player |
+| `disguise --random` | `arcadia.adminpanel.disguise` | Give every online player a random disguise |
+| `disguise --clear` | `arcadia.adminpanel.disguise` | Remove every disguise |
+| `disguise --list` | `arcadia.adminpanel.disguise` | List the disguised players |
 
 ### GUI-only permission nodes
 
@@ -85,6 +139,7 @@ cannot trigger it.
 | `arcadia.adminpanel.ban` | Ban / unban a player |
 | `arcadia.adminpanel.info` | Open a player's info sheet (ban/whitelist/login history) |
 | `arcadia.adminpanel.disguise` | Disguise a player as a mob (`disguise …`) |
+| `arcadia.adminpanel.vanish.see` | See other vanished staff. Separate from `.vanish` so a trainee can be hidden from. |
 
 ### LuckPerms quick-start
 
@@ -129,7 +184,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.2.12.jar` in your `mods/` folder
+2. Place `arcadia-admin-panel-1.3.0.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -152,6 +207,52 @@ All tunables live in `config/arcadia/arcadiaadminpanel/config.json` (auto-create
 | `jailEnforceProximity` | `true` | Run the periodic proximity sweep for jailed players. |
 | `jailProximityRadius` | `32` | Radius (blocks) from jail point before re-teleport. |
 | `jailEnforceTickInterval` | `20` | Sweep interval in ticks (20 = 1 s). |
+| `disguiseClearOnDeath` | `false` | Drop a player's disguise when they die. |
+| `broadcastSanctions` | `false` | Announce sanctions server-wide. Staff always see them regardless. |
+| `auditRetentionDays` | `180` | Drop audit rows older than N days. `0` disables the sweep. Sanctions are never dropped. |
+| `discordWebhookUrl` | `""` | Incoming-webhook URL for the sanction mirror. **This is a credential: keep it out of git.** Empty disables every outbound call. |
+| `discordWebhookName` | `Arcadia Moderation` | Display name the webhook posts under. |
+| `discordSkipSilent` | `true` | Skip actions performed in silent mode. |
+| `vanishHideFromTab` | `true` | Remove a vanished staff member from the TAB list. |
+| `vanishFakeJoinLeave` | `true` | Print a fake leave/join line when toggling vanish. |
+| `vanishNoPickup` | `true` | A vanished staff member walks over items without picking them up. |
+| `vanishNoMobTarget` | `true` | Mobs forget a vanished staff member. |
+| `vanishPersist` | `false` | Restore vanish on the next login. |
+| `freezeDamageImmunity` | `true` | A frozen player takes no damage. |
+| `freezeReminderSeconds` | `10` | Seconds between reminder lines for a frozen player. `0` disables. |
+| `defaultTempbanMinutes` | `1440` | Duration used by the GUI temp-ban button. |
+| `banSyncEnabled` | `true` | Replicate bans to the other servers sharing the database. |
+| `escalationEnabled` | `true` | Apply the escalation ladder when a template is used. |
+| `chatLockAllowStaff` | `true` | Staff can still talk while the chat is locked. |
+| `clearChatLines` | `100` | Blank lines pushed by the clear-chat action. |
+| `deathSnapshotsEnabled` | `true` | Capture the inventory on death. |
+| `deathSnapshotsPerPlayer` | `5` | How many deaths to keep per player. |
+| `inventoryEditEnabled` | `true` | Allow editing a connected player's inventory. |
+| `offlineInventoryEditEnabled` | `true` | Allow rewriting a disconnected player's stored inventory. |
+| `mailMaxPerPlayer` | `20` | Cap on undelivered messages per player. |
+| `afkEnabled` | `true` | Track idle players. |
+| `afkMinutes` | `5` | Minutes without movement, chat or interaction before a player counts as AFK. |
+| `afkCheckIntervalTicks` | `100` | Ticks between AFK sweeps (100 = every 5 s). |
+| `altDetectionEnabled` | `true` | Group accounts by a salted hash of their address. |
+| `altAlertStaff` | `true` | Ping staff when an account matches a banned one. |
+| `storePlainIp` | `false` | Keep writing the plain address in `logins.json`. Off since 1.3.0: the hash covers every panel feature. |
+| `clientModsEnabled` | `true` | Collect the mod list reported by clients running this mod. |
+| `clientModBlacklist` | `[]` | Mod ids that raise a staff alert, matched case-insensitively. |
+| `clientModAlertStaff` | `true` | Ping staff on a blacklist hit. |
+| `lagSampleCacheSeconds` | `10` | Seconds a computed performance sample is reused. |
+| `lagTopChunks` | `10` | How many hot chunks the panel lists. |
+| `lagEntityRadius` | `64` | Radius (blocks) used when attributing nearby entities to a player. |
+| `restartScheduleTimes` | `[]` | Daily restart times in 24 h `HH:mm` local time. Empty disables the schedule. |
+| `restartWarnMinutes` | `[15,10,5,3,1]` | Minute marks at which a warning is broadcast. |
+| `restartCountdownSeconds` | `10` | Seconds of per-second countdown at the end. |
+| `restartReason` | `Scheduled restart` | Kick message shown when the restart fires. |
+| `autoBroadcastEnabled` | `false` | Master switch for the rotating announcements. |
+| `autoBroadcastIntervalMinutes` | `15` | Minutes between two messages. |
+| `autoBroadcastMessages` | `[]` | Messages, broadcast in order then looped. Supports § colour codes. |
+| `loginQueueAutoAfterBoot` | `false` | Arm the login queue by itself after boot. |
+| `loginQueueAutoMinutes` | `10` | Minutes the automatic queue stays on. |
+| `watchlistAlertOnJoin` | `true` | Ping staff when a watched player connects. |
+| `radarRadius` | `128` | Radius (blocks) scanned by the proximity radar. |
 
 ### Multi-Server Sync
 Configure MySQL in `config/arcadia/lib/database.toml` and set `enabled = true`. All servers sharing the same database will sync warns + jails automatically. Each server identifies itself via the JVM property `-Darcadia.server_id=server1`.
@@ -193,6 +294,16 @@ Arcadia Admin Panel est un mod NeoForge pour Minecraft qui offre au staff serveu
 - **File d'Attente Connexion** — Throttle de connexion optionnel (désactivé par défaut). Fenêtre glissante token-bucket maintient l'excès de joueurs en phase de négociation — pas de slot, pas de chargement de chunks — jusqu'à leur tour. Sauve les modpacks lourds de la mort TPS post-reboot.
 - **Pseudos — Pseudo personnalisé, grade, masquage derrière les murs + Couleurs & Effets** — Contrôle du pseudo flottant, autoritaire côté serveur, qui pilote aussi la liste TAB. **Pseudo personnalisé** : `nametag name <joueur> <pseudo…>` remplace le pseudo affiché à la fois sur le pseudo flottant et dans la liste TAB (le vrai pseudo est conservé pour le chat, `/msg`, bans et téléportations). **Conscient du grade** : le grade du joueur (préfixe/suffixe de team scoreboard posé par LuckPerms & co.) est préservé autour du pseudo stylisé et peut être affiché/masqué par joueur avec `nametag grade <joueur> <on|off>`. **Masquage derrière les murs** (activé par défaut) : le pseudo d'un joueur est supprimé côté client quand un bloc plein se trouve entre la caméra de l'observateur et ce joueur (raytrace de ligne de vue) — impossible de lire qui se cache derrière un mur ; les blocs transparents (verre/feuilles) ne masquent pas sauf configuration, et tout joueur peut être rendu toujours visible (`exempt`). **Stylisation** : couleurs nommées, vraie RGB, dégradés multi-couleurs figés, dix effets animés (**solid, gradient, rainbow, breathing, chase, wave, blink, fade, typewriter, random**), les cinq décorations de texte (gras/italique/souligné/barré/obfusqué) et une vitesse d'animation. L'état persiste dans `nametags.json` et est synchronisé aux clients à la connexion ; les effets du pseudo flottant s'animent via un tick client (la liste TAB affiche les couleurs de façon statique). Deux nodes : `arcadia.adminpanel.nametag` et `arcadia.adminpanel.nametag.hide`.
 - **Permissions Granulaires** — Un node LuckPerms par action (`arcadia.adminpanel.warn.view`, `.warn.edit`, `.kick`, `.ban`, `.mute`, `.jail`, `.teleport`, `.invsee`, `.clearinv`, `.resetprogress`, `.teams`, `.reload`, `.setjail`, `.loginqueue`, `.announce`, `.nextspawn`, `.gamemode`, `.heal`, `.nametag`, `.nametag.hide`, `.open`). Les boutons que le viewer ne peut pas utiliser sont entièrement cachés du GUI. **Pour accorder l'accès au panel, le node unique le plus simple est `arcadia.hub.adminpanel`** — c'est le node qu'utilise le dashboard d'Arcadia Lib pour afficher la carte, et depuis la 1.2.5 il ouvre aussi le panel (un seul grant révèle ET ouvre). OP level ≥ 2 court-circuite tout ; le legacy `arcadia.staff.mod` accorde toujours l'accès complet pour rétrocompatibilité.
+- **Journal d'Audit Staff (1.3.0)** — Chaque action du staff enregistrée avec son auteur, sa cible, la date, le serveur et la raison. Consultable, filtrable sur un joueur ou un membre du staff, synchronisée entre serveurs, avec une rétention configurable. L'**historique unifié des sanctions** regroupe warns, mutes, prisons, expulsions et bans en une seule frise par joueur, et les **notes privées du staff** accueillent les observations qui ne sont pas des avertissements.
+- **Invisibilité, Gel et Observation (1.3.0)** — L'invisibilité est réellement côté serveur : l'entité et l'entrée TAB sont retirées des autres clients plutôt que masquées par un client qui pourrait ignorer la consigne, et la réapparition reconstruit les paquets d'apparition au lieu de forcer un rechargement de chunks. Le **gel** immobilise un suspect pour un screenshare (ni déplacement, ni interaction, ni dégât, chat toujours ouvert) avec un voile explicatif côté client. L'**observation** vous emmène sur un joueur et vous remet exactement où vous étiez, même si la session se termine involontairement.
+- **Bans Temporaires, Liste des Bans et Modèles de Sanction (1.3.0)** — Les bans acceptent une durée et une raison saisie, la liste est un écran avec compte à rebours d'expiration et débannissement en un clic, et les bans se répliquent entre serveurs en étant appliqués dès la négociation. Les **modèles** contiennent des infractions prérédigées avec une échelle d'escalade qui choisit sa sévérité selon ce que le joueur a déjà accumulé.
+- **Instantanés de Mort et Éditeur d'Inventaire (1.3.0)** — L'inventaire complet est capturé à chaque mort (les cinq derniers par joueur, avec cause et position) et peut être rendu en un clic, en ligne comme hors ligne. L'**éditeur d'inventaire** consulte et modifie l'inventaire de n'importe quel joueur, y compris déconnecté, avec une sauvegarde explicite et un refus d'écrire s'il s'est reconnecté entre-temps.
+- **Panneau de Performances et Navigateur de Chunks (1.3.0)** — TPS, temps de tick, mémoire, entités et chunks par dimension, les chunks les plus chargés avec téléportation, et les joueurs qui portent le plus d'entités à proximité. Le navigateur de chunks classe les empreintes FTB Chunks par nombre de chunks force-loaded et liste les chunks forcés vanilla. Les deux ne calculent qu'à l'ouverture et mettent le résultat en cache : un serveur au repos ne fait aucun travail.
+- **Surveillance, Détection de Connexions Partagées et Mods Client (1.3.0)** — Signalez un joueur et recevez un ping à sa connexion. Les comptes sont regroupés par un **hachage salé** de leur adresse, jamais par l'adresse elle-même : le panel peut dire que deux comptes partagent une origine et ne peut jamais dire laquelle. Les clients équipés du mod déclarent leur liste de mods, comparée à une liste noire configurable et présentée partout comme une auto-déclaration.
+- **Contrôle du Monde, Contrôle du Chat et Programmation (1.3.0)** — Heure, météo, difficulté et quatorze gamerules sous forme de boutons. Verrou et vidage du chat pour les incidents. **Redémarrages programmés** avec paliers d'avertissement et décompte, **annonces automatiques en rotation**, et une **file d'attente automatique après reboot** qui s'active et se désactive toute seule.
+- **Courrier Hors Ligne, Temps de Jeu, Liste AFK, Radar, Actions Groupées et Retour (1.3.0)** — Laissez un message à un joueur déconnecté. Classez le temps de jeu et les sessions. Voyez qui est inactif et où. Voyez qui est à proximité. Constituez une sélection depuis la grille pour message, rassemblement, soin, avertissement ou expulsion. Remontez chaque téléportation du panel.
+- **Déguisement, étendu (1.3.0)** — Un menu de sélection listant toutes les entités vivantes avec leur œuf d'apparition, plus la forme bébé, une échelle de rendu (purement visuelle : la hitbox reste celle du joueur), un nom de mob optionnel au-dessus du déguisement, `random`, les commandes serveur `--all` / `--random` / `--clear` / `--list`, et un retrait optionnel à la mort.
+- **Filtres et Tris (1.3.0)** — La grille des joueurs filtre par en ligne, hors ligne, prison, mute, bannis, avertis, surveillés, gelés, invisibles, AFK ou sélectionnés, trie par nom, dernière connexion, temps de jeu ou nombre d'avertissements, et marque chaque tête avec son état actuel.
 - **Interface Bilingue** — Fichiers de langue anglais et français, détection automatique de la locale.
 
 ## Commandes
@@ -240,6 +351,50 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `nametag hideall [on\|off]` | `arcadia.adminpanel.nametag.hide` | Mode event : masquer **tous** les pseudos d'un coup (cache-cache) |
 | `nametag forcehide <joueur>` | `arcadia.adminpanel.nametag.hide` | Basculer le masquage permanent du pseudo d'un joueur pour tous |
 | `disguise <joueur> <entité>` | `arcadia.adminpanel.disguise` | Déguiser un joueur en n'importe quel mob vivant (ex. `minecraft:pig`) ; `reset` l'enlève |
+| `tools` | `arcadia.adminpanel.open` | Ouvrir l'écran Outils Staff (moitié serveur du panel) |
+| `vanish` | `arcadia.adminpanel.vanish` | Basculer sa propre invisibilité |
+| `freeze <joueur> [raison]` | `arcadia.adminpanel.freeze` | Geler un joueur pour un screenshare |
+| `unfreeze <joueur>` | `arcadia.adminpanel.freeze` | Libérer un joueur gelé |
+| `spectate <joueur>` / `unspectate` | `arcadia.adminpanel.spectate` | Observer un joueur, puis revenir à sa position |
+| `history <joueur>` | `arcadia.adminpanel.history` | Ouvrir l'historique unifié des sanctions |
+| `audit [joueur]` | `arcadia.adminpanel.audit` | Ouvrir le journal d'audit staff |
+| `note <joueur> <texte>` | `arcadia.adminpanel.notes` | Ajouter une note privée (préfixe `!` pour l'épingler) |
+| `notes <joueur>` | `arcadia.adminpanel.notes` | Ouvrir les notes d'un joueur |
+| `watch <joueur> [raison]` / `unwatch <joueur>` | `arcadia.adminpanel.watchlist` | Mettre ou retirer de la surveillance |
+| `watchlist` | `arcadia.adminpanel.watchlist` | Ouvrir la liste de surveillance |
+| `tempban <joueur> <minutes> [raison]` | `arcadia.adminpanel.ban` | Bannir avec une durée (`0` = définitif) |
+| `banlist` | `arcadia.adminpanel.ban` | Ouvrir la liste des bans |
+| `templates <joueur>` | `arcadia.adminpanel.templates` | Appliquer un modèle de sanction avec escalade |
+| `invedit <joueur>` | `arcadia.adminpanel.invedit` | Éditer un inventaire, en ligne ou hors ligne |
+| `deaths <joueur>` | `arcadia.adminpanel.deathrestore` | Parcourir et restaurer les instantanés de mort |
+| `giveitem <joueur> <objet> [quantité]` | `arcadia.adminpanel.giveitem` | Donner un objet par son id |
+| `mail <joueur> <message>` | `arcadia.adminpanel.mail` | Laisser un message à un joueur hors ligne |
+| `sessions` | `arcadia.adminpanel.sessions` | Classement du temps de jeu et des sessions |
+| `afklist` | `arcadia.adminpanel.afk` | Qui est inactif et depuis combien de temps |
+| `alts` | `arcadia.adminpanel.alts` | Comptes partageant une empreinte de connexion |
+| `clientmods` | `arcadia.adminpanel.clientmods` | Listes de mods déclarées par les clients connectés |
+| `lag` | `arcadia.adminpanel.performance` | Résumé de performances en une ligne dans le chat |
+| `lagpanel` | `arcadia.adminpanel.performance` | Ouvrir le panneau de performances |
+| `chunks` | `arcadia.adminpanel.chunks` | Ouvrir le navigateur de chunks |
+| `world` | `arcadia.adminpanel.world` | Ouvrir le contrôle du monde |
+| `radar` | `arcadia.adminpanel.radar` | Qui est à proximité |
+| `chatlock` | `arcadia.adminpanel.chatcontrol` | Verrouiller ou déverrouiller le chat public |
+| `clearchat` | `arcadia.adminpanel.chatcontrol` | Faire défiler le chat de tout le monde |
+| `restart <minutes> [raison]` / `restart cancel` | `arcadia.adminpanel.restart` | Programmer ou annuler un redémarrage |
+| `broadcast` / `broadcast toggle` | `arcadia.adminpanel.broadcast` | Envoyer la prochaine annonce, ou basculer la rotation |
+| `cmdspy` / `socialspy` | `arcadia.adminpanel.spy` | Basculer les flux commandes et messages privés |
+| `silent` | `arcadia.adminpanel.silent` | Basculer le mode silencieux (aucune annonce publique) |
+| `select <joueur>` / `selectclear` | `arcadia.adminpanel.bulk` | Constituer ou vider la sélection groupée |
+| `back` | `arcadia.adminpanel.back` | Revenir à sa position d'avant la dernière téléportation du panel |
+| `disguise <joueur> baby <on\|off>` | `arcadia.adminpanel.disguise` | Forme bébé du déguisement |
+| `disguise <joueur> scale <0.25-4.0>` | `arcadia.adminpanel.disguise` | Échelle de rendu (purement visuelle) |
+| `disguise <joueur> name <on\|off>` | `arcadia.adminpanel.disguise` | Afficher le nom du mob au-dessus du déguisement |
+| `disguise <joueur> random` | `arcadia.adminpanel.disguise` | Mob vivant aléatoire |
+| `disguise <joueur> show` | `arcadia.adminpanel.disguise` | Afficher le déguisement actuel et ses options |
+| `disguise --all <entité>` | `arcadia.adminpanel.disguise` | Déguiser tous les joueurs connectés |
+| `disguise --random` | `arcadia.adminpanel.disguise` | Donner un déguisement aléatoire à chaque joueur |
+| `disguise --clear` | `arcadia.adminpanel.disguise` | Retirer tous les déguisements |
+| `disguise --list` | `arcadia.adminpanel.disguise` | Lister les joueurs déguisés |
 
 ### Nodes de permission réservés au GUI
 
@@ -260,6 +415,7 @@ qu'un paquet forgé ne puisse pas le déclencher.
 | `arcadia.adminpanel.ban` | Bannir / débannir un joueur |
 | `arcadia.adminpanel.info` | Ouvrir la fiche d'info (ban/whitelist/historique de connexion) |
 | `arcadia.adminpanel.disguise` | Déguiser un joueur en mob (`disguise …`) |
+| `arcadia.adminpanel.vanish.see` | Voir les autres membres du staff invisibles. Séparé de `.vanish` pour pouvoir se cacher d'un stagiaire. |
 
 ### Démarrage rapide LuckPerms
 
@@ -305,7 +461,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Installez [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 dans votre dossier `mods/`
-2. Placez `arcadia-admin-panel-1.2.12.jar` dans votre dossier `mods/`
+2. Placez `arcadia-admin-panel-1.3.0.jar` dans votre dossier `mods/`
 3. (Optionnel) Installez FTB Essentials, FTB Teams, FTB Chunks pour toutes les fonctionnalités
 4. (Optionnel) Installez LuckPerms et accordez les nodes `arcadia.adminpanel.*` aux groupes voulus
 5. Démarrez le serveur

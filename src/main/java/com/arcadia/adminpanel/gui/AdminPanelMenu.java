@@ -30,8 +30,22 @@ public class AdminPanelMenu extends ChestMenu {
     private final ServerPlayer admin;
     private final String filter;
     private int currentPage = 0;
-    private boolean showOffline = true;
     private static final int ITEMS_PER_PAGE = 45;
+
+    /**
+     * What the grid is narrowed to. 1.3.0 replaced the online/offline boolean with a cycle: a staff
+     * member arriving after an incident wants "who is jailed" or "who is flagged", and building that
+     * answer by scrolling an alphabetical list of every player who ever joined does not scale.
+     */
+    private enum Filter {
+        ALL, ONLINE, OFFLINE, JAILED, MUTED, BANNED, WARNED, WATCHED, FROZEN, VANISHED, AFK, SELECTED
+    }
+
+    /** How the grid is ordered. */
+    private enum Sort { NAME, LAST_SEEN, PLAYTIME, WARNS }
+
+    private Filter activeFilter = Filter.ALL;
+    private Sort activeSort = Sort.NAME;
 
     // Authoritative slot -> player mapping for the current page. We act on the head's UUID (not its
     // display name) so duplicate / case-colliding names can never operate on the wrong player.
@@ -80,7 +94,7 @@ public class AdminPanelMenu extends ChestMenu {
             allPlayers.add(new PlayerInfo(player.getUUID(), player.getName().getString(), true));
         }
 
-        if (showOffline) {
+        if (activeFilter != Filter.ONLINE) {
             Map<UUID, OfflinePlayerManager.CachedPlayerSummary> cache =
                     OfflinePlayerManager.getInstance().getCache();
             for (var summary : cache.values()) {
@@ -97,10 +111,8 @@ public class AdminPanelMenu extends ChestMenu {
             allPlayers.removeIf(p -> !p.name.toLowerCase(Locale.ROOT).contains(lowerFilter));
         }
 
-        allPlayers.sort((p1, p2) -> {
-            if (p1.online != p2.online) return p1.online ? -1 : 1;
-            return p1.name.compareToIgnoreCase(p2.name);
-        });
+        allPlayers.removeIf(p -> !matchesFilter(p));
+        sortPlayers(allPlayers);
 
         // Fill background
         var filler = ItemBuilder.of(Items.GRAY_STAINED_GLASS_PANE).name(Component.literal(" ")).build();
@@ -118,10 +130,7 @@ public class AdminPanelMenu extends ChestMenu {
         for (int i = start; i < end; i++) {
             PlayerInfo info = allPlayers.get(i);
             int slot = i - start;
-            var skull = SkullCache.createSkull(info.uuid, info.name);
-            skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
-                    Component.literal((info.online ? "§a" : "§c") + info.name));
-            this.getContainer().setItem(slot, skull);
+            this.getContainer().setItem(slot, buildHead(info));
             slotUuid.put(slot, info.uuid);
             slotName.put(slot, info.name);
             if (!SkullCache.hasTexture(info.uuid)) anyPlaceholder = true;
@@ -149,12 +158,41 @@ public class AdminPanelMenu extends ChestMenu {
                     .build());
         }
 
-        // Filter toggle (slot 49)
-        this.getContainer().setItem(49, ItemBuilder.of(showOffline ? Items.LIME_DYE : Items.GRAY_DYE)
-                .name(Component.literal("§6" + (showOffline
-                        ? LanguageHelper.getText("menu.filter.all", admin)
-                        : LanguageHelper.getText("menu.filter.online", admin))))
+        // Filter cycle (slot 49)
+        this.getContainer().setItem(49, ItemBuilder
+                .of(activeFilter == Filter.ALL ? Items.LIME_DYE : Items.ORANGE_DYE)
+                .name(Component.literal("§6" + LanguageHelper.getText("menu.filter", admin) + " §f"
+                        + LanguageHelper.getText("menu.filter." + activeFilter.name().toLowerCase(), admin)))
+                .addLore(Component.literal("§7" + allPlayers.size() + " "
+                        + LanguageHelper.getText("menu.filter.results", admin)))
+                .addLore(Component.literal("§8" + LanguageHelper.getText("menu.filter.cycle", admin)))
                 .build());
+
+        // Sort cycle (slot 50)
+        this.getContainer().setItem(50, ItemBuilder.of(Items.HOPPER)
+                .name(Component.literal("§e" + LanguageHelper.getText("menu.sort", admin) + " §f"
+                        + LanguageHelper.getText("menu.sort." + activeSort.name().toLowerCase(), admin)))
+                .addLore(Component.literal("§8" + LanguageHelper.getText("menu.sort.cycle", admin)))
+                .build());
+
+        // Staff tools (slot 48)
+        this.getContainer().setItem(48, ItemBuilder.of(Items.BEACON)
+                .name(Component.literal("§b" + LanguageHelper.getText("tools.title", admin)))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("tools.hint", admin)))
+                .build());
+
+        // Selection (slot 52) — only when the viewer can act on one.
+        if (AdminPermissions.BULK.check(admin)) {
+            int selected = com.arcadia.adminpanel.util.SelectionManager.size(admin.getUUID());
+            this.getContainer().setItem(52, ItemBuilder
+                    .of(selected > 0 ? Items.SHULKER_SHELL : Items.GLASS_PANE)
+                    .name(Component.literal((selected > 0 ? "§a" : "§7")
+                            + LanguageHelper.getText("tools.selection", admin)))
+                    .addLore(Component.literal("§7" + selected + " "
+                            + LanguageHelper.getText("tools.selection.count", admin)))
+                    .addLore(Component.literal("§8" + LanguageHelper.getText("menu.select.hint", admin)))
+                    .build());
+        }
 
         // Clear search (slot 51) — only if filter active
         if (!filter.isEmpty()) {
@@ -169,6 +207,96 @@ public class AdminPanelMenu extends ChestMenu {
             this.getContainer().setItem(53, ItemBuilder.of(Items.ARROW)
                     .name(Component.literal("§e" + LanguageHelper.getText("nav.next", admin) + " >>")).build());
         }
+    }
+
+    /**
+     * Builds one head, with the status markers a moderator scans the grid for.
+     *
+     * <p>The colour of the name carries the primary state and the lore carries the rest, so a staff
+     * member can see at a glance that the player they are looking for is jailed, flagged, or already
+     * in their selection, without opening the sheet.</p>
+     */
+    private net.minecraft.world.item.ItemStack buildHead(PlayerInfo info) {
+        boolean selected = com.arcadia.adminpanel.util.SelectionManager
+                .isSelected(admin.getUUID(), info.uuid);
+        boolean watched = com.arcadia.adminpanel.util.WatchlistManager.isWatched(info.uuid);
+        boolean jailed = com.arcadia.adminpanel.util.JailManager.getInstance().isJailed(info.uuid);
+        boolean muted = com.arcadia.lib.staff.StaffActions.isMuted(info.uuid);
+        boolean frozen = com.arcadia.adminpanel.util.FreezeManager.isFrozen(info.uuid);
+        boolean vanished = com.arcadia.adminpanel.util.VanishManager.isVanished(info.uuid);
+        boolean afk = com.arcadia.adminpanel.util.AfkTracker.isAfk(info.uuid);
+        int warns = com.arcadia.adminpanel.util.WarnManager.getInstance().getWarnCount(info.uuid);
+
+        String colour = selected ? "§b" : info.online ? (afk ? "§2" : "§a") : "§c";
+        var builder = ItemBuilder.of(SkullCache.createSkull(info.uuid, info.name))
+                .name(Component.literal(colour + info.name + (selected ? " §b*" : "")));
+
+        if (afk) builder.addLore(Component.literal("§8" + LanguageHelper.getText("perf.afk", admin)));
+        if (jailed) builder.addLore(Component.literal("§c" + LanguageHelper.getText("menu.mark.jailed", admin)));
+        if (muted) builder.addLore(Component.literal("§c" + LanguageHelper.getText("menu.mark.muted", admin)));
+        if (frozen) builder.addLore(Component.literal("§b" + LanguageHelper.getText("menu.mark.frozen", admin)));
+        if (vanished) builder.addLore(Component.literal("§8" + LanguageHelper.getText("menu.mark.vanished", admin)));
+        if (watched) builder.addLore(Component.literal("§d" + LanguageHelper.getText("menu.mark.watched", admin)));
+        if (warns > 0) {
+            builder.addLore(Component.literal("§e" + warns + " "
+                    + LanguageHelper.getText("menu.mark.warns", admin)));
+        }
+        if (AdminPermissions.BULK.check(admin)) {
+            builder.addLore(Component.literal("§8" + LanguageHelper.getText("menu.select.hint", admin)));
+        }
+        return builder.build();
+    }
+
+    /**
+     * Decides whether one player survives the active filter.
+     *
+     * <p>Every branch is an in-memory lookup: a set membership, a cached warn count or a live player
+     * list check. Nothing here touches disk, so cycling the filter on a server with thousands of
+     * known players stays instant.</p>
+     */
+    private boolean matchesFilter(PlayerInfo p) {
+        return switch (activeFilter) {
+            case ALL -> true;
+            case ONLINE -> p.online;
+            case OFFLINE -> !p.online;
+            case JAILED -> com.arcadia.adminpanel.util.JailManager.getInstance().isJailed(p.uuid);
+            case MUTED -> com.arcadia.lib.staff.StaffActions.isMuted(p.uuid);
+            case BANNED -> admin.getServer() != null
+                    && com.arcadia.adminpanel.util.BanManager.isBanned(admin.getServer(), p.uuid, p.name);
+            case WARNED -> com.arcadia.adminpanel.util.WarnManager.getInstance().getWarnCount(p.uuid) > 0;
+            case WATCHED -> com.arcadia.adminpanel.util.WatchlistManager.isWatched(p.uuid);
+            case FROZEN -> com.arcadia.adminpanel.util.FreezeManager.isFrozen(p.uuid);
+            case VANISHED -> com.arcadia.adminpanel.util.VanishManager.isVanished(p.uuid);
+            case AFK -> com.arcadia.adminpanel.util.AfkTracker.isAfk(p.uuid);
+            case SELECTED -> com.arcadia.adminpanel.util.SelectionManager
+                    .isSelected(admin.getUUID(), p.uuid);
+        };
+    }
+
+    /** Orders the grid. Online players always float to the top of whichever ordering is active. */
+    private void sortPlayers(List<PlayerInfo> players) {
+        java.util.Comparator<PlayerInfo> comparator = switch (activeSort) {
+            case NAME -> (a, b) -> a.name.compareToIgnoreCase(b.name);
+            case LAST_SEEN -> (a, b) -> Long.compare(lastSeen(b), lastSeen(a));
+            case PLAYTIME -> (a, b) -> Long.compare(playtime(b), playtime(a));
+            case WARNS -> (a, b) -> Integer.compare(
+                    com.arcadia.adminpanel.util.WarnManager.getInstance().getWarnCount(b.uuid),
+                    com.arcadia.adminpanel.util.WarnManager.getInstance().getWarnCount(a.uuid));
+        };
+        players.sort((a, b) -> {
+            if (a.online != b.online) return a.online ? -1 : 1;
+            return comparator.compare(a, b);
+        });
+    }
+
+    private static long lastSeen(PlayerInfo p) {
+        var rec = com.arcadia.adminpanel.util.LoginTracker.getInstance().get(p.uuid);
+        return rec == null ? 0L : Math.max(rec.lastLoginMs(), rec.lastLogoutMs());
+    }
+
+    private static long playtime(PlayerInfo p) {
+        var rec = com.arcadia.adminpanel.util.LoginTracker.getInstance().get(p.uuid);
+        return rec == null ? 0L : rec.playtimeMs(p.online);
     }
 
     /**
@@ -190,10 +318,7 @@ public class AdminPanelMenu extends ChestMenu {
                 String name = slotName.get(slot);
                 if (name == null) continue;
                 boolean online = admin.getServer().getPlayerList().getPlayer(uuid) != null;
-                var skull = SkullCache.createSkull(uuid, name);
-                skull.set(net.minecraft.core.component.DataComponents.CUSTOM_NAME,
-                        Component.literal((online ? "§a" : "§c") + name));
-                this.getContainer().setItem(slot, skull);
+                this.getContainer().setItem(slot, buildHead(new PlayerInfo(uuid, name, online)));
                 if (!SkullCache.hasTexture(uuid)) stillPlaceholder = true;
             }
             this.broadcastChanges();
@@ -217,6 +342,18 @@ public class AdminPanelMenu extends ChestMenu {
             boolean isOnline = sp.getServer().getPlayerList().getPlayer(targetUUID) != null;
             String name = slotName.getOrDefault(slotId,
                     clicked.getHoverName().getString().replaceAll("§[0-9a-fk-or]", ""));
+
+            // Shift-click builds the bulk selection instead of opening the sheet. Keeping it on a
+            // modifier means the ordinary click still does the ordinary thing.
+            if ((clickType == ClickType.QUICK_MOVE || button == 1)
+                    && AdminPermissions.BULK.check(sp)) {
+                com.arcadia.adminpanel.util.SelectionManager.toggle(sp.getUUID(), targetUUID, name);
+                com.arcadia.lib.util.SoundHelper.playAt(sp, com.arcadia.lib.util.SoundHelper.CLICK);
+                buildMenu();
+                this.broadcastChanges();
+                return;
+            }
+
             sp.closeContainer();
             PlayerDetailMenu.open(sp, targetUUID, name, isOnline);
             return;
@@ -238,11 +375,43 @@ public class AdminPanelMenu extends ChestMenu {
             return;
         }
 
-        // Filter toggle (49)
+        // Filter cycle (49) — right click steps backwards so a missed target is one click away.
         if (slotId == 49) {
-            showOffline = !showOffline;
+            Filter[] all = Filter.values();
+            int step = button == 1 ? all.length - 1 : 1;
+            activeFilter = all[(activeFilter.ordinal() + step) % all.length];
             currentPage = 0;
             buildMenu();
+            return;
+        }
+
+        // Sort cycle (50)
+        if (slotId == 50) {
+            Sort[] all = Sort.values();
+            int step = button == 1 ? all.length - 1 : 1;
+            activeSort = all[(activeSort.ordinal() + step) % all.length];
+            currentPage = 0;
+            buildMenu();
+            return;
+        }
+
+        // Staff tools (48)
+        if (slotId == 48) {
+            sp.closeContainer();
+            StaffToolsMenu.open(sp);
+            return;
+        }
+
+        // Selection (52) — left opens the bulk screen, right clears the selection.
+        if (slotId == 52 && AdminPermissions.BULK.check(sp)) {
+            if (button == 1) {
+                com.arcadia.adminpanel.util.SelectionManager.clear(sp.getUUID());
+                buildMenu();
+                this.broadcastChanges();
+            } else {
+                sp.closeContainer();
+                BulkActionsMenu.open(sp);
+            }
             return;
         }
 

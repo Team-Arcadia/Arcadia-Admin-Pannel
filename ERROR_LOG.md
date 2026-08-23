@@ -4,6 +4,66 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-08-23 19:20] — Permission bitmask silently wraps past 32 nodes
+
+**Context:** Adding 28 permission nodes for the 1.3.0 tooling, taking `AdminPermissions` from 23 constants to 51.
+**Error:** No exception, no warning. `AdminPermissions.check()` cached results as `int flags` with `1 << ordinal()`, so from the 33rd constant onward the shift wraps: node 32 reads node 0's answer, node 33 reads node 1's. A moderator holding `arcadia.adminpanel.open` would silently have been granted `arcadia.adminpanel.vanish`.
+**Root cause:** A bitmask keyed on an enum ordinal has a hard ceiling that nothing enforces. Java defines `1 << 32` as `1 << 0` rather than 0, so the failure is a wrong answer instead of a crash, and every wrong answer is a privilege escalation.
+**Fix:** Replaced the mask with a `boolean[]` sized from `values().length`, filled in one pass on a cache miss. One small allocation per player per 2-second window; no ceiling.
+**Prevention:** Never index a fixed-width bitmask by an enum ordinal in a set that is expected to grow, and never in a permission check. If a mask is genuinely needed for performance, assert `values().length <= 64` at class-init time so the build fails instead of the gate.
+
+---
+
+## [2026-08-23 17:05] — Un-vanishing by re-adding the entity would reload every chunk
+
+**Context:** Implementing server-side vanish. Hiding is easy (`ClientboundRemoveEntitiesPacket`); making the player reappear is the hard half, because the server-side tracker still believes the observer can see them and therefore never re-sends a spawn packet.
+**Error:** No exception. The obvious fix, `ServerChunkCache.removeEntity(player)` followed by `addEntity(player)`, does work, but `ChunkMap.updatePlayerStatus(player, false)` applies an empty chunk-tracking view first: the vanished player's own client is told to forget every chunk it holds, then re-sent all of them. On a heavy modpack at view distance 12 that is roughly 600 chunks, a multi-second freeze and a large bandwidth spike, every time somebody toggles vanish.
+**Root cause:** Reaching for the coarsest API that produces the right visual result, without reading what else it touches. The tracker and the chunk view share `updatePlayerStatus`, so re-tracking an entity cannot be done without also re-sending its owner's world.
+**Fix:** Build the pairing packets directly instead. A throwaway `ServerEntity(level, player, 0, false, p -> {})` and its public `sendPairingData(observer, acceptor)` produce exactly the spawn, metadata, equipment and rotation packets the tracker sent the first time. The server-side `seenBy` set was never modified, so movement and animation updates resume on their own.
+**Prevention:** Before using a server API that "makes the client see this again", read what it does to chunk tracking. On a modded server anything that touches `updatePlayerStatus` is a multi-second operation for the affected player.
+
+---
+
+## [2026-08-23 18:40] — Per-player entity counts were players times entities on the tick thread
+
+**Context:** The performance panel attributes nearby entities to each player so staff can see whose build is loading the server.
+**Error:** No exception. The first implementation ran a radius query per player over `level.getEntities().getAll()`. With 40 players and 20k entities that is 800k distance checks in one synchronous call, on the tick thread, which is precisely the lag the panel exists to diagnose.
+**Root cause:** Writing the query the way it reads in the requirement ("entities within N blocks of the player") instead of reusing the pass that had just been done. The same loop had already bucketed every entity by chunk two lines above.
+**Fix:** Sum the existing chunk buckets over the chunks within the radius. Cost drops to players times chunks-in-radius, a couple of hundred map lookups each, and chunk granularity is still precise enough to point at the right base.
+**Prevention:** When a diagnostic walks a large collection, walk it once and answer every question from that pass. A profiler that costs a visible tick is worse than no profiler.
+
+---
+
+## [2026-08-23 15:30] — StoredUserEntry.getUser() is not visible outside its package
+
+**Context:** Building the ban-list screen from `PlayerList.getBans().getEntries()`.
+**Error:** `The method getUser() from the type StoredUserEntry<GameProfile> is not visible`.
+**Root cause:** `StoredUserEntry#getUser` is package-private in `net.minecraft.server.players`. The profile behind a ban entry is simply not reachable from outside that package without an access transformer.
+**Fix:** Read the name from the public `BanListEntry#getDisplayName()`, and resolve the UUID from the panel's own in-memory offline cache. Deliberately not `GameProfileCache#get(String)`: on a cache miss that falls through to a blocking Mojang lookup, on the server thread, once per banned player. Unban acts on the entry itself through the public `StoredUserList#remove(StoredUserEntry)`, so a row whose UUID could not be resolved is still actionable.
+**Prevention:** When a vanilla getter is not visible, check whether the surrounding class already exposes what you need another way before reaching for an access transformer. And never call a profile-cache lookup by name on the tick thread.
+
+---
+
+## [2026-08-23 16:10] — ItemArgument needs a CommandBuildContext a grafted subtree does not have
+
+**Context:** Adding `giveitem <player> <item> [count]` to the 1.3.0 command subtree, which is built in its own class and grafted onto the existing root.
+**Error:** `ItemArgument.item(...)` requires a `CommandBuildContext`, which is only handed to `RegisterCommandsEvent` and was not threaded into the subtree builder.
+**Root cause:** Vanilla argument types that resolve registry entries are context-dependent by design; a builder that does not receive the context cannot use them.
+**Fix:** Used a plain string argument with a suggestion provider over `BuiltInRegistries.ITEM.keySet()`, and validated the id against the registry at execution. Tab completion still covers every modded item, and an unknown id produces a translated error instead of a parse failure.
+**Prevention:** Either thread `CommandBuildContext` through every command builder from the start, or use string arguments with registry suggestions for anything registry-shaped. Do not discover the dependency halfway through a large tree.
+
+---
+
+## [2026-08-23 12:15] — Quoted heredocs lose their quoting through the Bash tool
+
+**Context:** Writing large Java and Markdown files from the shell with `cat > file <<'EOF'`.
+**Error:** `unexpected EOF while looking for matching '`, with the file never created. Reproducible whenever the content contains backticks or apostrophes; identical commands with plain prose succeed.
+**Root cause:** The quoting on the heredoc delimiter is not preserved by the time the command reaches bash, so the body is re-parsed: backticks open command substitution and apostrophes open quotes, and the parse runs off the end of the input.
+**Fix:** Write file content with a dedicated write tool, and for splicing into an existing file, write a small Python script to disk and run it with arguments rather than piping a heredoc into the interpreter.
+**Prevention:** Never put source code, Markdown with inline code, or French prose through a shell heredoc. Content with backticks or apostrophes goes through a file, always.
+
+---
+
 ## [2026-08-11 10:20] — Cancelling ServerChatEvent does not keep a message off a Discord bridge (issue #245)
 
 **Context:** Staff chat typed with `/arcadia_adminpanel stafftoggle` on was showing up on Discord, while the exact same text sent through `/arcadia_adminpanel staffchat <message>` was not.

@@ -59,7 +59,7 @@ public final class AdminPanelCommand {
         };
     }
 
-    private static final SuggestionProvider<CommandSourceStack> PLAYER_SUGGESTIONS = (context, builder) -> {
+    public static final SuggestionProvider<CommandSourceStack> PLAYER_SUGGESTIONS = (context, builder) -> {
         // Online players
         Stream<String> online = context.getSource().getOnlinePlayerNames().stream();
         // Offline players
@@ -328,6 +328,15 @@ public final class AdminPanelCommand {
                         .then(com.arcadia.adminpanel.command.DisguiseCommand.build(
                                 require(AdminPermissions.DISGUISE)))
         );
+
+        // The 1.3.0 subtree is grafted separately: Brigadier merges children when the same root
+        // literal is registered twice, so this keeps the two generations of commands in their own
+        // files instead of growing one unreadable builder chain.
+        var root = Commands.literal("arcadia_adminpanel");
+        for (var branch : StaffOpsCommand.build(AdminPanelCommand::require)) {
+            root.then(branch);
+        }
+        dispatcher.register(root);
     }
 
     private static int executeLoginQueueShow(CommandContext<CommandSourceStack> context) {
@@ -567,6 +576,19 @@ public final class AdminPanelCommand {
         com.arcadia.adminpanel.util.FTBChunksReader.clearCache();
         AdminPermissions.invalidateAll();
         WarnManager.getInstance().reload();
+
+        // 1.3.0 stores and caches. The record stores re-read their backend; the samplers only drop
+        // what they had so the next request recomputes.
+        com.arcadia.adminpanel.util.RecordStore.reloadAll();
+        com.arcadia.adminpanel.util.WatchlistManager.invalidate();
+        com.arcadia.adminpanel.util.SanctionTemplates.reload();
+        com.arcadia.adminpanel.util.AuditManager.purgeExpired();
+        com.arcadia.adminpanel.util.LagMonitor.invalidate();
+        com.arcadia.adminpanel.util.ChunkReport.invalidate();
+        com.arcadia.adminpanel.util.RestartScheduler.armFromConfig();
+        com.arcadia.adminpanel.util.DiscordWebhook.init();
+        com.arcadia.adminpanel.util.AuditManager.recordServer(admin,
+                com.arcadia.adminpanel.util.AdminAction.RELOAD, "");
         com.arcadia.adminpanel.util.NextSpawnManager.getInstance().reload();
         com.arcadia.adminpanel.util.NameTagManager.getInstance().reload();
         // Push the freshly-loaded name-tag state back to every online client.
@@ -875,7 +897,7 @@ public final class AdminPanelCommand {
         return 1;
     }
 
-    private static UUID resolveUUID(CommandSourceStack source, String targetName) {
+    public static UUID resolveUUID(CommandSourceStack source, String targetName) {
         ServerPlayer onlineTarget = source.getServer().getPlayerList().getPlayerByName(targetName);
         if (onlineTarget != null) return onlineTarget.getUUID();
         // Prefer an exact-case match; collect case-insensitive matches for a deterministic tie-break

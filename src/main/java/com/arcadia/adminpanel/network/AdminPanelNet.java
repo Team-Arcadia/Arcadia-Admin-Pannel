@@ -59,6 +59,37 @@ public final class AdminPanelNet {
                 S2CStaffChatState.STREAM_CODEC,
                 (p, ctx) -> p.handle(ctx)
         );
+
+        // 1.3.0 payloads are optional so a client or server that predates them still connects. The
+        // two features they carry (the freeze overlay and the client mod report) degrade to "no
+        // overlay" and "no report" rather than to a refused handshake.
+        PayloadRegistrar optional = registrar.optional();
+
+        optional.playToClient(
+                S2CFreezeState.TYPE,
+                S2CFreezeState.STREAM_CODEC,
+                (p, ctx) -> p.handle(ctx)
+        );
+
+        optional.playToServer(
+                C2SClientMods.TYPE,
+                C2SClientMods.STREAM_CODEC,
+                (p, ctx) -> p.handle(ctx)
+        );
+    }
+
+    // ── Freeze ────────────────────────────────────────────────────────────────
+
+    /**
+     * Tells one player whether they are frozen, so their client can draw the screenshare overlay.
+     * Skipped silently for a client that did not register the optional channel.
+     */
+    public static void sendFreezeState(ServerPlayer player, boolean frozen) {
+        if (!net.neoforged.neoforge.network.registration.NetworkRegistry
+                .hasChannel(player.connection, S2CFreezeState.TYPE.id())) {
+            return;
+        }
+        PacketDistributor.sendToPlayer(player, new S2CFreezeState(frozen));
     }
 
     /** Sends the complete name-tag state to one player (on login or after /reload). */
@@ -97,12 +128,14 @@ public final class AdminPanelNet {
     }
 
     /**
-     * Broadcasts one player's disguise to every online client. {@code entityType} may be {@code null}
+     * Broadcasts one player's disguise to every online client. {@code data} may be {@code null}
      * (meaning "disguise cleared, back to the normal player model").
      */
     public static void broadcastDisguiseUpdate(MinecraftServer server, UUID uuid,
-                                               net.minecraft.resources.ResourceLocation entityType) {
-        S2CDisguiseUpdate pkt = new S2CDisguiseUpdate(uuid, entityType != null, entityType);
+                                               DisguiseManager.DisguiseData data) {
+        S2CDisguiseUpdate pkt = data == null
+                ? S2CDisguiseUpdate.cleared(uuid)
+                : S2CDisguiseUpdate.of(uuid, data);
         for (ServerPlayer p : server.getPlayerList().getPlayers()) {
             PacketDistributor.sendToPlayer(p, pkt);
         }

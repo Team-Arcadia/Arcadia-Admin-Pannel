@@ -157,5 +157,9 @@
   "arcadiaadminpanel.team.filter.players_hint": "Toggle per-player (personal) teams in the list",
   "arcadiaadminpanel.team.member.actions": "Left-click: details · Right-click: TP to last-seen",
   "arcadiaadminpanel.jail.radius.current": "Jail zone radius: %radius% blocks (anti-escape: %state%)",
-  "arcadiaadminpanel.jail.radius.set": "Jail zone radius set to %radius% blocks (anti-escape enabled)."
+  "arcadiaadminpanel.jail.radius.set": "Jail zone radius set to %radius% blocks (anti-escape enabled).",
+  "arcadiaadminpanel.freeze.overlay.title": "YOU ARE FROZEN",
+  "arcadiaadminpanel.freeze.overlay.line1": "A moderator has frozen you for a check.",
+  "arcadiaadminpanel.freeze.overlay.line2": "Answer in chat. Do not disconnect.",
+  "arcadiaadminpanel.freeze.overlay.elapsed": "Frozen for %s"
 }

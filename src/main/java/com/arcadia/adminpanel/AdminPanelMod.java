@@ -31,7 +31,7 @@ import java.nio.file.Paths;
  * Arcadia Admin Panel — Steampunk-themed server management mod.
  * Both-sided mod powered by Arcadia Lib.
  *
- * @version 1.2.9
+ * @version 1.3.0
  * @author vyrriox
  */
 @Mod("arcadiaadminpanel")
@@ -56,12 +56,20 @@ public class AdminPanelMod {
         NeoForge.EVENT_BUS.register(new ChatListener());
         NeoForge.EVENT_BUS.register(new JailEnforcer());
         NeoForge.EVENT_BUS.register(new LoginQueue());
+        NeoForge.EVENT_BUS.register(new com.arcadia.adminpanel.event.StaffModeEvents());
     }
 
     private void onCommonSetup(FMLCommonSetupEvent event) {
         event.enqueueWork(() -> {
             // Register database tables for multi-server warn sync
             DatabaseManager.registerTables(new WarnTableDefinition());
+            // Generic record table backing the 1.3.0 audit log, notes, mail, bans and watchlist.
+            DatabaseManager.registerTables(new com.arcadia.adminpanel.data.AdminTableDefinition());
+
+            // The freeze overlay lives behind an optional payload; wiring it through a seam keeps
+            // the manager free of a compile-time dependency on the network package.
+            com.arcadia.adminpanel.util.FreezeManager.bindSyncer(
+                    com.arcadia.adminpanel.network.AdminPanelNet::sendFreezeState);
 
             // Register hub card (row 2, tabIndex -1 = uses cardClickHandler)
             ArcadiaModRegistry.registerCard(new ArcadiaModCard(
@@ -117,6 +125,9 @@ public class AdminPanelMod {
         // Load operator config first — every other init may consult it (warn expiry, jail enforce…).
         AdminConfig.init();
 
+        // Bind the server handle the 1.3.0 notification paths need, before anything can fire.
+        com.arcadia.adminpanel.util.StaffFeed.bind(event.getServer());
+
         // Initialize offline player manager (async scan)
         OfflinePlayerManager.getInstance().init(event.getServer(), Paths.get("").toAbsolutePath());
 
@@ -127,11 +138,45 @@ public class AdminPanelMod {
         NextSpawnManager.getInstance().init();
         com.arcadia.adminpanel.util.NameTagManager.getInstance().init();
         com.arcadia.adminpanel.util.DisguiseManager.getInstance().init();
+
+        // ── 1.3.0 subsystems ────────────────────────────────────────────────
+        // Salt first: the login tracker hashes connection fingerprints with it from the first join.
+        com.arcadia.adminpanel.util.AltDetector.init();
+        com.arcadia.adminpanel.util.RecordStore.initAll();
+        com.arcadia.adminpanel.util.SanctionTemplates.init();
+        com.arcadia.adminpanel.util.InventoryAccess.init();
+        com.arcadia.adminpanel.util.DeathSnapshotManager.init();
+        com.arcadia.adminpanel.util.DiscordWebhook.init();
+        com.arcadia.adminpanel.util.RestartScheduler.armFromConfig();
+        com.arcadia.adminpanel.util.LoginQueueAuto.onServerStarted();
+        com.arcadia.adminpanel.util.AuditManager.purgeExpired();
     }
 
     private void onServerStopping(ServerStoppingEvent event) {
+        // Put anyone mid-session back where they belong before the world saves.
+        com.arcadia.adminpanel.util.SpectateManager.restoreAll(event.getServer());
+
         // Flush the login tracker's coalesced write + stop its IO thread so no record is lost.
         LoginTracker.getInstance().shutdown();
+
+        // ── 1.3.0 subsystems ────────────────────────────────────────────────
+        com.arcadia.adminpanel.util.RecordStore.shutdownAll();
+        com.arcadia.adminpanel.util.DeathSnapshotManager.shutdown();
+        com.arcadia.adminpanel.util.InventoryAccess.shutdown();
+        com.arcadia.adminpanel.util.DiscordWebhook.shutdown();
+        com.arcadia.adminpanel.util.VanishManager.reset();
+        com.arcadia.adminpanel.util.FreezeManager.reset();
+        com.arcadia.adminpanel.util.AfkTracker.reset();
+        com.arcadia.adminpanel.util.ClientModsRegistry.reset();
+        com.arcadia.adminpanel.util.RestartScheduler.reset();
+        com.arcadia.adminpanel.util.AutoBroadcast.reset();
+        com.arcadia.adminpanel.util.LoginQueueAuto.reset();
+        com.arcadia.adminpanel.util.ChatControl.reset();
+        com.arcadia.adminpanel.util.LagMonitor.invalidate();
+        com.arcadia.adminpanel.util.ChunkReport.invalidate();
+        com.arcadia.adminpanel.gui.DisguiseMenu.invalidate();
+        com.arcadia.adminpanel.util.StaffFeed.unbind();
+
         // Clear caches on server stop
         FTBDataReader.clearCache();
         FTBTeamsReader.clearCache();

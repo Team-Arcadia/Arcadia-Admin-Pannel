@@ -65,14 +65,247 @@ public final class DisguiseCommand {
     public static LiteralArgumentBuilder<CommandSourceStack> build(Predicate<CommandSourceStack> gate) {
         return Commands.literal("disguise")
                 .requires(gate)
+
+                // Server-wide operations, kept off the <target> branch so they cannot be reached by
+                // a player who happens to be called "all".
+                .then(Commands.literal("--all")
+                        .then(Commands.argument("entity", ResourceLocationArgument.id())
+                                .suggests(ENTITY_SUGGESTIONS)
+                                .executes(DisguiseCommand::execAll)))
+                .then(Commands.literal("--random")
+                        .executes(DisguiseCommand::execRandomAll))
+                .then(Commands.literal("--clear")
+                        .executes(DisguiseCommand::execClearAll))
+                .then(Commands.literal("--list")
+                        .executes(DisguiseCommand::execList))
+
                 .then(Commands.argument("target", StringArgumentType.string())
                         .suggests(PLAYER_SUGGESTIONS)
                         // reset → clear the disguise
                         .then(Commands.literal("reset").executes(DisguiseCommand::execReset))
+                        // random → pick a living type for them
+                        .then(Commands.literal("random").executes(DisguiseCommand::execRandom))
+                        // baby / adult → toggle the young variant where the mob has one
+                        .then(Commands.literal("baby")
+                                .then(Commands.argument("state", StringArgumentType.word())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                new String[]{"on", "off"}, b))
+                                        .executes(DisguiseCommand::execBaby)))
+                        // scale <0.25-4.0> → render size, visual only
+                        .then(Commands.literal("scale")
+                                .then(Commands.argument("value",
+                                                com.mojang.brigadier.arguments.FloatArgumentType.floatArg(
+                                                        DisguiseManager.MIN_SCALE, DisguiseManager.MAX_SCALE))
+                                        .executes(DisguiseCommand::execScale)))
+                        // name <on|off> → show the mob's own name above the disguise
+                        .then(Commands.literal("name")
+                                .then(Commands.argument("state", StringArgumentType.word())
+                                        .suggests((c, b) -> SharedSuggestionProvider.suggest(
+                                                new String[]{"on", "off"}, b))
+                                        .executes(DisguiseCommand::execShowName)))
+                        // show → print the current disguise and its options
+                        .then(Commands.literal("show").executes(DisguiseCommand::execShow))
                         // <entity> → set the disguise (any living mob, vanilla or modded)
                         .then(Commands.argument("entity", ResourceLocationArgument.id())
                                 .suggests(ENTITY_SUGGESTIONS)
                                 .executes(DisguiseCommand::execSet)));
+    }
+
+    // ── Options ──────────────────────────────────────────────────────────────
+
+    private static int execBaby(CommandContext<CommandSourceStack> ctx) {
+        boolean on = StringArgumentType.getString(ctx, "state").equalsIgnoreCase("on");
+        return mutate(ctx, data -> data.withBaby(on), on ? "disguise.baby_on" : "disguise.baby_off", "");
+    }
+
+    private static int execScale(CommandContext<CommandSourceStack> ctx) {
+        float value = com.mojang.brigadier.arguments.FloatArgumentType.getFloat(ctx, "value");
+        return mutate(ctx, data -> data.withScale(value), "disguise.scale_set",
+                String.format("%.2f", DisguiseManager.clampScale(value)));
+    }
+
+    private static int execShowName(CommandContext<CommandSourceStack> ctx) {
+        boolean on = StringArgumentType.getString(ctx, "state").equalsIgnoreCase("on");
+        return mutate(ctx, data -> data.withShowMobName(on),
+                on ? "disguise.name_on" : "disguise.name_off", "");
+    }
+
+    /** Shared plumbing for the option sub-commands: resolve, mutate, broadcast, report. */
+    private static int mutate(CommandContext<CommandSourceStack> ctx,
+                              java.util.function.UnaryOperator<DisguiseManager.DisguiseData> change,
+                              String messageKey, String value) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        String targetName = StringArgumentType.getString(ctx, "target");
+        UUID uuid = resolveUUID(source, targetName);
+        if (uuid == null) {
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+            return 0;
+        }
+        String name = resolveName(source, uuid, targetName);
+        if (DisguiseManager.getInstance().mutate(uuid, change) == null) {
+            source.sendFailure(ArcadiaMessages.error(
+                    LanguageHelper.getText("disguise.none", admin).replace("%player%", name)));
+            return 0;
+        }
+        DisguiseManager.getInstance().broadcastUpdate(source.getServer(), uuid);
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText(messageKey, admin)
+                        .replace("%player%", name)
+                        .replace("%value%", value)), true);
+        return 1;
+    }
+
+    private static int execShow(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        String targetName = StringArgumentType.getString(ctx, "target");
+        UUID uuid = resolveUUID(source, targetName);
+        if (uuid == null) {
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+            return 0;
+        }
+        String name = resolveName(source, uuid, targetName);
+        DisguiseManager.DisguiseData data = DisguiseManager.getInstance().getData(uuid);
+        if (data == null) {
+            source.sendSuccess(() -> ArcadiaMessages.info(
+                    LanguageHelper.getText("disguise.none", admin).replace("%player%", name)), false);
+            return 1;
+        }
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("disguise.show", admin)
+                        .replace("%player%", name)
+                        .replace("%value%", data.type().toString())
+                        .replace("%baby%", String.valueOf(data.baby()))
+                        .replace("%scale%", String.format("%.2f", data.scale()))
+                        .replace("%name%", String.valueOf(data.showMobName()))), false);
+        return 1;
+    }
+
+    // ── Random and server-wide ───────────────────────────────────────────────
+
+    private static int execRandom(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        String targetName = StringArgumentType.getString(ctx, "target");
+        UUID uuid = resolveUUID(source, targetName);
+        if (uuid == null) {
+            source.sendFailure(ArcadiaMessages.error(LanguageHelper.getText("error.invalid_target", admin)));
+            return 0;
+        }
+        ResourceLocation id = randomLivingType(source.getLevel());
+        if (id == null) {
+            source.sendFailure(ArcadiaMessages.error(
+                    LanguageHelper.getText("disguise.no_random", admin)));
+            return 0;
+        }
+        String name = resolveName(source, uuid, targetName);
+        DisguiseManager.getInstance().setDisguise(uuid, id);
+        DisguiseManager.getInstance().broadcastUpdate(source.getServer(), uuid);
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("disguise.set", admin)
+                        .replace("%player%", name)
+                        .replace("%value%", id.toString())), true);
+        return 1;
+    }
+
+    private static int execAll(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        ResourceLocation id = ResourceLocationArgument.getId(ctx, "entity");
+        if (!BuiltInRegistries.ENTITY_TYPE.containsKey(id)
+                || !isLivingType(BuiltInRegistries.ENTITY_TYPE.get(id), source.getLevel())) {
+            source.sendFailure(ArcadiaMessages.error(
+                    LanguageHelper.getText("disguise.not_living", admin).replace("%value%", id.toString())));
+            return 0;
+        }
+        int n = 0;
+        for (ServerPlayer p : source.getServer().getPlayerList().getPlayers()) {
+            DisguiseManager.getInstance().setDisguise(p.getUUID(), id);
+            DisguiseManager.getInstance().broadcastUpdate(source.getServer(), p.getUUID());
+            n++;
+        }
+        final int count = n;
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("disguise.all", admin)
+                        .replace("%count%", String.valueOf(count))
+                        .replace("%value%", id.toString())), true);
+        return 1;
+    }
+
+    private static int execRandomAll(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        int n = 0;
+        for (ServerPlayer p : source.getServer().getPlayerList().getPlayers()) {
+            ResourceLocation id = randomLivingType(source.getLevel());
+            if (id == null) continue;
+            DisguiseManager.getInstance().setDisguise(p.getUUID(), id);
+            DisguiseManager.getInstance().broadcastUpdate(source.getServer(), p.getUUID());
+            n++;
+        }
+        final int count = n;
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("disguise.random_all", admin)
+                        .replace("%count%", String.valueOf(count))), true);
+        return 1;
+    }
+
+    private static int execClearAll(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        var affected = new java.util.ArrayList<>(DisguiseManager.getInstance().getAll().keySet());
+        int n = DisguiseManager.getInstance().clearAll();
+        for (UUID uuid : affected) {
+            DisguiseManager.getInstance().broadcastUpdate(source.getServer(), uuid);
+        }
+        final int count = n;
+        source.sendSuccess(() -> ArcadiaMessages.success(
+                LanguageHelper.getText("disguise.clear_all", admin)
+                        .replace("%count%", String.valueOf(count))), true);
+        return 1;
+    }
+
+    private static int execList(CommandContext<CommandSourceStack> ctx) {
+        CommandSourceStack source = ctx.getSource();
+        ServerPlayer admin = source.getEntity() instanceof ServerPlayer sp ? sp : null;
+        var all = DisguiseManager.getInstance().getAll();
+        if (all.isEmpty()) {
+            source.sendSuccess(() -> ArcadiaMessages.info(
+                    LanguageHelper.getText("disguise.list.empty", admin)), false);
+            return 1;
+        }
+        source.sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("disguise.list.header", admin)
+                        .replace("%count%", String.valueOf(all.size()))), false);
+        all.forEach((uuid, data) -> {
+            String name = resolveName(source, uuid, uuid.toString().substring(0, 8));
+            source.sendSuccess(() -> net.minecraft.network.chat.Component.literal(
+                    "§7- §f" + name + " §8" + data.type()
+                            + (data.baby() ? " §7(baby)" : "")
+                            + (Math.abs(data.scale() - 1.0F) > 0.01F
+                                    ? " §7x" + String.format("%.2f", data.scale()) : "")), false);
+        });
+        return 1;
+    }
+
+    /**
+     * Picks a random living entity type from the registry.
+     *
+     * <p>Probing by creation is the only reliable way to know whether a modded type is living, and
+     * doing that across the whole registry would be expensive, so this samples at random and gives
+     * up after a bounded number of attempts rather than scanning.</p>
+     */
+    private static ResourceLocation randomLivingType(ServerLevel level) {
+        var keys = new java.util.ArrayList<>(BuiltInRegistries.ENTITY_TYPE.keySet());
+        if (keys.isEmpty()) return null;
+        var random = level.getRandom();
+        for (int attempt = 0; attempt < 40; attempt++) {
+            ResourceLocation id = keys.get(random.nextInt(keys.size()));
+            EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.get(id);
+            if (type != null && isLivingType(type, level)) return id;
+        }
+        return null;
     }
 
     private static int execSet(CommandContext<CommandSourceStack> ctx) {

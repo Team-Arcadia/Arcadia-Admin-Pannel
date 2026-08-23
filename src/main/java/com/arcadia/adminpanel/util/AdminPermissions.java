@@ -77,7 +77,65 @@ public enum AdminPermissions {
     /** Toggle the global hide-names-behind-walls switch and per-player exemptions. */
     NAMETAG_HIDE("arcadia.adminpanel.nametag.hide"),
     /** Disguise a player as a mob ({@code /arcadia_adminpanel disguise …}). */
-    DISGUISE("arcadia.adminpanel.disguise");
+    DISGUISE("arcadia.adminpanel.disguise"),
+
+    // ── 1.3.0 ───────────────────────────────────────────────────────────────
+    /** Go invisible. */
+    VANISH("arcadia.adminpanel.vanish"),
+    /** See other vanished staff. Separate from {@link #VANISH} so a trainee can be hidden from. */
+    VANISH_SEE("arcadia.adminpanel.vanish.see"),
+    /** Freeze a player for a screenshare. */
+    FREEZE("arcadia.adminpanel.freeze"),
+    /** One-click spectate + return. */
+    SPECTATE("arcadia.adminpanel.spectate"),
+    /** Command spy and social spy feeds. */
+    SPY("arcadia.adminpanel.spy"),
+    /** Read the staff audit log. */
+    AUDIT("arcadia.adminpanel.audit"),
+    /** Read and write private staff notes. */
+    NOTES("arcadia.adminpanel.notes"),
+    /** Flag players on the watchlist. */
+    WATCHLIST("arcadia.adminpanel.watchlist"),
+    /** Open a player's unified sanction history. */
+    HISTORY("arcadia.adminpanel.history"),
+    /** Edit an inventory, online or offline. Strictly stronger than {@link #INVSEE}. */
+    INV_EDIT("arcadia.adminpanel.invedit"),
+    /** Browse and restore death snapshots. */
+    DEATH_RESTORE("arcadia.adminpanel.deathrestore"),
+    /** Hand an item to a player from the panel. */
+    GIVE_ITEM("arcadia.adminpanel.giveitem"),
+    /** Send offline mail. */
+    MAIL("arcadia.adminpanel.mail"),
+    /** Read playtime and session statistics. */
+    SESSIONS("arcadia.adminpanel.sessions"),
+    /** See who is AFK. */
+    AFK("arcadia.adminpanel.afk"),
+    /** See shared-connection account groups. */
+    ALTS("arcadia.adminpanel.alts"),
+    /** See the mod list reported by clients. */
+    CLIENT_MODS("arcadia.adminpanel.clientmods"),
+    /** Open the performance panel. */
+    PERFORMANCE("arcadia.adminpanel.performance"),
+    /** Browse claimed and force-loaded chunks. */
+    CHUNKS("arcadia.adminpanel.chunks"),
+    /** Lock and clear the chat. */
+    CHAT_CONTROL("arcadia.adminpanel.chatcontrol"),
+    /** Run an action against a multi-player selection. */
+    BULK("arcadia.adminpanel.bulk"),
+    /** Toggle silent mode. */
+    SILENT("arcadia.adminpanel.silent"),
+    /** Change time, weather, difficulty and game rules. */
+    WORLD("arcadia.adminpanel.world"),
+    /** Schedule or cancel a restart. */
+    RESTART("arcadia.adminpanel.restart"),
+    /** Control the rotating auto-broadcast. */
+    BROADCAST("arcadia.adminpanel.broadcast"),
+    /** Open the proximity radar. */
+    RADAR("arcadia.adminpanel.radar"),
+    /** Return to the position held before the last panel teleport. */
+    BACK("arcadia.adminpanel.back"),
+    /** Apply a sanction template and its escalation ladder. */
+    TEMPLATES("arcadia.adminpanel.templates");
 
     public final String node;
     AdminPermissions(String node) { this.node = node; }
@@ -87,7 +145,15 @@ public enum AdminPermissions {
     private static final long CACHE_TTL_MS = 2_000L;
     private static final Map<UUID, CacheEntry> CACHE = new ConcurrentHashMap<>();
 
-    private record CacheEntry(int flags, long stamp) {}
+    /**
+     * One resolved snapshot of every node for one player.
+     *
+     * <p>This used to be an {@code int} bitmask indexed by ordinal. 1.3.0 pushed the node count past
+     * 32, at which point {@code 1 << ordinal} silently wrapped and the high nodes started reading
+     * the low ones' answers: a moderator with {@code open} would have been granted {@code vanish}.
+     * A flat array has no such ceiling and costs one allocation per player per cache window.</p>
+     */
+    private record CacheEntry(boolean[] flags, long stamp) {}
 
     /** Drop any cached perm flags for a player (call on logout, on rank change, on reload). */
     public static void invalidate(UUID uuid) { CACHE.remove(uuid); }
@@ -108,17 +174,16 @@ public enum AdminPermissions {
         long now = System.currentTimeMillis();
         int idx = this.ordinal();
         if (e != null && now - e.stamp < CACHE_TTL_MS) {
-            return (e.flags & (1 << idx)) != 0;
+            return e.flags[idx];
         }
-        // Cache miss — recompute the full mask in one pass so subsequent slot checks hit cache.
-        int mask = 0;
-        for (AdminPermissions p : AdminPermissions.values()) {
-            if (PermissionService.hasPermissionStrict(player, p.node)) {
-                mask |= (1 << p.ordinal());
-            }
+        // Cache miss — resolve every node in one pass so subsequent slot checks hit cache.
+        AdminPermissions[] all = AdminPermissions.values();
+        boolean[] flags = new boolean[all.length];
+        for (AdminPermissions p : all) {
+            flags[p.ordinal()] = PermissionService.hasPermissionStrict(player, p.node);
         }
-        CACHE.put(player.getUUID(), new CacheEntry(mask, now));
-        return (mask & (1 << idx)) != 0;
+        CACHE.put(player.getUUID(), new CacheEntry(flags, now));
+        return flags[idx];
     }
 
     /** Convenience: open-panel gate (combines OP check with the OPEN node). */

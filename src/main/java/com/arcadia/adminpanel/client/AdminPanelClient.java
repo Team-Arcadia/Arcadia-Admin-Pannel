@@ -1,6 +1,7 @@
 package com.arcadia.adminpanel.client;
 
 import com.arcadia.adminpanel.client.screen.AdminPanelScreen;
+import com.arcadia.adminpanel.client.screen.ThemedContainerScreen;
 import com.arcadia.adminpanel.client.screen.PlayerDetailScreen;
 import com.arcadia.adminpanel.client.screen.TeamDetailScreen;
 import com.arcadia.adminpanel.client.screen.TeamListScreen;
@@ -68,6 +69,13 @@ public final class AdminPanelClient {
 
         if (title.equals(TITLE_TEAM_DETAIL_EN) || title.equals(TITLE_TEAM_DETAIL_FR)) {
             event.setNewScreen(new TeamDetailScreen(chestMenu, inv, cs.getTitle()));
+            return;
+        }
+
+        // Everything added in 1.3.0 marks its own title instead of adding a constant per screen per
+        // language. See PanelTitles for why the marker is a bare formatting code.
+        if (com.arcadia.adminpanel.gui.PanelTitles.isPanel(title)) {
+            event.setNewScreen(new ThemedContainerScreen(chestMenu, inv, cs.getTitle()));
         }
     }
 

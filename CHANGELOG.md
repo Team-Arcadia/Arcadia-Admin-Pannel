@@ -4,7 +4,155 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.2.12] - 2026-08-11 (latest)
+## [1.3.0] - 2026-08-23 (latest)
+
+The largest release since the panel shipped: thirty-three new tools, a rebuilt player grid, and a
+substantially extended disguise system. Every feature below is gated behind its own permission node,
+recorded in the new audit log, and built so that a tool nobody is using costs the server nothing.
+
+### Added
+
+#### Accountability
+
+- **Staff audit log** — every staff action is now recorded with who did it, to whom, when, on which server, and with what reason. Browsable from the new Staff Tools screen, filterable to one player or to one staff member (right-click a row to pivot onto its author). Synced across servers through the shared database, with a configurable retention window (`auditRetentionDays`, 180 days by default). Node: `arcadia.adminpanel.audit`.
+- **Unified sanction history** — one timeline per player merging warns, mutes, jails, kicks and bans, newest first, with the currently-active ones marked. Answers "how many chances has this person had" without opening four different screens. Node: `arcadia.adminpanel.history`.
+- **Private staff notes** — observations attached to a player that the player never sees and that never count toward escalation. Start a note with `!` to pin it to the top of their sheet. Node: `arcadia.adminpanel.notes`.
+- **Watchlist** — flag a player and every online staff member gets a ping the moment they connect, with the reason and who flagged them. Node: `arcadia.adminpanel.watchlist`.
+- **Command spy and social spy** — opt-in feeds echoing the commands players run and the private messages they exchange. Both are off by default and both deliberately never echo the staff channel or the panel's own subcommands, which would have re-created the leak the 1.2.12 fix closed. Node: `arcadia.adminpanel.spy`.
+- **Silent mode** — perform actions without the public announcement. The audit row and the staff feed still show everything, tagged as silent: an action nobody can review is a liability, not a tool. Node: `arcadia.adminpanel.silent`.
+- **Discord sanction webhook** — mirrors sanctions to a Discord channel, queued and rate-limited on a background thread. Disabled unless a URL is configured, and the staff chat is deliberately never sent. The URL is a credential and stays in the local config.
+
+#### Investigation
+
+- **Vanish** — genuinely server-side. The staff member is removed from other clients with an entity removal and a TAB-list removal, not merely hidden by a client that could be patched to ignore the instruction. Un-vanishing rebuilds the spawn packets directly rather than forcing a re-track, so it costs no chunk reload. Mobs forget you, items ignore you, and the toggle prints a convincing fake disconnect line. Nodes: `arcadia.adminpanel.vanish` and `arcadia.adminpanel.vanish.see`.
+- **Freeze and screenshare** — holds a suspect in place: no movement, breaking, placing, using, attacking, dropping or container access, and no damage either, so nobody drowns halfway through an interview. They can still talk, because that is the point. A client running the mod also gets a dimmed overlay explaining what is happening. Node: `arcadia.adminpanel.freeze`.
+- **One-click spectate** — jump to a player in spectator mode and return to your exact position and game mode afterwards, including when the session ends involuntarily (either side disconnecting, or the server stopping). Node: `arcadia.adminpanel.spectate`.
+- **Shared-connection detection** — groups accounts that connect from the same place and warns staff when a connecting account matches a banned one. The grouping uses a salted SHA-256 of the address: the panel can tell you two accounts share an origin, and can never tell you, or anyone reading the data files, where that is. Node: `arcadia.adminpanel.alts`.
+- **Client mod inventory** — clients running this mod report their mod list on login, with a configurable blacklist that raises a staff alert. Presented throughout as a self-declaration, because that is what it is. Node: `arcadia.adminpanel.clientmods`.
+
+#### Sanctions
+
+- **Temporary bans with a reason, and a readable ban list** — bans now take a duration and a typed reason, and the ban list is a screen with expiry countdowns and one-click unban instead of a JSON file read over SSH. Vanilla stays the enforcement layer, so expiry and crash-safety come for free. Bans replicate to the other servers sharing the database and are applied at negotiation time, before a slot or a chunk is claimed.
+- **Sanction templates with an escalation ladder** — pre-written offences (chat abuse, spam, grief, cheating, duplication, advertising, staff disrespect) that pick their own severity from what the player already collected under that same template. Fully editable in `templates.json`. Node: `arcadia.adminpanel.templates`.
+- **Bulk actions** — shift-click or right-click heads in the grid to build a selection, then message, gather, heal, warn or kick all of them at once. Node: `arcadia.adminpanel.bulk`.
+
+#### Player support
+
+- **Death snapshots** — the full inventory is captured on every death and the last five are kept per player, with cause, position and level. Restore hands everything back, to a connected player directly and to a disconnected one by filling the empty slots of their stored inventory. Turns "I lost my stuff to a bug" from a judgement call into a lookup. Node: `arcadia.adminpanel.deathrestore`.
+- **Native inventory editor, online and offline** — view and modify any player's inventory, including one who is disconnected, by reading and rewriting their data file on a background thread. Nothing is written until you press save, closing discards, and an offline write refuses to run if the player reconnected while the window was open. Node: `arcadia.adminpanel.invedit`.
+- **Give an item from the panel** — hand over what you are holding, or type an id with tab completion over the full modded registry. Node: `arcadia.adminpanel.giveitem`.
+- **Offline mail** — leave a message for a disconnected player, delivered on their next login and synced across servers. Node: `arcadia.adminpanel.mail`.
+- **Playtime and sessions** — total playtime, session count and average session length per player, rankable by playtime or by last login. Node: `arcadia.adminpanel.sessions`.
+- **AFK list** — who is idle and for how long, with the dimension they are parked in and a right-click teleport. Node: `arcadia.adminpanel.afk`.
+
+#### Server operations
+
+- **Performance panel** — TPS, average and peak tick time, memory, per-dimension entity and chunk counts, the ten chunks with the heaviest entity concentration (with a teleport), and which players carry the most nearby entities. Computed only when the screen opens and cached, so an idle server does no work at all. Node: `arcadia.adminpanel.performance`.
+- **Chunk browser** — FTB Chunks footprints ranked by force-loaded count, and the vanilla forced-chunk list, both with a teleport. Node: `arcadia.adminpanel.chunks`.
+- **World control** — time, weather, difficulty and fourteen common game rules as buttons, with the current value visible before you change it. Time and weather apply to the dimension you are standing in, which is what people mean when they ask for day. Node: `arcadia.adminpanel.world`.
+- **Chat lock and clear chat** — freeze public chat during an incident (staff exempt by default), and scroll everyone's chat away. Node: `arcadia.adminpanel.chatcontrol`.
+- **Scheduled restart** — daily times from the config or an ad-hoc countdown, with warnings at chosen minute marks, a per-second countdown at the end, and a clean halt. Node: `arcadia.adminpanel.restart`.
+- **Rotating auto-broadcast** — periodic messages cycled in order, skipped entirely when nobody is online. Node: `arcadia.adminpanel.broadcast`.
+- **Automatic post-reboot login queue** — arms the existing connection throttle by itself for a configurable window after boot, then switches it off. Never overrides a queue an admin turned on by hand.
+- **Proximity radar** — who is nearby, sorted by distance, with teleport. Node: `arcadia.adminpanel.radar`.
+- **Return teleport** — every panel teleport records where you were; one click or `back` walks the stack back out. Node: `arcadia.adminpanel.back`.
+
+#### Disguise improvements
+
+- **Disguise picker menu** — every living entity the server knows, drawn with its spawn egg, instead of typing an id nobody remembers. Reachable from the new player-tools screen.
+- **Baby form** — `disguise <player> baby <on|off>` renders the young variant for mobs that have one.
+- **Render scale** — `disguise <player> scale <0.25-4.0>` grows or shrinks the model, upward from the feet. Visual only: the hitbox, reach and physics stay the player's, so a giant is not a physics exploit.
+- **Mob name** — `disguise <player> name <on|off>` shows the mob's own name above the disguise instead of hiding the tag entirely.
+- **Random and server-wide** — `disguise <player> random`, `disguise --all <entity>`, `disguise --random`, `disguise --clear` and `disguise --list` for events.
+- **Show and clear-on-death** — `disguise <player> show` prints the current disguise and its options; `disguiseClearOnDeath` drops the disguise when the player dies (off by default).
+
+#### Player grid
+
+- **Filters** — cycle the grid through all, online, offline, jailed, muted, banned, warned, watched, frozen, vanished, AFK and selected. Right-click steps backwards.
+- **Sorting** — by name, last seen, playtime or warn count.
+- **Status markers** — heads now carry their state (jailed, muted, frozen, vanished, watched, AFK, warn count) so the grid answers most questions without opening a sheet.
+- **Staff Tools door** — the server-wide half of the panel is one click from the grid, and the per-player 1.3.0 tools are one click from the player sheet.
+
+### Changed
+
+- **Permission cache widened** — the per-player node cache was an `int` bitmask indexed by ordinal. 1.3.0 pushes the node count past 32, at which point `1 << ordinal` silently wraps and the high nodes start reading the low ones' answers: a moderator holding `open` would have been granted `vanish`. It is now a flat array with no such ceiling.
+- **Teleport history shows eight entries instead of nine** — the ninth slot of the player sheet became the door to the new per-player tools. The sheet had no free space left, and a ninth history line is worth less than access to the history, notes, freeze, inventory editor and death snapshots behind it.
+- **Plain-text addresses are no longer written to `logins.json`** — the field existed since 1.2.x and nothing in the panel read it. Every feature that needs to compare origins now uses the salted fingerprint instead. Set `storePlainIp` to `true` to restore the old behaviour; values already in the file are left untouched rather than rewritten.
+- **Themed screens are matched by a title marker** — the client used to recognise a panel screen from a hard-coded list of titles, one per screen per language. The 1.3.0 screens end their title with an invisible marker instead, so a translation edit can never un-theme a menu.
+
+### Ajouts
+
+#### Traçabilité
+
+- **Journal d'audit staff** — chaque action du staff est désormais enregistrée avec son auteur, sa cible, la date, le serveur et la raison. Consultable depuis le nouvel écran Outils Staff, filtrable sur un joueur ou sur un membre du staff (clic droit sur une ligne pour basculer sur son auteur). Synchronisé entre serveurs via la base partagée, avec une rétention configurable (`auditRetentionDays`, 180 jours par défaut). Nœud : `arcadia.adminpanel.audit`.
+- **Historique unifié des sanctions** — une seule frise par joueur regroupant warns, mutes, prisons, expulsions et bans, la plus récente en premier, les sanctions actives étant signalées. Répond à « combien de chances a-t-il déjà eues » sans ouvrir quatre écrans. Nœud : `arcadia.adminpanel.history`.
+- **Notes privées du staff** — des observations attachées à un joueur, que celui-ci ne voit jamais et qui ne comptent jamais dans l'escalade. Une note commençant par `!` est épinglée en haut de sa fiche. Nœud : `arcadia.adminpanel.notes`.
+- **Liste de surveillance** — signalez un joueur et tout le staff en ligne reçoit un ping dès qu'il se connecte, avec la raison et l'auteur du signalement. Nœud : `arcadia.adminpanel.watchlist`.
+- **Espion de commandes et de messages privés** — deux flux optionnels qui répètent les commandes tapées et les messages privés échangés. Désactivés par défaut, et tous deux ignorent volontairement le canal staff et les sous-commandes du panel, ce qui aurait recréé la fuite corrigée en 1.2.12. Nœud : `arcadia.adminpanel.spy`.
+- **Mode silencieux** — agir sans annonce publique. La ligne d'audit et le flux staff affichent malgré tout l'action, marquée comme silencieuse : une action que personne ne peut relire n'est pas un outil, c'est un risque. Nœud : `arcadia.adminpanel.silent`.
+- **Webhook Discord des sanctions** — reflète les sanctions dans un salon Discord, avec file d'attente et limitation de débit sur un thread de fond. Inactif tant qu'aucune URL n'est configurée, et le chat staff n'y est délibérément jamais envoyé. L'URL est un secret et reste dans la config locale.
+
+#### Enquête
+
+- **Invisibilité** — réellement côté serveur. Le membre du staff est retiré des autres clients par une suppression d'entité et un retrait de la liste TAB, et non simplement masqué par un client qui pourrait être modifié pour ignorer la consigne. La réapparition reconstruit directement les paquets d'apparition au lieu de forcer un re-tracking, donc sans rechargement de chunks. Les mobs vous oublient, les objets vous ignorent, et la bascule affiche une fausse ligne de déconnexion crédible. Nœuds : `arcadia.adminpanel.vanish` et `arcadia.adminpanel.vanish.see`.
+- **Gel et screenshare** — immobilise un suspect : ni déplacement, ni casse, ni pose, ni utilisation, ni attaque, ni lâcher d'objet, ni ouverture de conteneur, et aucun dégât non plus, pour que personne ne se noie au milieu d'un interrogatoire. Il peut toujours parler, c'est justement le but. Un client équipé du mod reçoit en plus un voile explicatif à l'écran. Nœud : `arcadia.adminpanel.freeze`.
+- **Observation en un clic** — passez en spectateur sur un joueur et revenez ensuite exactement à votre position et votre mode de jeu, y compris lorsque la session se termine involontairement (déconnexion de l'un ou l'autre, ou arrêt du serveur). Nœud : `arcadia.adminpanel.spectate`.
+- **Détection de connexions partagées** — regroupe les comptes qui se connectent depuis le même endroit et alerte le staff lorsqu'un compte arrivant correspond à un compte banni. Le regroupement repose sur un SHA-256 salé de l'adresse : le panel peut dire que deux comptes partagent une origine, et ne peut jamais dire, ni à vous ni à quiconque lirait les fichiers, laquelle. Nœud : `arcadia.adminpanel.alts`.
+- **Inventaire des mods client** — les clients équipés du mod déclarent leur liste de mods à la connexion, avec une liste noire configurable qui déclenche une alerte staff. Présenté partout comme une auto-déclaration, parce que c'en est une. Nœud : `arcadia.adminpanel.clientmods`.
+
+#### Sanctions
+
+- **Bans temporaires avec raison, et liste des bans lisible** — les bans acceptent désormais une durée et une raison saisie, et la liste est un écran avec compte à rebours d'expiration et débannissement en un clic, au lieu d'un fichier JSON lu en SSH. Vanilla reste la couche d'application, donc l'expiration et la résistance aux crashs sont acquises. Les bans se répliquent aux autres serveurs partageant la base et sont appliqués dès la négociation, avant qu'un slot ou un chunk ne soit pris.
+- **Modèles de sanction avec échelle d'escalade** — des infractions prérédigées (abus dans le chat, spam, grief, triche, duplication, publicité, manque de respect au staff) qui choisissent leur sévérité selon ce que le joueur a déjà accumulé sous ce même modèle. Entièrement modifiables dans `templates.json`. Nœud : `arcadia.adminpanel.templates`.
+- **Actions groupées** — shift-clic ou clic droit sur les têtes de la grille pour constituer une sélection, puis message, rassemblement, soin, avertissement ou expulsion en une fois. Nœud : `arcadia.adminpanel.bulk`.
+
+#### Support joueur
+
+- **Instantanés de mort** — l'inventaire complet est capturé à chaque mort et les cinq derniers sont conservés par joueur, avec la cause, la position et le niveau. La restauration rend tout, directement à un joueur connecté et en remplissant les emplacements libres de l'inventaire stocké d'un joueur déconnecté. Transforme « j'ai perdu mon stuff à cause d'un bug » en une simple vérification. Nœud : `arcadia.adminpanel.deathrestore`.
+- **Éditeur d'inventaire natif, en ligne et hors ligne** — consultez et modifiez l'inventaire de n'importe quel joueur, y compris déconnecté, en lisant et réécrivant son fichier de données sur un thread de fond. Rien n'est écrit avant la sauvegarde, la fermeture abandonne, et une écriture hors ligne refuse de s'exécuter si le joueur s'est reconnecté entre-temps. Nœud : `arcadia.adminpanel.invedit`.
+- **Donner un objet depuis le panel** — remettez ce que vous tenez en main, ou tapez un id avec autocomplétion sur tout le registre moddé. Nœud : `arcadia.adminpanel.giveitem`.
+- **Courrier hors ligne** — laissez un message à un joueur déconnecté, remis à sa prochaine connexion et synchronisé entre serveurs. Nœud : `arcadia.adminpanel.mail`.
+- **Temps de jeu et sessions** — temps total, nombre de sessions et durée moyenne par joueur, triables par temps de jeu ou par dernière connexion. Nœud : `arcadia.adminpanel.sessions`.
+- **Liste AFK** — qui est inactif et depuis combien de temps, avec la dimension où il stationne et une téléportation au clic droit. Nœud : `arcadia.adminpanel.afk`.
+
+#### Exploitation du serveur
+
+- **Panneau de performances** — TPS, temps de tick moyen et maximal, mémoire, entités et chunks par dimension, les dix chunks à la plus forte concentration d'entités (avec téléportation), et les joueurs qui portent le plus d'entités à proximité. Calculé uniquement à l'ouverture de l'écran puis mis en cache, donc un serveur au repos ne fait strictement aucun travail. Nœud : `arcadia.adminpanel.performance`.
+- **Navigateur de chunks** — les empreintes FTB Chunks classées par nombre de chunks force-loaded, et la liste des chunks forcés vanilla, les deux avec téléportation. Nœud : `arcadia.adminpanel.chunks`.
+- **Contrôle du monde** — heure, météo, difficulté et quatorze gamerules courantes sous forme de boutons, avec la valeur actuelle visible avant modification. L'heure et la météo s'appliquent à la dimension où vous vous trouvez, ce que les gens veulent dire quand ils demandent le jour. Nœud : `arcadia.adminpanel.world`.
+- **Verrou et vidage du chat** — gelez le chat public pendant un incident (staff exempté par défaut), et faites défiler le chat de tout le monde. Nœud : `arcadia.adminpanel.chatcontrol`.
+- **Redémarrage programmé** — horaires quotidiens depuis la config ou compte à rebours ponctuel, avec des avertissements aux paliers choisis, un décompte à la seconde à la fin, et un arrêt propre. Nœud : `arcadia.adminpanel.restart`.
+- **Annonces automatiques en rotation** — messages périodiques diffusés dans l'ordre, entièrement ignorés quand personne n'est connecté. Nœud : `arcadia.adminpanel.broadcast`.
+- **File d'attente automatique après reboot** — active toute seule le throttle de connexion existant pendant une fenêtre configurable après le démarrage, puis le coupe. N'écrase jamais une file activée à la main par un admin.
+- **Radar de proximité** — qui est à proximité, trié par distance, avec téléportation. Nœud : `arcadia.adminpanel.radar`.
+- **Téléportation de retour** — chaque téléportation du panel enregistre votre position ; un clic ou `back` remonte la pile. Nœud : `arcadia.adminpanel.back`.
+
+#### Améliorations du déguisement
+
+- **Menu de sélection** — toutes les entités vivantes connues du serveur, dessinées avec leur œuf d'apparition, au lieu de taper un id que personne ne retient. Accessible depuis le nouvel écran d'outils joueur.
+- **Forme bébé** — `disguise <joueur> baby <on|off>` affiche la variante jeune pour les mobs qui en ont une.
+- **Échelle de rendu** — `disguise <joueur> scale <0.25-4.0>` agrandit ou rétrécit le modèle, depuis les pieds. Purement visuel : la hitbox, la portée et la physique restent celles du joueur, donc un géant n'est pas un exploit.
+- **Nom du mob** — `disguise <joueur> name <on|off>` affiche le nom du mob au-dessus du déguisement au lieu de masquer complètement l'étiquette.
+- **Aléatoire et serveur entier** — `disguise <joueur> random`, `disguise --all <entité>`, `disguise --random`, `disguise --clear` et `disguise --list` pour les événements.
+- **Affichage et retrait à la mort** — `disguise <joueur> show` affiche le déguisement actuel et ses options ; `disguiseClearOnDeath` retire le déguisement quand le joueur meurt (désactivé par défaut).
+
+#### Grille des joueurs
+
+- **Filtres** — faites défiler la grille entre tous, en ligne, hors ligne, en prison, mute, bannis, avertis, surveillés, gelés, invisibles, AFK et sélectionnés. Le clic droit recule d'un cran.
+- **Tris** — par nom, dernière connexion, temps de jeu ou nombre d'avertissements.
+- **Marqueurs d'état** — les têtes affichent désormais leur état (prison, mute, gel, invisibilité, surveillance, AFK, nombre d'avertissements), de sorte que la grille répond à la plupart des questions sans ouvrir de fiche.
+- **Accès aux Outils Staff** — la moitié serveur du panel est à un clic de la grille, et les outils joueur de la 1.3.0 sont à un clic de la fiche.
+
+### Modifications
+
+- **Cache de permissions élargi** — le cache de nœuds par joueur était un masque de bits `int` indexé par ordinal. La 1.3.0 dépasse 32 nœuds, seuil à partir duquel `1 << ordinal` déborde silencieusement et les nœuds hauts lisent les réponses des nœuds bas : un modérateur possédant `open` se serait vu accorder `vanish`. C'est désormais un tableau plat, sans plafond.
+- **L'historique de téléportation affiche huit entrées au lieu de neuf** — le neuvième emplacement de la fiche joueur est devenu la porte vers les nouveaux outils. La fiche n'avait plus de place libre, et une neuvième ligne d'historique vaut moins que l'accès à l'historique, aux notes, au gel, à l'éditeur d'inventaire et aux instantanés de mort qui se trouvent derrière.
+- **Les adresses en clair ne sont plus écrites dans `logins.json`** — le champ existait depuis la 1.2.x et rien dans le panel ne le lisait. Toutes les fonctionnalités qui comparent des origines utilisent désormais l'empreinte salée. Passez `storePlainIp` à `true` pour rétablir l'ancien comportement ; les valeurs déjà présentes dans le fichier sont laissées telles quelles plutôt que réécrites.
+- **Les écrans thématisés sont reconnus par un marqueur de titre** — le client identifiait un écran du panel via une liste de titres codés en dur, un par écran et par langue. Les écrans de la 1.3.0 terminent leur titre par un marqueur invisible, de sorte qu'une correction de traduction ne peut plus déthématiser un menu.
+
+---
+
+## [1.2.12] - 2026-08-11
 
 ### Fixed
 

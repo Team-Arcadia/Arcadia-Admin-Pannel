@@ -50,8 +50,12 @@ public final class DisguiseRenderer {
 
     private static final org.slf4j.Logger LOGGER = com.mojang.logging.LogUtils.getLogger();
 
-    /** Holds a dummy together with the entity type it was created for, so a type change recreates it. */
-    private record Dummy(EntityType<?> type, LivingEntity entity) {}
+    /**
+     * Holds a dummy together with what it was built for, so a change to either recreates it. Baby
+     * form is part of the key because {@code setBaby} resizes the model and some mobs bake the
+     * decision into their renderer state.
+     */
+    private record Dummy(EntityType<?> type, boolean baby, LivingEntity entity) {}
 
     private DisguiseRenderer() {}
 
@@ -61,8 +65,9 @@ public final class DisguiseRenderer {
     public static void onRenderPlayerPre(RenderPlayerEvent.Pre event) {
         if (ClientDisguiseState.isEmpty()) return;
         Player player = event.getEntity();
-        EntityType<?> type = ClientDisguiseState.disguiseFor(player.getUUID());
-        if (type == null) return;
+        ClientDisguiseState.Entry entry = ClientDisguiseState.entryFor(player.getUUID());
+        if (entry == null) return;
+        EntityType<?> type = entry.type();
         if (FAILED_TYPES.contains(type)) return; // known-bad renderer → keep the vanilla player model
 
         Minecraft mc = Minecraft.getInstance();
@@ -72,11 +77,17 @@ public final class DisguiseRenderer {
             return;
         }
 
-        LivingEntity dummy = dummyFor(player, type);
+        LivingEntity dummy = dummyFor(player, type, entry.baby());
         if (dummy == null) return; // creation failed (unknown type / no level) → leave vanilla model
 
         float partialTick = event.getPartialTick();
         syncPose(dummy, player);
+        if (entry.showMobName()) {
+            dummy.setCustomName(type.getDescription());
+            dummy.setCustomNameVisible(true);
+        } else {
+            dummy.setCustomNameVisible(false);
+        }
 
         EntityRenderDispatcher dispatcher = mc.getEntityRenderDispatcher();
         float bodyYaw = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
@@ -84,7 +95,7 @@ public final class DisguiseRenderer {
         // throws, we catch it, blacklist the type, and fall through to the normal player model rather
         // than crashing the client or leaving an empty space where the player was.
         try {
-            renderDummy(dispatcher, dummy, bodyYaw, partialTick, event);
+            renderDummy(dispatcher, dummy, bodyYaw, partialTick, event, entry.scale());
             event.setCanceled(true); // mob drawn — suppress the vanilla player body, armor, name
         } catch (Throwable t) {
             FAILED_TYPES.add(type);
@@ -96,10 +107,23 @@ public final class DisguiseRenderer {
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void renderDummy(EntityRenderDispatcher dispatcher, LivingEntity dummy,
-                                    float bodyYaw, float partialTick, RenderPlayerEvent.Pre event) {
+                                    float bodyYaw, float partialTick, RenderPlayerEvent.Pre event,
+                                    float scale) {
         EntityRenderer renderer = dispatcher.getRenderer(dummy);
-        renderer.render(dummy, bodyYaw, partialTick, event.getPoseStack(),
-                event.getMultiBufferSource(), event.getPackedLight());
+        var pose = event.getPoseStack();
+        boolean scaled = Math.abs(scale - 1.0F) > 1.0E-3F;
+        if (scaled) {
+            // Scale about the model's feet so a giant grows upward from where the player stands
+            // rather than sinking half of itself into the floor.
+            pose.pushPose();
+            pose.scale(scale, scale, scale);
+        }
+        try {
+            renderer.render(dummy, bodyYaw, partialTick, pose,
+                    event.getMultiBufferSource(), event.getPackedLight());
+        } finally {
+            if (scaled) pose.popPose();
+        }
     }
 
     /** Mirror the player's per-frame visual state onto the dummy so the mob faces/poses identically. */
@@ -151,23 +175,23 @@ public final class DisguiseRenderer {
 
     // ── Dummy lifecycle ───────────────────────────────────────────────────────
 
-    /** Returns the cached dummy for this player, (re)creating it if absent or the type changed. */
-    private static LivingEntity dummyFor(Player player, EntityType<?> type) {
+    /** Returns the cached dummy for this player, (re)creating it if absent or the shape changed. */
+    private static LivingEntity dummyFor(Player player, EntityType<?> type, boolean baby) {
         UUID uuid = player.getUUID();
         Dummy cached = DUMMIES.get(uuid);
-        if (cached != null && cached.type == type) return cached.entity;
+        if (cached != null && cached.type == type && cached.baby == baby) return cached.entity;
 
-        LivingEntity created = create(type);
+        LivingEntity created = create(type, baby);
         if (created == null) {
             DUMMIES.remove(uuid);
             return null;
         }
-        DUMMIES.put(uuid, new Dummy(type, created));
+        DUMMIES.put(uuid, new Dummy(type, baby, created));
         return created;
     }
 
     /** Spawns a throwaway, AI-less {@link LivingEntity} in the client level for rendering only. */
-    private static LivingEntity create(EntityType<?> type) {
+    private static LivingEntity create(EntityType<?> type, boolean baby) {
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return null;
         Entity e = type.create(level);
@@ -176,6 +200,11 @@ public final class DisguiseRenderer {
             return null;
         }
         if (living instanceof Mob mob) mob.setNoAi(true); // never tick AI — purely decorative
+        // Only mobs that actually have a baby form respond; asking for one on a creeper is a no-op
+        // rather than an error, which is what an operator typing "baby" on a mob list expects.
+        if (baby && living instanceof net.minecraft.world.entity.AgeableMob ageable) {
+            ageable.setBaby(true);
+        }
         living.setSilent(true);
         return living;
     }
