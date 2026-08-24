@@ -4,7 +4,113 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.3.0] - 2026-08-23 (latest)
+## [1.3.1] - 2026-08-24 (latest)
+
+A corrective release for the three 1.3.0 tools that did not hold up in use: the freeze did nothing
+visible, the death history reset itself, and the tool screens were a wall of icons with no structure.
+
+### Fixed
+
+- **Freeze did not actually hold anyone** — the anchor sweep corrected the player with
+  `Entity#teleportTo`, which moves the server-side entity and never tells the client. The client kept
+  walking and its next movement packet simply overwrote the correction, so a frozen suspect walked
+  away while the server quietly put them back and lost the argument every tick. The correction now
+  goes out through the connection, which is what actually moves a player, and it is backed by an
+  infinite invisible slowness that stops the client from walking in the first place. Creative flight,
+  an elytra and any vehicle are taken away every tick as well, since none of them are stopped by
+  slowness.
+- **Freezing someone was undone by pressing alt-F4** — the freeze was cleared on disconnect, so the
+  answer to a screenshare was to log off and come back free. A freeze now survives a disconnect and a
+  server restart (persisted to `config/arcadia/arcadiaadminpanel/freezes.json`): the suspect comes
+  back frozen, re-anchored where the server spawned them, and is told so. Releasing therefore had to
+  work on someone who is not connected, so `unfreeze <name>` and the panel's release button both
+  accept an offline target.
+- **The death history reset itself on every restart** — a capture built its list from an empty cache
+  rather than from the player's file, so the first death after a reboot wrote a one-entry file over
+  the four snapshots already on disk. The read, the merge and the write now happen together on the
+  snapshot IO thread, and a capture that arrives while the file is being read for a menu no longer
+  loses to it.
+- **The death history looked empty for anyone who had died this session** — the menu only rendered
+  its content when the load callback found itself to be the player's open container. For a player
+  whose snapshots were already cached that callback runs inside the constructor, before the menu is
+  assigned, so the one render the screen would ever get was thrown away and it stayed on "Loading".
+  The screen now renders unconditionally.
+- **A death snapshot that could not be written was dropped in silence** — capture returned without a
+  word when the IO thread was not running. It logs now.
+
+### Changed
+
+- **Death snapshots are shown as an inventory, not as an array** — opening a death used to lay the
+  41 stored slots out in order, which put the hotbar on the top row and the helmet in the middle of
+  the grid. It now reads like an inventory screen: bag, hotbar underneath, then armour and off-hand.
+  The row you opened is named on screen with its date, cause, position, stack count and level, so it
+  is possible to tell one death from another once you are inside it.
+- **The tool screens are grouped and labelled** — Player Tools and Staff Tools were three
+  undifferentiated rows of icons. Each row now carries its name in the first column: Investigate,
+  Intervene and Assist on the player screen, Investigate, Server and Your Toggles on the staff
+  screen.
+- **Tools that need a connected player are greyed out instead of disappearing** — freeze, spectate
+  and give item vanished entirely for an offline target, which reads as a missing feature rather than
+  as an unavailable one. They are now drawn greyed with the reason, and clicking one says why.
+- **The death-snapshot button shows the count instead of asking you to click and find out** — it
+  warms the count off the tick thread and redraws when it lands.
+- **The player grid explains itself** — the slot that holds "clear search" while a search is active
+  now holds a legend the rest of the time: what a left-click does, what a right-click does, that
+  filter and sort step backwards on a right-click, and what the head colours mean.
+- **Player Tools has a close button**, next to the back button, and back says where it goes.
+
+### Corrections
+
+- **Le gel n'immobilisait personne** — la correction de position utilisait `Entity#teleportTo`, qui
+  déplace l'entité côté serveur sans jamais prévenir le client. Le client continuait de marcher et
+  son paquet de déplacement suivant écrasait la correction : le suspect s'en allait pendant que le
+  serveur le remettait en place et perdait l'arbitrage à chaque tick. La correction passe désormais
+  par la connexion, ce qui déplace réellement un joueur, et elle est doublée d'une lenteur infinie
+  invisible qui empêche le client de marcher. Le vol créatif, l'élytre et toute monture sont
+  également retirés à chaque tick, la lenteur ne les arrêtant pas.
+- **Un alt-F4 annulait le gel** — le gel était levé à la déconnexion : la réponse à un screenshare
+  était de se déconnecter et de revenir libre. Un gel survit maintenant à une déconnexion comme à un
+  redémarrage (persisté dans `config/arcadia/arcadiaadminpanel/freezes.json`) : le suspect revient
+  gelé, ré-ancré là où le serveur l'a fait apparaître, et en est informé. Libérer devait donc
+  fonctionner sur quelqu'un qui n'est pas connecté : `unfreeze <nom>` et le bouton du panel acceptent
+  désormais une cible hors ligne.
+- **L'historique des morts repartait de zéro à chaque redémarrage** — une capture construisait sa
+  liste à partir d'un cache vide au lieu du fichier du joueur, si bien que la première mort après un
+  reboot écrivait un fichier à une entrée par-dessus les quatre instantanés déjà sur disque. La
+  lecture, la fusion et l'écriture se font désormais ensemble sur le thread d'E/S des instantanés, et
+  une capture qui arrive pendant la lecture du fichier pour un menu ne se fait plus écraser.
+- **L'historique des morts paraissait vide pour tout joueur mort dans la session** — le menu ne
+  s'affichait que si le callback de chargement se trouvait être le conteneur ouvert du joueur. Pour un
+  joueur dont les instantanés étaient déjà en cache, ce callback s'exécute dans le constructeur, avant
+  que le menu ne soit assigné : le seul rendu que l'écran aurait obtenu était jeté et il restait sur
+  « Chargement ». L'écran se dessine désormais sans condition.
+- **Un instantané de mort impossible à écrire était perdu en silence** — la capture s'interrompait
+  sans un mot quand le thread d'E/S n'était pas démarré. C'est journalisé.
+
+### Modifications
+
+- **Les instantanés de mort s'affichent comme un inventaire, pas comme un tableau** — ouvrir une mort
+  disposait les 41 emplacements dans l'ordre, ce qui plaçait la barre d'action sur la première ligne
+  et le casque au milieu de la grille. La vue se lit maintenant comme un écran d'inventaire : sac,
+  barre d'action en dessous, puis armure et main gauche. La ligne ouverte est nommée à l'écran avec sa
+  date, sa cause, sa position, son nombre de piles et son niveau, de sorte qu'on distingue une mort
+  d'une autre une fois à l'intérieur.
+- **Les écrans d'outils sont groupés et étiquetés** — Outils joueur et Outils staff étaient trois
+  lignes d'icônes indifférenciées. Chaque ligne porte désormais son nom en première colonne :
+  Enquêter, Intervenir et Assister côté joueur, Enquêter, Serveur et Vos bascules côté staff.
+- **Les outils qui exigent un joueur connecté sont grisés au lieu de disparaître** — gel, observation
+  et don d'objet disparaissaient pour une cible hors ligne, ce qui se lit comme une fonctionnalité
+  absente et non indisponible. Ils sont dessinés grisés avec la raison, et un clic l'explique.
+- **Le bouton des instantanés de mort affiche le nombre** au lieu de demander un clic pour le
+  découvrir : il le charge hors du thread de tick et se redessine à l'arrivée.
+- **La grille des joueurs s'explique** — l'emplacement qui porte « effacer la recherche » pendant une
+  recherche porte le reste du temps une légende : ce que fait un clic gauche, ce que fait un clic
+  droit, que filtre et tri reculent au clic droit, et ce que signifient les couleurs des têtes.
+- **Les Outils joueur ont un bouton fermer**, à côté du bouton retour, et le retour indique où il mène.
+
+---
+
+## [1.3.0] - 2026-08-23
 
 The largest release since the panel shipped: thirty-three new tools, a rebuilt player grid, and a
 substantially extended disguise system. Every feature below is gated behind its own permission node,

@@ -20,6 +20,7 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -95,11 +96,26 @@ public final class DeathSnapshotManager {
 
     // -- Capture -------------------------------------------------------------
 
-    /** Called from the death event. Copies on the server thread, persists off it. */
+    /**
+     * Called from the death event. Copies on the server thread, merges and persists off it.
+     *
+     * <p>The merge reads the player's file first when nothing is cached yet. Before 1.3.1 the cache
+     * simply started empty, so the first death after a restart wrote a one-entry file over the four
+     * snapshots already on disk and the history quietly reset itself every reboot.</p>
+     */
     public static void capture(ServerPlayer player, String cause) {
         if (!AdminConfig.get().deathSnapshotsEnabled) return;
         ItemStack[] items = InventoryAccess.readOnline(player);
         if (InventoryAccess.occupied(items) == 0) return;
+
+        MinecraftServer server = player.getServer();
+        if (server == null) return;
+        ExecutorService exec = io;
+        if (exec == null) {
+            LOGGER.warn("[AdminPanel] Death snapshot for {} dropped: IO thread not running",
+                    player.getName().getString());
+            return;
+        }
 
         Snapshot snap = new Snapshot(System.currentTimeMillis(), cause,
                 player.level().dimension().location().toString(),
@@ -107,19 +123,23 @@ public final class DeathSnapshotManager {
                 player.experienceLevel, items);
 
         UUID uuid = player.getUUID();
-        List<Snapshot> list = CACHE.computeIfAbsent(uuid, k -> new ArrayList<>());
-        synchronized (list) {
-            list.add(0, snap);
-            int max = Math.max(1, AdminConfig.get().deathSnapshotsPerPlayer);
-            while (list.size() > max) list.remove(list.size() - 1);
-        }
-
-        MinecraftServer server = player.getServer();
-        if (server == null) return;
         HolderLookup.Provider registries = server.registryAccess();
-        List<Snapshot> toWrite;
-        synchronized (list) { toWrite = new ArrayList<>(list); }
-        persistAsync(uuid, toWrite, registries);
+        int max = Math.max(1, AdminConfig.get().deathSnapshotsPerPlayer);
+
+        exec.execute(() -> {
+            List<Snapshot> list = CACHE.get(uuid);
+            if (list == null) {
+                list = Collections.synchronizedList(new ArrayList<>(readBlocking(uuid, registries)));
+                CACHE.put(uuid, list);
+            }
+            List<Snapshot> toWrite;
+            synchronized (list) {
+                list.add(0, snap);
+                while (list.size() > max) list.remove(list.size() - 1);
+                toWrite = new ArrayList<>(list);
+            }
+            writeBlocking(uuid, toWrite, registries);
+        });
     }
 
     // -- Read ----------------------------------------------------------------
@@ -145,8 +165,14 @@ public final class DeathSnapshotManager {
         CompletableFuture
                 .supplyAsync(() -> readBlocking(uuid, registries), exec)
                 .thenAccept(list -> server.execute(() -> {
-                    CACHE.put(uuid, new ArrayList<>(list));
-                    callback.accept(list);
+                    // computeIfAbsent, not put: a death captured while this read was in flight has
+                    // already merged the file with the new snapshot, and overwriting it here would
+                    // throw that snapshot away.
+                    List<Snapshot> cache = CACHE.computeIfAbsent(uuid,
+                            k -> Collections.synchronizedList(new ArrayList<>(list)));
+                    List<Snapshot> copy;
+                    synchronized (cache) { copy = new ArrayList<>(cache); }
+                    callback.accept(copy);
                 }));
     }
 
@@ -221,13 +247,6 @@ public final class DeathSnapshotManager {
     }
 
     // -- Persistence ---------------------------------------------------------
-
-    private static void persistAsync(UUID uuid, List<Snapshot> snapshots,
-                                     HolderLookup.Provider registries) {
-        ExecutorService exec = io;
-        if (exec == null) return;
-        exec.execute(() -> writeBlocking(uuid, snapshots, registries));
-    }
 
     private static List<Snapshot> readBlocking(UUID uuid, HolderLookup.Provider registries) {
         Path file = fileFor(uuid);

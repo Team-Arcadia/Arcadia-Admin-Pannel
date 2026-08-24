@@ -31,7 +31,7 @@ import java.nio.file.Paths;
  * Arcadia Admin Panel — Steampunk-themed server management mod.
  * Both-sided mod powered by Arcadia Lib.
  *
- * @version 1.3.0
+ * @version 1.3.1
  * @author vyrriox
  */
 @Mod("arcadiaadminpanel")
@@ -142,6 +142,9 @@ public class AdminPanelMod {
         // ── 1.3.0 subsystems ────────────────────────────────────────────────
         // Salt first: the login tracker hashes connection fingerprints with it from the first join.
         com.arcadia.adminpanel.util.AltDetector.init();
+        // Restores anyone still frozen from the previous session before the first player
+        // can connect, so a suspect cannot escape a screenshare by waiting out a restart.
+        com.arcadia.adminpanel.util.FreezeManager.init();
         com.arcadia.adminpanel.util.RecordStore.initAll();
         com.arcadia.adminpanel.util.SanctionTemplates.init();
         com.arcadia.adminpanel.util.InventoryAccess.init();
@@ -165,7 +168,7 @@ public class AdminPanelMod {
         com.arcadia.adminpanel.util.InventoryAccess.shutdown();
         com.arcadia.adminpanel.util.DiscordWebhook.shutdown();
         com.arcadia.adminpanel.util.VanishManager.reset();
-        com.arcadia.adminpanel.util.FreezeManager.reset();
+        com.arcadia.adminpanel.util.FreezeManager.shutdown();
         com.arcadia.adminpanel.util.AfkTracker.reset();
         com.arcadia.adminpanel.util.ClientModsRegistry.reset();
         com.arcadia.adminpanel.util.RestartScheduler.reset();

@@ -348,16 +348,24 @@ public final class StaffOpsCommand {
     private static int unfreeze(CommandContext<CommandSourceStack> ctx) {
         ServerPlayer admin = self(ctx);
         MinecraftServer server = ctx.getSource().getServer();
-        ServerPlayer target = server.getPlayerList().getPlayerByName(targetName(ctx));
-        if (target == null) {
-            fail(ctx, "error.player_offline");
+        String name = targetName(ctx);
+        ServerPlayer target = server.getPlayerList().getPlayerByName(name);
+        if (target != null) {
+            if (FreezeManager.unfreeze(admin, target)) {
+                ok(ctx, "freeze.lifted", "%player%", target.getName().getString());
+                return 1;
+            }
+            fail(ctx, "freeze.not_frozen", "%player%", target.getName().getString());
             return 0;
         }
-        if (FreezeManager.unfreeze(admin, target)) {
-            ok(ctx, "freeze.lifted", "%player%", target.getName().getString());
+
+        // The freeze outlives a disconnect, so releasing has to work on someone who is not here.
+        java.util.UUID offline = FreezeManager.findByName(name);
+        if (offline != null && FreezeManager.unfreezeOffline(admin, offline, name)) {
+            ok(ctx, "freeze.lifted", "%player%", name);
             return 1;
         }
-        fail(ctx, "freeze.not_frozen", "%player%", target.getName().getString());
+        fail(ctx, "error.player_offline");
         return 0;
     }
 

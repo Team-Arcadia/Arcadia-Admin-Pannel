@@ -309,8 +309,9 @@ public class PlayerDetailMenu extends ChestMenu {
         // editor, death snapshots, mail, templates and the rest.
         int noteCount = com.arcadia.adminpanel.util.NotesManager.count(targetUUID);
         var toolsIcon = ItemBuilder.of(Items.ENDER_CHEST)
-                .name(Component.literal("§d" + LanguageHelper.getText("tools.player", admin)))
-                .addLore(Component.literal("§7" + LanguageHelper.getText("tools.player.hint", admin)));
+                .name(Component.literal("§d§l" + LanguageHelper.getText("tools.player", admin)))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("tools.player.hint", admin)))
+                .addLore(Component.literal("§e" + LanguageHelper.getText("tools.player.open", admin)));
         if (noteCount > 0) {
             toolsIcon.addLore(Component.literal("§6" + noteCount + " "
                     + LanguageHelper.getText("notes.count", admin)));

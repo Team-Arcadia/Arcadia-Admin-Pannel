@@ -291,6 +291,22 @@ public final class LanguageHelper {
 
         en.put("tools.player", "Player Tools");
         en.put("tools.player.hint", "History, notes, freeze, inventory and more");
+        en.put("tools.player.open", "Click to open");
+        en.put("tools.player.rows", "Investigate / Intervene / Assist, one row each");
+        en.put("tools.group.investigate", "Investigate");
+        en.put("tools.group.investigate.hint", "Find out what happened");
+        en.put("tools.group.intervene", "Intervene");
+        en.put("tools.group.intervene.hint", "Act on this player now");
+        en.put("tools.group.assist", "Assist");
+        en.put("tools.group.assist.hint", "Give something back or reach them");
+        en.put("tools.group.server", "Server");
+        en.put("tools.group.server.hint", "Performance, world, chat and scheduling");
+        en.put("tools.group.self", "Your Toggles");
+        en.put("tools.group.self.hint", "Switches that apply to you alone");
+        en.put("tools.requires_online", "Needs the player connected");
+        en.put("tools.offline_release", "They are offline: releasing lifts it for their next login");
+        en.put("tools.deaths.hint", "Their last deaths and what they carried");
+        en.put("tools.back.sheet", "Back to the player sheet");
         en.put("tools.history", "Sanction History");
         en.put("tools.history.count", "sanctions");
         en.put("tools.notes", "Staff Notes");
@@ -317,6 +333,15 @@ public final class LanguageHelper {
         en.put("tools.mail", "Offline Mail");
 
         en.put("menu.filter", "Filter:");
+        en.put("menu.legend", "How this screen works");
+        en.put("menu.legend.open", "Left-click a head: open their sheet");
+        en.put("menu.legend.select", "Right-click or shift-click a head: add to the selection");
+        en.put("menu.legend.cycle", "Filter and sort: left-click steps forward, right-click back");
+        en.put("menu.legend.colours", "Name colour:");
+        en.put("menu.legend.online", "online");
+        en.put("menu.legend.afk", "AFK");
+        en.put("menu.legend.offline", "offline");
+        en.put("menu.legend.selected", "selected");
         en.put("menu.filter.results", "results");
         en.put("menu.filter.cycle", "Right-click to go back");
         en.put("menu.filter.all", "All");
@@ -600,6 +625,7 @@ public final class LanguageHelper {
         en.put("deaths.unknown", "Click to load");
         en.put("deaths.stacks", "stacks");
         en.put("deaths.click_open", "Click to see the items");
+        en.put("deaths.layout", "Bag, hotbar, then armour and off-hand");
         en.put("deaths.restore", "Restore");
         en.put("deaths.restore.hint", "Click twice to confirm");
         en.put("deaths.restored", "%count% stacks returned to %player%.");
@@ -623,6 +649,7 @@ public final class LanguageHelper {
         en.put("freeze.title", "FROZEN");
         en.put("freeze.subtitle", "A moderator wants to talk to you");
         en.put("freeze.notice", "You have been frozen. Do not disconnect: answer in chat.");
+        en.put("freeze.relog", "You are still frozen. Disconnecting does not lift it: answer in chat.");
         en.put("freeze.actionbar", "Frozen - answer the moderator in chat");
         en.put("freeze.denied", "You cannot do that while frozen.");
         en.put("freeze.released", "You have been released.");
@@ -971,6 +998,22 @@ public final class LanguageHelper {
 
         fr.put("tools.player", "Outils joueur");
         fr.put("tools.player.hint", "Historique, notes, gel, inventaire et plus");
+        fr.put("tools.player.open", "Cliquez pour ouvrir");
+        fr.put("tools.player.rows", "Enquêter / Intervenir / Assister, une ligne chacun");
+        fr.put("tools.group.investigate", "Enquêter");
+        fr.put("tools.group.investigate.hint", "Comprendre ce qui s'est passé");
+        fr.put("tools.group.intervene", "Intervenir");
+        fr.put("tools.group.intervene.hint", "Agir sur ce joueur maintenant");
+        fr.put("tools.group.assist", "Assister");
+        fr.put("tools.group.assist.hint", "Lui rendre quelque chose ou le joindre");
+        fr.put("tools.group.server", "Serveur");
+        fr.put("tools.group.server.hint", "Performances, monde, chat et planification");
+        fr.put("tools.group.self", "Vos bascules");
+        fr.put("tools.group.self.hint", "Réglages qui ne concernent que vous");
+        fr.put("tools.requires_online", "Nécessite que le joueur soit connecté");
+        fr.put("tools.offline_release", "Hors ligne : libérer lève le gel pour sa prochaine connexion");
+        fr.put("tools.deaths.hint", "Ses dernières morts et ce qu'il portait");
+        fr.put("tools.back.sheet", "Retour à la fiche du joueur");
         fr.put("tools.history", "Historique des sanctions");
         fr.put("tools.history.count", "sanctions");
         fr.put("tools.notes", "Notes staff");
@@ -997,6 +1040,15 @@ public final class LanguageHelper {
         fr.put("tools.mail", "Courrier hors ligne");
 
         fr.put("menu.filter", "Filtre :");
+        fr.put("menu.legend", "Comment fonctionne cet écran");
+        fr.put("menu.legend.open", "Clic gauche sur une tête : ouvrir sa fiche");
+        fr.put("menu.legend.select", "Clic droit ou shift-clic : ajouter à la sélection");
+        fr.put("menu.legend.cycle", "Filtre et tri : clic gauche avance, clic droit recule");
+        fr.put("menu.legend.colours", "Couleur du nom :");
+        fr.put("menu.legend.online", "en ligne");
+        fr.put("menu.legend.afk", "AFK");
+        fr.put("menu.legend.offline", "hors ligne");
+        fr.put("menu.legend.selected", "sélectionné");
         fr.put("menu.filter.results", "résultats");
         fr.put("menu.filter.cycle", "Clic droit pour revenir en arrière");
         fr.put("menu.filter.all", "Tous");
@@ -1280,6 +1332,7 @@ public final class LanguageHelper {
         fr.put("deaths.unknown", "Cliquez pour charger");
         fr.put("deaths.stacks", "piles");
         fr.put("deaths.click_open", "Cliquez pour voir les objets");
+        fr.put("deaths.layout", "Sac, barre d'action, puis armure et main gauche");
         fr.put("deaths.restore", "Restaurer");
         fr.put("deaths.restore.hint", "Cliquez deux fois pour confirmer");
         fr.put("deaths.restored", "%count% piles rendues à %player%.");
@@ -1303,6 +1356,7 @@ public final class LanguageHelper {
         fr.put("freeze.title", "GELÉ");
         fr.put("freeze.subtitle", "Un modérateur veut vous parler");
         fr.put("freeze.notice", "Vous avez été gelé. Ne vous déconnectez pas : répondez dans le chat.");
+        fr.put("freeze.relog", "Vous êtes toujours gelé. Se déconnecter ne lève pas le gel : répondez dans le chat.");
         fr.put("freeze.actionbar", "Gelé - répondez au modérateur dans le chat");
         fr.put("freeze.denied", "Vous ne pouvez pas faire ça pendant que vous êtes gelé.");
         fr.put("freeze.released", "Vous avez été libéré.");

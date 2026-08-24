@@ -34,6 +34,7 @@ import java.util.UUID;
  */
 public class DeathSnapshotMenu extends PagedMenu {
 
+    private static final int SLOT_SUMMARY = 46;
     private static final int SLOT_RESTORE = 47;
 
     private final UUID target;
@@ -75,7 +76,11 @@ public class DeathSnapshotMenu extends PagedMenu {
         DeathSnapshotManager.loadAsync(server, target, list -> {
             snapshots = list;
             loading = false;
-            if (admin.containerMenu == this) rebuild();
+            // Rebuilt unconditionally. When the list is already cached this callback runs inside the
+            // constructor, before openMenu() has assigned containerMenu — and the old
+            // "containerMenu == this" guard threw away the only render the screen would ever get,
+            // which is why the death history looked empty for anyone who had died this session.
+            rebuild();
         });
     }
 
@@ -102,9 +107,13 @@ public class DeathSnapshotMenu extends PagedMenu {
     protected void renderEntry(int index, int slot) {
         DeathSnapshotManager.Snapshot snap = current();
         if (snap != null) {
+            if (index >= snap.items().length) return;
             ItemStack stack = snap.items()[index];
             if (stack == null || stack.isEmpty()) return;
-            this.getContainer().setItem(slot, stack.copy());
+            // Laid out the way an inventory screen is laid out — bag, then hotbar, then armour and
+            // off-hand — instead of a flat 41-slot run that put the hotbar on the top row and the
+            // helmet in the middle of the grid. Staff read what they were carrying, not an array.
+            this.getContainer().setItem(layoutSlot(index), stack.copy());
             return;
         }
 
@@ -138,7 +147,26 @@ public class DeathSnapshotMenu extends PagedMenu {
     @Override
     protected void renderExtraControls() {
         DeathSnapshotManager.Snapshot snap = current();
-        if (snap == null || !AdminPermissions.DEATH_RESTORE.check(admin)) return;
+        if (snap == null) return;
+
+        // Which death you are looking at, kept on screen. Opening a row used to replace the list
+        // with an unlabelled grid of items and no way to tell one death from another.
+        this.getContainer().setItem(SLOT_SUMMARY, ItemBuilder.of(Items.SKELETON_SKULL)
+                .name(Component.literal("§c" + LanguageHelper.getText("deaths.entry", admin)
+                        + " #" + (viewing + 1) + " §8/ " + snapshots.size()))
+                .addLore(Component.literal("§8" + date(snap.time())))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("deaths.cause", admin)
+                        + " §f" + snap.cause()))
+                .addLore(Component.literal("§7" + shortDim(snap.dimension()) + " §8"
+                        + (int) snap.x() + ", " + (int) snap.y() + ", " + (int) snap.z()))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("deaths.items", admin)
+                        + " §f" + snap.itemCount()))
+                .addLore(Component.literal("§7" + LanguageHelper.getText("deaths.xp", admin)
+                        + " §f" + snap.xpLevel()))
+                .addLore(Component.literal("§8" + LanguageHelper.getText("deaths.layout", admin)))
+                .build());
+
+        if (!AdminPermissions.DEATH_RESTORE.check(admin)) return;
 
         this.getContainer().setItem(SLOT_RESTORE, ItemBuilder.of(Items.TOTEM_OF_UNDYING)
                 .name(Component.literal("§a" + LanguageHelper.getText("deaths.restore", admin)))
@@ -211,6 +239,17 @@ public class DeathSnapshotMenu extends PagedMenu {
         boolean online = admin.getServer() != null
                 && admin.getServer().getPlayerList().getPlayer(target) != null;
         PlayerDetailMenu.open(admin, target, targetName, online);
+    }
+
+    /**
+     * Maps a dense inventory index onto the slot it should occupy in the 45-slot content grid:
+     * three rows of bag, one row of hotbar, then armour (helmet to boots) and the off-hand.
+     */
+    private static int layoutSlot(int index) {
+        if (index < 9) return 27 + index;            // hotbar, its own row under the bag
+        if (index < 36) return index - 9;            // main inventory, rows one to three
+        if (index < 40) return 38 + (39 - index);    // armour: helmet, chest, legs, boots
+        return 43;                                    // off-hand, set apart from the armour
     }
 
     private static String shortDim(String id) {

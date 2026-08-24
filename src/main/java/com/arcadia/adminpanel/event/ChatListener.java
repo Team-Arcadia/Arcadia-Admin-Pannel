@@ -507,8 +507,10 @@ public class ChatListener {
         com.arcadia.adminpanel.util.WatchlistManager.onJoin(sp);
         com.arcadia.adminpanel.util.AltDetector.onJoin(sp);
         com.arcadia.adminpanel.util.MailManager.onJoin(sp);
-        // A player who was frozen when the server went down comes back frozen; push the overlay
-        // state either way so a stale client flag from a previous session cannot survive.
+        // A player who was frozen when they disconnected — or when the server went down — comes
+        // back frozen: the hold is re-applied and the anchor re-pinned to where they spawned.
+        // The overlay state is pushed either way so a stale client flag cannot survive a relog.
+        com.arcadia.adminpanel.util.FreezeManager.onJoin(sp);
         com.arcadia.adminpanel.network.AdminPanelNet.sendFreezeState(
                 sp, com.arcadia.adminpanel.util.FreezeManager.isFrozen(sp.getUUID()));
 
@@ -582,7 +584,9 @@ public class ChatListener {
         com.arcadia.adminpanel.util.SpectateManager.onStaffQuit(sp);
         com.arcadia.adminpanel.util.SpectateManager.onTargetQuit(sp);
         com.arcadia.adminpanel.util.VanishManager.onQuit(sp);
-        com.arcadia.adminpanel.util.FreezeManager.clearSilently(uuid);
+        // Not cleared: a freeze that ends at the disconnect makes alt-F4 a valid answer to a
+        // screenshare. Only the message pacing is dropped here.
+        com.arcadia.adminpanel.util.FreezeManager.onQuit(uuid);
         com.arcadia.adminpanel.util.AfkTracker.onQuit(uuid);
         com.arcadia.adminpanel.util.SpyManager.clear(uuid);
         com.arcadia.adminpanel.util.SilentMode.clear(uuid);

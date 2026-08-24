@@ -194,12 +194,26 @@ public class AdminPanelMenu extends ChestMenu {
                     .build());
         }
 
-        // Clear search (slot 51) — only if filter active
+        // Clear search (slot 51) — only if filter active. Otherwise the slot carries the legend:
+        // every control on this row does something different on a right-click, and until 1.3.1 the
+        // only way to find that out was to try it.
         if (!filter.isEmpty()) {
             this.getContainer().setItem(51, ItemBuilder.of(Items.BARRIER)
                     .name(Component.literal("§c" + LanguageHelper.getText("action.search.clear", admin)))
                     .addLore(Component.literal("§7" + LanguageHelper.getText("action.search.current", admin)
                             + " §e" + filter))
+                    .build());
+        } else {
+            this.getContainer().setItem(51, ItemBuilder.of(Items.OAK_SIGN)
+                    .name(Component.literal("§f" + LanguageHelper.getText("menu.legend", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("menu.legend.open", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("menu.legend.select", admin)))
+                    .addLore(Component.literal("§7" + LanguageHelper.getText("menu.legend.cycle", admin)))
+                    .addLore(Component.literal("§8" + LanguageHelper.getText("menu.legend.colours", admin)))
+                    .addLore(Component.literal("§a" + LanguageHelper.getText("menu.legend.online", admin)
+                            + " §8/ §2" + LanguageHelper.getText("menu.legend.afk", admin)
+                            + " §8/ §c" + LanguageHelper.getText("menu.legend.offline", admin)
+                            + " §8/ §b" + LanguageHelper.getText("menu.legend.selected", admin)))
                     .build());
         }
 
@@ -415,7 +429,7 @@ public class AdminPanelMenu extends ChestMenu {
             return;
         }
 
-        // Clear search (51)
+        // Clear search (51). The legend that occupies the slot when no search is active is inert.
         if (slotId == 51 && !filter.isEmpty()) {
             sp.closeContainer();
             open(sp, "");

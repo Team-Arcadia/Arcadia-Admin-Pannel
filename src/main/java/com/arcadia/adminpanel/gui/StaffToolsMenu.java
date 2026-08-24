@@ -51,6 +51,11 @@ public class StaffToolsMenu extends ChestMenu {
     // Row 0: live status. Rows 1-3: tools. Row 5: personal toggles and navigation.
     private static final int SLOT_STATUS = 4;
 
+    /** Column 0 of each row names the row, so the screen reads as three groups, not one wall. */
+    private static final int SLOT_GROUP_INVESTIGATE = 9;
+    private static final int SLOT_GROUP_SERVER = 18;
+    private static final int SLOT_GROUP_SELF = 27;
+
     private static final int SLOT_AUDIT = 10;
     private static final int SLOT_BANS = 11;
     private static final int SLOT_WATCHLIST = 12;
@@ -105,6 +110,10 @@ public class StaffToolsMenu extends ChestMenu {
         for (int i = 0; i < 54; i++) this.getContainer().setItem(i, filler.copy());
 
         renderStatus(server);
+
+        group(SLOT_GROUP_INVESTIGATE, Items.SPYGLASS, "§e", "tools.group.investigate");
+        group(SLOT_GROUP_SERVER, Items.ANVIL, "§6", "tools.group.server");
+        group(SLOT_GROUP_SELF, Items.PLAYER_HEAD, "§d", "tools.group.self");
 
         if (AdminPermissions.AUDIT.check(admin)) {
             put(SLOT_AUDIT, Items.WRITABLE_BOOK, "§b", "tools.audit",
@@ -228,6 +237,14 @@ public class StaffToolsMenu extends ChestMenu {
                 .addLore(Component.literal("§7" + t("tools.status.memory") + " §f"
                         + s.usedMemoryMb() + " / " + s.maxMemoryMb() + " MB"))
                 .addLore(Component.literal("§7" + t("tools.status.entities") + " §f" + s.totalEntities()))
+                .build());
+    }
+
+    /** A row label. Inert: it names the row and nothing else, and clicking it does nothing. */
+    private void group(int slot, net.minecraft.world.item.Item item, String colour, String key) {
+        this.getContainer().setItem(slot, ItemBuilder.of(item)
+                .name(Component.literal(colour + "§l" + t(key)))
+                .addLore(Component.literal("§8" + t(key + ".hint")))
                 .build());
     }
 

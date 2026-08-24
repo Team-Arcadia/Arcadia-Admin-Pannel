@@ -4,6 +4,35 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-08-24 15:40] — `Entity#teleportTo` does not move a ServerPlayer's client
+
+**Context:** The freeze anchor sweep. A frozen player who drifted past the tolerance was pulled back with `player.teleportTo(x, y, z)` every tick, and testers reported the freeze "did nothing".
+**Error:** No exception. The server-side entity was at the anchor and the client was wherever the player had walked to. Movement in Minecraft is client-authoritative: the client's next `ServerboundMovePlayerPacket` is accepted and overwrites the server position, so the correction lost the argument every tick and the player walked off unimpeded.
+**Root cause:** `Entity#teleportTo(double, double, double)` is `moveTo` plus passenger handling. It updates server state and sends nothing. Only `ServerGamePacketListenerImpl#teleport` emits `ClientboundPlayerPositionPacket` and sets the awaiting-teleport flag that makes the server ignore stale client positions until the client acknowledges.
+**Fix:** `player.connection.teleport(x, y, z, yaw, pitch)`, plus an infinite invisible Slowness VII so the client cannot generate the movement in the first place, and a per-tick removal of creative flight, elytra flight and any vehicle, none of which slowness stops.
+**Prevention:** To move a `ServerPlayer` and have the client agree, always go through `connection.teleport(...)`. `Entity#teleportTo` is for entities the server owns outright. When a server-side "hold" is meant to be felt by the player, add a client-side brake (an attribute or an effect) instead of relying on correction alone.
+
+---
+
+## [2026-08-24 15:05] — A cache that starts empty is a truncation, not a miss
+
+**Context:** Death snapshots. `capture()` did `CACHE.computeIfAbsent(uuid, k -> new ArrayList<>())`, prepended the new snapshot, trimmed to the configured maximum and wrote the whole list to the player's file.
+**Error:** No exception. After every restart the first death of a player wrote a file containing exactly one snapshot, destroying the four already on disk. The bug was invisible in a single session and only ever visible as "my death history is gone" after a reboot.
+**Root cause:** The cache was treated as the source of truth while the file was the source of truth. An absent cache entry means "not read yet", not "no history", and the write path never distinguished the two.
+**Fix:** The read, merge, trim and write happen together on the snapshot IO thread; an absent cache entry loads the file first. The menu's own load path was changed to `computeIfAbsent` as well, so a read in flight can no longer clobber a capture that landed while it was running.
+**Prevention:** Any lazily-populated cache that is also written back to its own backing store must load before it merges. Treat "cache miss" and "empty" as different states, and never let a full-collection write be driven by a collection that was never populated.
+
+---
+
+## [2026-08-24 14:20] — A menu callback guarded on `containerMenu == this` never fires on the cached path
+
+**Context:** `DeathSnapshotMenu` loaded its rows through an async callback and re-rendered with `if (admin.containerMenu == this) rebuild();`.
+**Error:** No exception. The death list was correct for a player whose file had to be read from disk and permanently stuck on "Loading" for a player whose snapshots were already in memory.
+**Root cause:** The load call is made from the menu constructor. On the cached path the callback runs synchronously, still inside that constructor, and `openMenu` has not yet assigned `containerMenu`, so the guard is false and the only render the screen would ever get is discarded. On the async path the callback lands a tick later, by which time the guard is true, which is why the bug only showed up for players who had died in the current session.
+**Prevention:** Never guard a menu render on `containerMenu == this` when the callback can run synchronously from the constructor. Rendering into a container nobody is listening to is free; skipping the render is not. Use the guard only for deferred refreshes scheduled after the menu is open.
+
+---
+
 ## [2026-08-23 19:20] — Permission bitmask silently wraps past 32 nodes
 
 **Context:** Adding 28 permission nodes for the 1.3.0 tooling, taking `AdminPermissions` from 23 constants to 51.

@@ -54,6 +54,11 @@ public class PlayerToolsMenu extends ChestMenu {
 
     private static final int SLOT_HEAD = 4;
 
+    /** Column 0 of each row labels the row. A wall of twenty icons is not a menu, it is a search. */
+    private static final int SLOT_GROUP_INVESTIGATE = 9;
+    private static final int SLOT_GROUP_INTERVENE = 18;
+    private static final int SLOT_GROUP_ASSIST = 27;
+
     private static final int SLOT_HISTORY = 10;
     private static final int SLOT_NOTES = 11;
     private static final int SLOT_AUDIT = 12;
@@ -75,6 +80,7 @@ public class PlayerToolsMenu extends ChestMenu {
     private static final int SLOT_DISGUISE = 32;
 
     private static final int SLOT_BACK = 49;
+    private static final int SLOT_CLOSE = 50;
 
     private final ServerPlayer admin;
     private final UUID target;
@@ -110,8 +116,14 @@ public class PlayerToolsMenu extends ChestMenu {
 
         this.getContainer().setItem(SLOT_HEAD, ItemBuilder.of(SkullCache.createSkull(target, targetName))
                 .name(Component.literal("§6§l" + targetName))
-                .addLore(Component.literal("§8" + t(online ? "player.online" : "player.offline")))
+                .addLore(Component.literal((online ? "§a" : "§c")
+                        + t(online ? "player.online" : "player.offline")))
+                .addLore(Component.literal("§8" + t("tools.player.rows")))
                 .build());
+
+        group(SLOT_GROUP_INVESTIGATE, Items.SPYGLASS, "§e", "tools.group.investigate");
+        group(SLOT_GROUP_INTERVENE, Items.IRON_BARS, "§c", "tools.group.intervene");
+        group(SLOT_GROUP_ASSIST, Items.GOLDEN_APPLE, "§a", "tools.group.assist");
 
         if (AdminPermissions.HISTORY.check(admin)) {
             put(SLOT_HISTORY, Items.BOOK, "§e", "tools.history",
@@ -150,17 +162,30 @@ public class PlayerToolsMenu extends ChestMenu {
                     "§7" + t(watched ? "misc.on" : "misc.off"));
         }
 
-        if (AdminPermissions.FREEZE.check(admin) && online) {
+        if (AdminPermissions.FREEZE.check(admin)) {
+            // Shown offline too: the freeze now survives a disconnect, so "release" has to stay
+            // reachable for a suspect who logged off in the middle of a screenshare.
             boolean frozen = FreezeManager.isFrozen(target);
-            put(SLOT_FREEZE, frozen ? Items.BLUE_ICE : Items.PACKED_ICE, frozen ? "§b" : "§f",
-                    frozen ? "tools.unfreeze" : "tools.freeze",
-                    "§8" + t(frozen ? "tools.unfreeze.hint" : "tools.freeze.hint"));
+            if (frozen) {
+                put(SLOT_FREEZE, Items.BLUE_ICE, "§b", "tools.unfreeze",
+                        "§8" + t("tools.unfreeze.hint"),
+                        online ? "" : "§8" + t("tools.offline_release"));
+            } else if (online) {
+                put(SLOT_FREEZE, Items.PACKED_ICE, "§f", "tools.freeze",
+                        "§8" + t("tools.freeze.hint"));
+            } else {
+                disabled(SLOT_FREEZE, "tools.freeze");
+            }
         }
-        if (AdminPermissions.SPECTATE.check(admin) && online) {
+        if (AdminPermissions.SPECTATE.check(admin)) {
             boolean active = SpectateManager.isSpectating(admin.getUUID());
-            put(SLOT_SPECTATE, Items.ENDER_EYE, active ? "§a" : "§d",
-                    active ? "tools.spectate.stop" : "tools.spectate",
-                    "§8" + t("tools.spectate.hint"));
+            if (online || active) {
+                put(SLOT_SPECTATE, Items.ENDER_EYE, active ? "§a" : "§d",
+                        active ? "tools.spectate.stop" : "tools.spectate",
+                        "§8" + t("tools.spectate.hint"));
+            } else {
+                disabled(SLOT_SPECTATE, "tools.spectate");
+            }
         }
         if (AdminPermissions.BAN.check(admin)) {
             put(SLOT_TEMPBAN, Items.RED_DYE, "§c", "tools.tempban",
@@ -189,11 +214,22 @@ public class PlayerToolsMenu extends ChestMenu {
         if (AdminPermissions.DEATH_RESTORE.check(admin) && AdminConfig.get().deathSnapshotsEnabled) {
             int cached = DeathSnapshotManager.cachedCount(target);
             put(SLOT_DEATHS, Items.TOTEM_OF_UNDYING, "§a", "tools.deaths",
-                    cached < 0 ? "§8" + t("deaths.unknown") : "§7" + cached + " " + t("deaths.count"));
+                    cached < 0 ? "§8" + t("deaths.loading") : "§7" + cached + " " + t("deaths.count"),
+                    "§8" + t("tools.deaths.hint"));
+            if (cached < 0) {
+                // Warm the count off the tick thread and redraw once it lands, so the button says
+                // how many deaths there are instead of asking the moderator to click and find out.
+                DeathSnapshotManager.loadAsync(server, target, list -> {
+                    if (admin.containerMenu == this) build();
+                });
+            }
         }
-        if (AdminPermissions.GIVE_ITEM.check(admin) && online) {
-            put(SLOT_GIVE, Items.DROPPER, "§a", "tools.give",
-                    "§8" + t("tools.give.hint"));
+        if (AdminPermissions.GIVE_ITEM.check(admin)) {
+            if (online) {
+                put(SLOT_GIVE, Items.DROPPER, "§a", "tools.give", "§8" + t("tools.give.hint"));
+            } else {
+                disabled(SLOT_GIVE, "tools.give");
+            }
         }
         if (AdminPermissions.MAIL.check(admin)) {
             put(SLOT_MAIL, Items.PAPER, "§b", "tools.mail",
@@ -207,7 +243,10 @@ public class PlayerToolsMenu extends ChestMenu {
         }
 
         this.getContainer().setItem(SLOT_BACK, ItemBuilder.of(Items.ARROW)
-                .name(Component.literal("§c" + t("action.back"))).build());
+                .name(Component.literal("§e" + t("action.back")))
+                .addLore(Component.literal("§8" + t("tools.back.sheet"))).build());
+        this.getContainer().setItem(SLOT_CLOSE, ItemBuilder.of(Items.BARRIER)
+                .name(Component.literal("§c" + t("action.close"))).build());
         this.broadcastChanges();
     }
 
@@ -218,6 +257,26 @@ public class PlayerToolsMenu extends ChestMenu {
             if (line != null && !line.isBlank()) b.addLore(Component.literal(line));
         }
         this.getContainer().setItem(slot, b.build());
+    }
+
+    /** A row label. Inert: it names the row and nothing else, and clicking it does nothing. */
+    private void group(int slot, net.minecraft.world.item.Item item, String colour, String key) {
+        this.getContainer().setItem(slot, ItemBuilder.of(item)
+                .name(Component.literal(colour + "§l" + t(key)))
+                .addLore(Component.literal("§8" + t(key + ".hint")))
+                .build());
+    }
+
+    /**
+     * A tool that exists but cannot run right now, drawn greyed with the reason. Hiding it instead
+     * made the screen change shape depending on whether the target happened to be connected, which
+     * reads as a missing feature rather than as an unavailable one.
+     */
+    private void disabled(int slot, String key) {
+        this.getContainer().setItem(slot, ItemBuilder.of(Items.GRAY_DYE)
+                .name(Component.literal("§8" + t(key)))
+                .addLore(Component.literal("§c" + t("tools.requires_online")))
+                .build());
     }
 
     private String t(String key) {
@@ -239,6 +298,7 @@ public class PlayerToolsMenu extends ChestMenu {
                 sp.closeContainer();
                 PlayerDetailMenu.open(sp, target, targetName, targetPlayer != null);
             }
+            case SLOT_CLOSE -> sp.closeContainer();
             case SLOT_HISTORY -> {
                 if (!AdminPermissions.HISTORY.check(sp)) return;
                 sp.closeContainer();
@@ -283,24 +343,39 @@ public class PlayerToolsMenu extends ChestMenu {
             }
             case SLOT_FREEZE -> {
                 if (!AdminPermissions.FREEZE.check(sp)) return;
-                if (targetPlayer == null) return;
                 if (FreezeManager.isFrozen(target)) {
-                    FreezeManager.unfreeze(sp, targetPlayer);
+                    if (targetPlayer != null) {
+                        FreezeManager.unfreeze(sp, targetPlayer);
+                    } else {
+                        FreezeManager.unfreezeOffline(sp, target, targetName);
+                    }
+                    sp.sendSystemMessage(ArcadiaMessages.success(
+                            LanguageHelper.getText("freeze.lifted", sp)
+                                    .replace("%player%", targetName)));
                     SoundHelper.success(sp);
                     build();
-                } else {
-                    sp.closeContainer();
-                    ChatListener.startFreezeReasonSession(sp, target, targetName);
+                    return;
                 }
+                if (targetPlayer == null) {
+                    sp.sendSystemMessage(ArcadiaMessages.error(t("error.player_offline")));
+                    return;
+                }
+                sp.closeContainer();
+                ChatListener.startFreezeReasonSession(sp, target, targetName);
             }
             case SLOT_SPECTATE -> {
                 if (!AdminPermissions.SPECTATE.check(sp)) return;
-                sp.closeContainer();
                 if (SpectateManager.isSpectating(sp.getUUID())) {
+                    sp.closeContainer();
                     SpectateManager.stop(sp);
-                } else if (targetPlayer != null) {
-                    SpectateManager.start(sp, targetPlayer);
+                    return;
                 }
+                if (targetPlayer == null) {
+                    sp.sendSystemMessage(ArcadiaMessages.error(t("error.player_offline")));
+                    return;
+                }
+                sp.closeContainer();
+                SpectateManager.start(sp, targetPlayer);
             }
             case SLOT_TEMPBAN -> {
                 if (!AdminPermissions.BAN.check(sp)) return;
@@ -337,7 +412,10 @@ public class PlayerToolsMenu extends ChestMenu {
             }
             case SLOT_GIVE -> {
                 if (!AdminPermissions.GIVE_ITEM.check(sp)) return;
-                if (targetPlayer == null) return;
+                if (targetPlayer == null) {
+                    sp.sendSystemMessage(ArcadiaMessages.error(t("error.player_offline")));
+                    return;
+                }
                 // Left click hands over what the admin is holding, right click prompts for an id.
                 if (button == 1) {
                     sp.closeContainer();
