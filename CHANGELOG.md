@@ -37,6 +37,16 @@ visible, the death history reset itself, and the tool screens were a wall of ico
   The screen now renders unconditionally.
 - **A death snapshot that could not be written was dropped in silence** — capture returned without a
   word when the IO thread was not running. It logs now.
+- **A death snapshot could be restored as many times as you clicked** — restoring copies the stored
+  stacks into a live inventory without consuming them, so a second restore handed the player a
+  second full set of everything they died with, and a third a third. A snapshot is now stamped with
+  when it was restored and by whom, the stamp is persisted with it, and the button is greyed out
+  afterwards. Files written before 1.3.1 read back as never restored, so nothing is lost on upgrade.
+- **Homes past the twenty-seventh were unreachable** — the player sheet renders 27 home slots and
+  kept a `homePage` field that every read consulted and nothing ever wrote. A player with more homes
+  than that simply had the rest invisible, with no control to reach them. The last cell of the grid
+  now turns the page when one page is not enough, and it is not gated on the teleport node: homes are
+  visible to any panel viewer since #208, so the control that reaches the rest of them has to be too.
 
 ### Changed
 
@@ -58,6 +68,11 @@ visible, the death history reset itself, and the tool screens were a wall of ico
   now holds a legend the rest of the time: what a left-click does, what a right-click does, that
   filter and sort step backwards on a right-click, and what the head colours mean.
 - **Player Tools has a close button**, next to the back button, and back says where it goes.
+- **Staff are told when a frozen suspect disconnects and when they come back** — now that a freeze
+  survives a relog, the disconnect is the moment staff most need to hear about and the one they are
+  least likely to notice on their own.
+- **The spectate button names who you are watching** — it stops whichever session is running, which
+  is not necessarily the player whose sheet you are looking at.
 
 ### Corrections
 
@@ -86,6 +101,18 @@ visible, the death history reset itself, and the tool screens were a wall of ico
   « Chargement ». L'écran se dessine désormais sans condition.
 - **Un instantané de mort impossible à écrire était perdu en silence** — la capture s'interrompait
   sans un mot quand le thread d'E/S n'était pas démarré. C'est journalisé.
+- **Un instantané de mort pouvait être restauré autant de fois qu'on cliquait** — restaurer copie les
+  piles stockées dans un inventaire vivant sans les consommer : une seconde restauration rendait au
+  joueur un second exemplaire complet de tout ce avec quoi il était mort, une troisième un troisième.
+  Un instantané est désormais marqué avec la date de restauration et son auteur, le marquage est
+  persisté avec lui, et le bouton est grisé ensuite. Les fichiers écrits avant la 1.3.1 se relisent
+  comme jamais restaurés, rien n'est donc perdu à la mise à jour.
+- **Les homes au-delà du vingt-septième étaient inaccessibles** — la fiche joueur affiche 27
+  emplacements de home et conservait un champ `homePage` que toutes les lectures consultaient et que
+  rien n'écrivait jamais. Un joueur avec plus de homes que ça avait simplement le reste invisible,
+  sans aucun contrôle pour y accéder. La dernière case de la grille tourne désormais la page quand
+  une seule ne suffit pas, et elle n'est pas soumise au nœud de téléportation : les homes sont
+  visibles par tout utilisateur du panel depuis #208, le contrôle qui mène au reste doit l'être aussi.
 
 ### Modifications
 
@@ -107,6 +134,11 @@ visible, the death history reset itself, and the tool screens were a wall of ico
   recherche porte le reste du temps une légende : ce que fait un clic gauche, ce que fait un clic
   droit, que filtre et tri reculent au clic droit, et ce que signifient les couleurs des têtes.
 - **Les Outils joueur ont un bouton fermer**, à côté du bouton retour, et le retour indique où il mène.
+- **Le staff est prévenu quand un suspect gelé se déconnecte et quand il revient** — maintenant qu'un
+  gel survit à une reconnexion, la déconnexion est le moment où le staff a le plus besoin d'être
+  averti et le moins de chances de s'en apercevoir seul.
+- **Le bouton d'observation indique qui est observé** — il arrête la session en cours, qui n'est pas
+  forcément le joueur dont vous regardez la fiche.
 
 ---
 

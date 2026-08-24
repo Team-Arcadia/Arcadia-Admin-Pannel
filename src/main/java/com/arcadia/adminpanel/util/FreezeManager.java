@@ -281,6 +281,9 @@ public final class FreezeManager {
                 10, 80, 20);
         player.sendSystemMessage(ArcadiaMessages.error(
                 LanguageHelper.getText("freeze.relog", player)));
+        String name = player.getName().getString();
+        StaffFeed.alertStaffKey("freeze.alert.join", staff ->
+                LanguageHelper.getText("freeze.alert.join", staff).replace("%player%", name));
         saveAsync();
 
         // Jail and the next-login spawn override both position the player a few ticks after the
@@ -303,6 +306,12 @@ public final class FreezeManager {
     public static void onQuit(UUID uuid) {
         LAST_REMINDER.remove(uuid);
         LAST_DENY.remove(uuid);
+        if (!FROZEN.containsKey(uuid)) return;
+        // A suspect leaving mid-screenshare is the moment staff most need to be told, and the moment
+        // they are least likely to notice on their own.
+        String name = NAMES.getOrDefault(uuid, "?");
+        StaffFeed.alertStaffKey("freeze.alert.quit", staff ->
+                LanguageHelper.getText("freeze.alert.quit", staff).replace("%player%", name));
     }
 
     // -- Enforcement ---------------------------------------------------------

@@ -180,8 +180,15 @@ public class PlayerToolsMenu extends ChestMenu {
         if (AdminPermissions.SPECTATE.check(admin)) {
             boolean active = SpectateManager.isSpectating(admin.getUUID());
             if (online || active) {
+                // While a session is running the button stops THAT session, which is not necessarily
+                // the player whose sheet this is. Naming the target stops it reading as "stop
+                // watching this person" when it means something else.
+                var session = SpectateManager.get(admin.getUUID());
                 put(SLOT_SPECTATE, Items.ENDER_EYE, active ? "§a" : "§d",
                         active ? "tools.spectate.stop" : "tools.spectate",
+                        active && session != null
+                                ? "§7" + t("tools.spectate.watching") + " §f" + session.targetName()
+                                : "",
                         "§8" + t("tools.spectate.hint"));
             } else {
                 disabled(SLOT_SPECTATE, "tools.spectate");

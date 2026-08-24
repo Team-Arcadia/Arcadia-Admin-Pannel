@@ -50,6 +50,8 @@ public class PlayerDetailMenu extends ChestMenu {
     private int homePage = 0;
     private boolean confirmClear = false;
     private static final int HOMES_PER_PAGE = 27;
+    /** Last cell of the home grid. Becomes the page turner as soon as one page is not enough. */
+    private static final int SLOT_HOME_PAGE = 35;
 
     // Deferred header-skin refresh (skins resolve async via Mojang); bounded so offline-mode UUIDs
     // don't loop forever.
@@ -271,8 +273,15 @@ public class PlayerDetailMenu extends ChestMenu {
         if (ftbData != null && !ftbData.homes.isEmpty()) {
             List<Map.Entry<String, FTBDataReader.HomeLocation>> homes = new ArrayList<>(ftbData.homes.entrySet());
             homes.sort(Map.Entry.comparingByKey());
-            int start = homePage * HOMES_PER_PAGE;
-            int end = Math.min(start + HOMES_PER_PAGE, homes.size());
+            // Before 1.3.1 this rendered the first 27 homes and stopped: `homePage` was read here
+            // and never written anywhere, so every home past the 27th was unreachable. When one page
+            // is not enough the last cell becomes the page turner and the grid holds 26.
+            int perPage = homesPerPage(homes.size());
+            int pages = homePageCount(homes.size());
+            if (homePage >= pages) homePage = pages - 1;
+            if (homePage < 0) homePage = 0;
+            int start = homePage * perPage;
+            int end = Math.min(start + perPage, homes.size());
             for (int i = start; i < end; i++) {
                 int slot = 9 + (i - start);
                 var entry = homes.get(i);
@@ -284,6 +293,16 @@ public class PlayerDetailMenu extends ChestMenu {
                     builder = builder.addLore(Component.literal("§e" + LanguageHelper.getText("misc.click_tp", admin)));
                 }
                 this.getContainer().setItem(slot, builder.build());
+            }
+            if (pages > 1) {
+                this.getContainer().setItem(SLOT_HOME_PAGE, ItemBuilder.of(Items.ARROW)
+                        .name(Component.literal("§e" + LanguageHelper.getText("homes.page", admin)
+                                + " §f" + (homePage + 1) + " / " + pages))
+                        .addLore(Component.literal("§7" + homes.size() + " "
+                                + LanguageHelper.getText("homes.total", admin)))
+                        .addLore(Component.literal("§8"
+                                + LanguageHelper.getText("homes.page.hint", admin)))
+                        .build());
             }
         } else if (homePage == 0) {
             this.getContainer().setItem(22, ItemBuilder.of(Items.BARRIER)
@@ -411,6 +430,16 @@ public class PlayerDetailMenu extends ChestMenu {
         // Back (slot 53)
         this.getContainer().setItem(53, ItemBuilder.of(Items.ARROW)
                 .name(Component.literal("§e" + LanguageHelper.getText("action.back", admin))).build());
+    }
+
+    /** How many homes fit on a page: one cell goes to the page turner as soon as it is needed. */
+    private static int homesPerPage(int total) {
+        return total > HOMES_PER_PAGE ? HOMES_PER_PAGE - 1 : HOMES_PER_PAGE;
+    }
+
+    private static int homePageCount(int total) {
+        int perPage = homesPerPage(total);
+        return Math.max(1, (total + perPage - 1) / perPage);
     }
 
     /**
@@ -828,20 +857,33 @@ public class PlayerDetailMenu extends ChestMenu {
                 WarnListMenu.open(admin, targetUUID, targetName);
             }
             default -> {
-                // Homes (9-35) — teleport action, so re-check TELEPORT (layer 2): a forged
-                // slot-click on a home must not move a viewer who lacks the teleport node.
+                // Homes (9-35). Teleporting to one re-checks TELEPORT (layer 2): a forged
+                // slot-click on a home must not move a viewer who lacks the teleport node. Turning
+                // the page does not, for the reason given below.
                 if (slotId >= 9 && slotId <= 35) {
-                    if (!AdminPermissions.TELEPORT.check(sp)) return;
                     FTBDataReader.PlayerFTBData ftbData = readFtbData();
-                    if (ftbData != null) {
-                        var homes = new ArrayList<>(ftbData.homes.entrySet());
-                        homes.sort(Map.Entry.comparingByKey());
-                        int index = (homePage * HOMES_PER_PAGE) + (slotId - 9);
-                        if (index < homes.size()) {
-                            var home = homes.get(index).getValue();
-                            executeTeleport(home.dimension, home.x, home.y, home.z);
-                            admin.closeContainer();
-                        }
+                    if (ftbData == null) return;
+                    var homes = new ArrayList<>(ftbData.homes.entrySet());
+                    homes.sort(Map.Entry.comparingByKey());
+                    int perPage = homesPerPage(homes.size());
+                    int pages = homePageCount(homes.size());
+
+                    // Paging is deliberately not gated on TELEPORT. Homes are visible to any panel
+                    // viewer since #208, so the control that reaches the rest of them has to be
+                    // visible to them too; the teleport below keeps its own check.
+                    if (slotId == SLOT_HOME_PAGE && pages > 1) {
+                        homePage = Math.floorMod(homePage + (button == 1 ? -1 : 1), pages);
+                        buildMenu();
+                        this.broadcastChanges();
+                        return;
+                    }
+
+                    if (!AdminPermissions.TELEPORT.check(sp)) return;
+                    int index = (homePage * perPage) + (slotId - 9);
+                    if (index < homes.size()) {
+                        var home = homes.get(index).getValue();
+                        executeTeleport(home.dimension, home.x, home.y, home.z);
+                        admin.closeContainer();
                     }
                 }
                 // History (36-44) — same TELEPORT re-check.

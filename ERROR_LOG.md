@@ -4,6 +4,26 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-08-24 17:30] — A restore that copies instead of consuming is a duplication button
+
+**Context:** Death snapshots. `restoreOnline` walks the stored `ItemStack[]`, copies each stack into the target's inventory and audits the result. The snapshot stays in the list afterwards.
+**Error:** No exception, no warning, and the audit log records both restores as legitimate actions. Clicking restore twice hands the player two full sets of everything they died with. Nothing in the flow made that visible: the confirm step resets after a successful restore, so a second one is exactly as easy as the first.
+**Root cause:** The snapshot was modelled as a read-only record of the past, but restoring it is a write to the present. A record of the past can be read any number of times; a hand-back can happen once. The two were the same object with no state distinguishing them.
+**Fix:** `Snapshot` carries `restoredAt` and `restoredBy`, both persisted. Restoring stamps them, the button is greyed out afterwards, and a click on a stamped snapshot is refused with the date. Reads of files written before the field existed return 0 and are treated as never restored.
+**Prevention:** Any panel action that grants items must be idempotent or must record that it ran. Ask "what happens if a moderator clicks this twice" for every button that creates value, and make the answer visible in the UI rather than relying on them remembering.
+
+---
+
+## [2026-08-24 16:50] — A pagination field that is read everywhere and written nowhere
+
+**Context:** `PlayerDetailMenu` renders homes into slots 9-35 with `int start = homePage * HOMES_PER_PAGE`, and its click handler resolves the clicked home with the same expression.
+**Error:** No exception. A player with 27 homes or fewer worked perfectly; a player with more had every home past the 27th invisible and unreachable. `homePage` was initialised to 0, read in three places, and assigned in none.
+**Root cause:** The pagination arithmetic was written before the controls that would drive it, and the controls were never added. Nothing fails when a page variable stays at zero: the first page is always correct, so the bug only exists for data sets nobody had while developing.
+**Fix:** The last cell of the grid becomes the page turner when one page is not enough, the grid drops to 26 entries in that case, and the turn is not gated on the teleport node.
+**Prevention:** When a field exists only to be multiplied by a page size, grep for its assignments before trusting it. More generally: a paginated view whose page count can be 1 in every test is untested pagination. Populate past the page boundary at least once.
+
+---
+
 ## [2026-08-24 15:40] — `Entity#teleportTo` does not move a ServerPlayer's client
 
 **Context:** The freeze anchor sweep. A frozen player who drifted past the tolerance was pulled back with `player.teleportTo(x, y, z)` every tick, and testers reported the freeze "did nothing".

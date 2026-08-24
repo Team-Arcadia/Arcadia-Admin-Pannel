@@ -49,11 +49,25 @@ public final class DeathSnapshotManager {
 
     private static final Logger LOGGER = LogUtils.getLogger();
 
-    /** One captured death. {@code items} uses the dense {@link InventoryAccess} layout. */
+    /**
+     * One captured death. {@code items} uses the dense {@link InventoryAccess} layout.
+     *
+     * <p>{@code restoredAt} is what stops a snapshot from being handed back twice. Restoring copies
+     * the stored stacks into a live inventory without consuming them, so a second restore is a
+     * duplication machine: two clicks and the player has two of everything they died with.</p>
+     */
     public record Snapshot(long time, String cause, String dimension,
-                           double x, double y, double z, int xpLevel, ItemStack[] items) {
+                           double x, double y, double z, int xpLevel, ItemStack[] items,
+                           long restoredAt, String restoredBy) {
 
         public int itemCount() { return InventoryAccess.occupied(items); }
+
+        public boolean wasRestored() { return restoredAt > 0L; }
+
+        Snapshot markRestored(long when, String by) {
+            return new Snapshot(time, cause, dimension, x, y, z, xpLevel, items,
+                    when, by == null ? "" : by);
+        }
     }
 
     private static final Map<UUID, List<Snapshot>> CACHE = new ConcurrentHashMap<>();
@@ -120,7 +134,7 @@ public final class DeathSnapshotManager {
         Snapshot snap = new Snapshot(System.currentTimeMillis(), cause,
                 player.level().dimension().location().toString(),
                 player.getX(), player.getY(), player.getZ(),
-                player.experienceLevel, items);
+                player.experienceLevel, items, 0L, "");
 
         UUID uuid = player.getUUID();
         HolderLookup.Provider registries = server.registryAccess();
@@ -238,6 +252,43 @@ public final class DeathSnapshotManager {
         });
     }
 
+    /**
+     * Stamps a snapshot as handed back, in the cache and on disk, and reports whether the stamp was
+     * applied. A snapshot that already carries one is left alone and {@code false} comes back, which
+     * is the guard the menu relies on to refuse a second restore.
+     */
+    public static boolean markRestored(MinecraftServer server, UUID uuid, Snapshot snapshot,
+                                       String actorName) {
+        if (snapshot.wasRestored()) return false;
+        List<Snapshot> list = CACHE.get(uuid);
+        if (list == null) {
+            // The stamp is the only thing standing between a restore and a second one, so failing to
+            // apply it is worth a line in the log rather than a silent return.
+            LOGGER.warn("[AdminPanel] Death snapshot for {} restored but not stamped: nothing cached",
+                    uuid);
+            return false;
+        }
+
+        List<Snapshot> toWrite;
+        synchronized (list) {
+            int index = list.indexOf(snapshot);
+            if (index < 0) {
+                LOGGER.warn("[AdminPanel] Death snapshot for {} restored but not stamped: "
+                        + "it is no longer in the cached list", uuid);
+                return false;
+            }
+            list.set(index, snapshot.markRestored(System.currentTimeMillis(), actorName));
+            toWrite = new ArrayList<>(list);
+        }
+
+        ExecutorService exec = io;
+        if (exec != null) {
+            HolderLookup.Provider registries = server.registryAccess();
+            exec.execute(() -> writeBlocking(uuid, toWrite, registries));
+        }
+        return true;
+    }
+
     /** Only main-inventory slots are eligible; armour and off-hand are left alone. */
     private static int firstEmpty(ItemStack[] slots) {
         for (int i = 0; i < 36; i++) {
@@ -259,9 +310,12 @@ public final class DeathSnapshotManager {
                 CompoundTag tag = list.getCompound(i);
                 ItemStack[] items = InventoryAccess.fromInventoryTag(
                         tag.getList("items", Tag.TAG_COMPOUND), registries);
+                // getLong / getString return 0 and "" for a tag written before 1.3.1, so a file
+                // from an earlier build reads back as "never restored" rather than failing.
                 out.add(new Snapshot(tag.getLong("time"), tag.getString("cause"),
                         tag.getString("dimension"), tag.getDouble("x"), tag.getDouble("y"),
-                        tag.getDouble("z"), tag.getInt("xp"), items));
+                        tag.getDouble("z"), tag.getInt("xp"), items,
+                        tag.getLong("restoredAt"), tag.getString("restoredBy")));
             }
             return out;
         } catch (Exception e) {
@@ -286,6 +340,8 @@ public final class DeathSnapshotManager {
                 tag.putDouble("y", s.y());
                 tag.putDouble("z", s.z());
                 tag.putInt("xp", s.xpLevel());
+                tag.putLong("restoredAt", s.restoredAt());
+                tag.putString("restoredBy", s.restoredBy() == null ? "" : s.restoredBy());
                 tag.put("items", InventoryAccess.toInventoryTag(s.items(), registries));
                 list.add(tag);
             }

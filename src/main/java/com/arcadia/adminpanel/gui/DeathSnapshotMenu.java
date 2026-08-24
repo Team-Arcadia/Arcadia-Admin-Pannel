@@ -130,7 +130,9 @@ public class DeathSnapshotMenu extends PagedMenu {
                         + " §f" + row.itemCount()))
                 .addLore(Component.literal("§7" + LanguageHelper.getText("deaths.xp", admin)
                         + " §f" + row.xpLevel()))
-                .addLore(Component.literal("§a" + LanguageHelper.getText("deaths.click_open", admin)))
+                .addLore(Component.literal(row.wasRestored()
+                        ? "§6" + LanguageHelper.getText("deaths.already_restored", admin)
+                        : "§a" + LanguageHelper.getText("deaths.click_open", admin)))
                 .build());
     }
 
@@ -168,6 +170,21 @@ public class DeathSnapshotMenu extends PagedMenu {
 
         if (!AdminPermissions.DEATH_RESTORE.check(admin)) return;
 
+        // A restored snapshot keeps its items on screen but loses its button. Restoring copies the
+        // stored stacks into a live inventory without consuming them, so a second restore hands the
+        // player a second full set of everything they died with.
+        if (snap.wasRestored()) {
+            this.getContainer().setItem(SLOT_RESTORE, ItemBuilder.of(Items.GRAY_DYE)
+                    .name(Component.literal("§8" + LanguageHelper.getText("deaths.restore", admin)))
+                    .addLore(Component.literal("§6"
+                            + LanguageHelper.getText("deaths.already_restored", admin)))
+                    .addLore(Component.literal("§8" + date(snap.restoredAt())
+                            + (snap.restoredBy() == null || snap.restoredBy().isBlank()
+                                    ? "" : " §7" + snap.restoredBy())))
+                    .build());
+            return;
+        }
+
         this.getContainer().setItem(SLOT_RESTORE, ItemBuilder.of(Items.TOTEM_OF_UNDYING)
                 .name(Component.literal("§a" + LanguageHelper.getText("deaths.restore", admin)))
                 .addLore(Component.literal("§7" + snap.itemCount() + " "
@@ -184,6 +201,13 @@ public class DeathSnapshotMenu extends PagedMenu {
         if (!AdminPermissions.DEATH_RESTORE.check(admin)) return;
         DeathSnapshotManager.Snapshot snap = current();
         if (snap == null) return;
+        if (snap.wasRestored()) {
+            admin.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("deaths.already_restored_msg", admin)
+                            .replace("%date%", date(snap.restoredAt()))));
+            SoundHelper.error(admin);
+            return;
+        }
 
         if (!confirmRestore) {
             confirmRestore = true;
@@ -198,12 +222,15 @@ public class DeathSnapshotMenu extends PagedMenu {
 
         if (targetPlayer != null) {
             int given = DeathSnapshotManager.restoreOnline(admin, targetPlayer, snap);
+            DeathSnapshotManager.markRestored(server, target, snap, admin.getName().getString());
             admin.sendSystemMessage(ArcadiaMessages.success(
                     LanguageHelper.getText("deaths.restored", admin)
                             .replace("%count%", String.valueOf(given))
                             .replace("%player%", targetName)));
             SoundHelper.success(admin);
-            rebuild();
+            // Reloaded rather than redrawn: the stamp lives on a fresh record in the cache and the
+            // list this menu is holding still points at the unstamped one.
+            load();
             return;
         }
 
@@ -217,10 +244,12 @@ public class DeathSnapshotMenu extends PagedMenu {
                 SoundHelper.error(admin);
                 return;
             }
+            DeathSnapshotManager.markRestored(server, target, snap, admin.getName().getString());
             admin.sendSystemMessage(ArcadiaMessages.success(
                     LanguageHelper.getText("deaths.restored", admin)
                             .replace("%count%", String.valueOf(restored))
                             .replace("%player%", targetName)));
+            if (admin.containerMenu == this) load();
             if (skipped > 0) {
                 admin.sendSystemMessage(ArcadiaMessages.warning(
                         LanguageHelper.getText("deaths.restore_partial", admin)

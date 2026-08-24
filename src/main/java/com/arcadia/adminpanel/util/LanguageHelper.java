@@ -26,6 +26,9 @@ public final class LanguageHelper {
         en.put("detail.homes", "Homes");
         en.put("detail.tp_history", "Teleport History");
         en.put("homes.none", "No Homes");
+        en.put("homes.page", "Homes, page");
+        en.put("homes.total", "homes in total");
+        en.put("homes.page.hint", "Left-click: next page, right-click: previous");
         en.put("action.tp", "Teleport to Player");
         en.put("action.tp_here", "Teleport Player Here");
         en.put("action.tp_last", "TP Last Known Location");
@@ -319,6 +322,7 @@ public final class LanguageHelper {
         en.put("tools.spectate", "Spectate");
         en.put("tools.spectate.stop", "Stop Spectating");
         en.put("tools.spectate.hint", "Returns you where you were");
+        en.put("tools.spectate.watching", "Watching:");
         en.put("tools.tempban", "Temporary Ban");
         en.put("tools.tempban.hint", "Right-click for a permanent ban");
         en.put("tools.templates", "Sanction Templates");
@@ -626,6 +630,8 @@ public final class LanguageHelper {
         en.put("deaths.stacks", "stacks");
         en.put("deaths.click_open", "Click to see the items");
         en.put("deaths.layout", "Bag, hotbar, then armour and off-hand");
+        en.put("deaths.already_restored", "Already restored");
+        en.put("deaths.already_restored_msg", "This snapshot was already restored on %date%. Restoring it a second time would duplicate the items.");
         en.put("deaths.restore", "Restore");
         en.put("deaths.restore.hint", "Click twice to confirm");
         en.put("deaths.restored", "%count% stacks returned to %player%.");
@@ -650,6 +656,8 @@ public final class LanguageHelper {
         en.put("freeze.subtitle", "A moderator wants to talk to you");
         en.put("freeze.notice", "You have been frozen. Do not disconnect: answer in chat.");
         en.put("freeze.relog", "You are still frozen. Disconnecting does not lift it: answer in chat.");
+        en.put("freeze.alert.quit", "%player% disconnected while frozen. They will come back frozen.");
+        en.put("freeze.alert.join", "%player% reconnected and is still frozen.");
         en.put("freeze.actionbar", "Frozen - answer the moderator in chat");
         en.put("freeze.denied", "You cannot do that while frozen.");
         en.put("freeze.released", "You have been released.");
@@ -733,6 +741,9 @@ public final class LanguageHelper {
         fr.put("detail.homes", "Homes");
         fr.put("detail.tp_history", "Historique TP");
         fr.put("homes.none", "Aucun Home");
+        fr.put("homes.page", "Homes, page");
+        fr.put("homes.total", "homes au total");
+        fr.put("homes.page.hint", "Clic gauche : page suivante, clic droit : précédente");
         fr.put("action.tp", "Se TP au Joueur");
         fr.put("action.tp_here", "TP le Joueur Ici");
         fr.put("action.tp_last", "TP Dernière Position");
@@ -1026,6 +1037,7 @@ public final class LanguageHelper {
         fr.put("tools.spectate", "Observer");
         fr.put("tools.spectate.stop", "Arrêter d'observer");
         fr.put("tools.spectate.hint", "Vous ramène à votre position");
+        fr.put("tools.spectate.watching", "Observation :");
         fr.put("tools.tempban", "Ban temporaire");
         fr.put("tools.tempban.hint", "Clic droit pour un ban définitif");
         fr.put("tools.templates", "Modèles de sanction");
@@ -1333,6 +1345,8 @@ public final class LanguageHelper {
         fr.put("deaths.stacks", "piles");
         fr.put("deaths.click_open", "Cliquez pour voir les objets");
         fr.put("deaths.layout", "Sac, barre d'action, puis armure et main gauche");
+        fr.put("deaths.already_restored", "Déjà restauré");
+        fr.put("deaths.already_restored_msg", "Cet instantané a déjà été restauré le %date%. Le restaurer une seconde fois dupliquerait les objets.");
         fr.put("deaths.restore", "Restaurer");
         fr.put("deaths.restore.hint", "Cliquez deux fois pour confirmer");
         fr.put("deaths.restored", "%count% piles rendues à %player%.");
@@ -1357,6 +1371,8 @@ public final class LanguageHelper {
         fr.put("freeze.subtitle", "Un modérateur veut vous parler");
         fr.put("freeze.notice", "Vous avez été gelé. Ne vous déconnectez pas : répondez dans le chat.");
         fr.put("freeze.relog", "Vous êtes toujours gelé. Se déconnecter ne lève pas le gel : répondez dans le chat.");
+        fr.put("freeze.alert.quit", "%player% s'est déconnecté alors qu'il est gelé. Il reviendra gelé.");
+        fr.put("freeze.alert.join", "%player% s'est reconnecté et est toujours gelé.");
         fr.put("freeze.actionbar", "Gelé - répondez au modérateur dans le chat");
         fr.put("freeze.denied", "Vous ne pouvez pas faire ça pendant que vous êtes gelé.");
         fr.put("freeze.released", "Vous avez été libéré.");
