@@ -31,7 +31,7 @@ import java.nio.file.Paths;
  * Arcadia Admin Panel — Steampunk-themed server management mod.
  * Both-sided mod powered by Arcadia Lib.
  *
- * @version 1.3.1
+ * @version 1.3.2
  * @author vyrriox
  */
 @Mod("arcadiaadminpanel")
@@ -65,6 +65,10 @@ public class AdminPanelMod {
             DatabaseManager.registerTables(new WarnTableDefinition());
             // Generic record table backing the 1.3.0 audit log, notes, mail, bans and watchlist.
             DatabaseManager.registerTables(new com.arcadia.adminpanel.data.AdminTableDefinition());
+            // Dedicated table for the 1.3.2 daily inventory backups: their payload is a compressed
+            // blob, which does not belong in the shared record column.
+            DatabaseManager.registerTables(
+                    new com.arcadia.adminpanel.data.InventoryBackupTableDefinition());
 
             // The freeze overlay lives behind an optional payload; wiring it through a seam keeps
             // the manager free of a compile-time dependency on the network package.
@@ -149,6 +153,7 @@ public class AdminPanelMod {
         com.arcadia.adminpanel.util.SanctionTemplates.init();
         com.arcadia.adminpanel.util.InventoryAccess.init();
         com.arcadia.adminpanel.util.DeathSnapshotManager.init();
+        com.arcadia.adminpanel.util.InventoryBackupManager.init();
         com.arcadia.adminpanel.util.DiscordWebhook.init();
         com.arcadia.adminpanel.util.RestartScheduler.armFromConfig();
         com.arcadia.adminpanel.util.LoginQueueAuto.onServerStarted();
@@ -165,6 +170,7 @@ public class AdminPanelMod {
         // ── 1.3.0 subsystems ────────────────────────────────────────────────
         com.arcadia.adminpanel.util.RecordStore.shutdownAll();
         com.arcadia.adminpanel.util.DeathSnapshotManager.shutdown();
+        com.arcadia.adminpanel.util.InventoryBackupManager.shutdown();
         com.arcadia.adminpanel.util.InventoryAccess.shutdown();
         com.arcadia.adminpanel.util.DiscordWebhook.shutdown();
         com.arcadia.adminpanel.util.VanishManager.reset();

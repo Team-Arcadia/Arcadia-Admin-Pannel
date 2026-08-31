@@ -135,7 +135,17 @@ public enum AdminPermissions {
     /** Return to the position held before the last panel teleport. */
     BACK("arcadia.adminpanel.back"),
     /** Apply a sanction template and its escalation ladder. */
-    TEMPLATES("arcadia.adminpanel.templates");
+    TEMPLATES("arcadia.adminpanel.templates"),
+
+    // ── 1.3.2 ───────────────────────────────────────────────────────────────
+    /**
+     * Browse a player's daily inventory backups, hand one stack back, and restore a whole backup.
+     * Deliberately separate from {@link #DEATH_RESTORE}: restoring a backup replaces an inventory,
+     * which is a strictly heavier act than handing back what somebody died with.
+     */
+    INV_BACKUP("arcadia.adminpanel.invbackup"),
+    /** Read the in-game command index. Held by every staff member in practice. */
+    HELP("arcadia.adminpanel.help");
 
     public final String node;
     AdminPermissions(String node) { this.node = node; }

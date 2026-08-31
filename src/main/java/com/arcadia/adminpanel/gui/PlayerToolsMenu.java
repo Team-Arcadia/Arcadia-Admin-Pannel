@@ -14,6 +14,7 @@ import com.arcadia.adminpanel.util.ClientModsRegistry;
 import com.arcadia.adminpanel.util.DeathSnapshotManager;
 import com.arcadia.adminpanel.util.FreezeManager;
 import com.arcadia.adminpanel.util.InventoryAccess;
+import com.arcadia.adminpanel.util.InventoryBackupManager;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.MailManager;
 import com.arcadia.adminpanel.util.NotesManager;
@@ -78,6 +79,7 @@ public class PlayerToolsMenu extends ChestMenu {
     private static final int SLOT_GIVE = 30;
     private static final int SLOT_MAIL = 31;
     private static final int SLOT_DISGUISE = 32;
+    private static final int SLOT_BACKUPS = 33;
 
     private static final int SLOT_BACK = 49;
     private static final int SLOT_CLOSE = 50;
@@ -241,6 +243,24 @@ public class PlayerToolsMenu extends ChestMenu {
         if (AdminPermissions.MAIL.check(admin)) {
             put(SLOT_MAIL, Items.PAPER, "§b", "tools.mail",
                     "§7" + MailManager.pendingCount(target) + " " + t("mail.pending"));
+        }
+        if (AdminPermissions.INV_BACKUP.check(admin) && AdminConfig.get().inventoryBackupEnabled) {
+            int backups = InventoryBackupManager.cachedCount(target);
+            long last = InventoryBackupManager.lastCapture(target);
+            put(SLOT_BACKUPS, Items.CHEST, "§b", "tools.backups",
+                    backups < 0 ? "§8" + t("backups.loading")
+                                : "§7" + backups + " " + t("backups.count"),
+                    last > 0 ? "§8" + t("backups.last") + " "
+                             + new java.text.SimpleDateFormat("dd/MM HH:mm")
+                                       .format(new java.util.Date(last))
+                             : "§8" + t("tools.backups.hint"));
+            if (backups < 0) {
+                // Warm the count off the tick thread and redraw when it lands, the same way the
+                // death-snapshot tile does: a button that says "click to find out" is not an answer.
+                InventoryBackupManager.headersAsync(server, target, list -> {
+                    if (admin.containerMenu == this) build();
+                });
+            }
         }
         if (AdminPermissions.DISGUISE.check(admin)) {
             var disguise = com.arcadia.adminpanel.util.DisguiseManager.getInstance().getData(target);
@@ -416,6 +436,15 @@ public class PlayerToolsMenu extends ChestMenu {
                 if (!AdminPermissions.DEATH_RESTORE.check(sp)) return;
                 sp.closeContainer();
                 DeathSnapshotMenu.open(sp, target, targetName);
+            }
+            case SLOT_BACKUPS -> {
+                if (!AdminPermissions.INV_BACKUP.check(sp)) return;
+                if (!AdminConfig.get().inventoryBackupEnabled) {
+                    sp.sendSystemMessage(ArcadiaMessages.error(t("backups.disabled")));
+                    return;
+                }
+                sp.closeContainer();
+                InventoryBackupMenu.open(sp, target, targetName);
             }
             case SLOT_GIVE -> {
                 if (!AdminPermissions.GIVE_ITEM.check(sp)) return;

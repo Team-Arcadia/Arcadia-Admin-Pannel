@@ -335,6 +335,13 @@ public class PlayerDetailMenu extends ChestMenu {
             toolsIcon.addLore(Component.literal("§6" + noteCount + " "
                     + LanguageHelper.getText("notes.count", admin)));
         }
+        // Cached count only: the sheet is drawn on the tick thread and a backup count is not worth a
+        // disk read. The tools screen behind this button warms it and shows the real number.
+        int backupCount = com.arcadia.adminpanel.util.InventoryBackupManager.cachedCount(targetUUID);
+        if (backupCount > 0) {
+            toolsIcon.addLore(Component.literal("§b" + backupCount + " "
+                    + LanguageHelper.getText("backups.count", admin)));
+        }
         if (com.arcadia.adminpanel.util.WatchlistManager.isWatched(targetUUID)) {
             toolsIcon.addLore(Component.literal("§d" + LanguageHelper.getText("watchlist.flagged", admin)));
         }

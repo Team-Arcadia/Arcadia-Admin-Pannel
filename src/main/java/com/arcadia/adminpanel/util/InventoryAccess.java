@@ -53,6 +53,8 @@ public final class InventoryAccess {
     public static final int SIZE = 41;
     public static final int ARMOR_START = 36;
     public static final int OFFHAND = 40;
+    /** Ender chest slots. Stored separately: it is its own container, not part of the 41. */
+    public static final int ENDER_SIZE = 27;
 
     private static volatile ExecutorService io;
 
@@ -103,6 +105,26 @@ public final class InventoryAccess {
         player.inventoryMenu.broadcastChanges();
     }
 
+    /** Snapshot of a connected player's ender chest. */
+    public static ItemStack[] readOnlineEnder(ServerPlayer player) {
+        ItemStack[] out = new ItemStack[ENDER_SIZE];
+        Arrays.fill(out, ItemStack.EMPTY);
+        var chest = player.getEnderChestInventory();
+        for (int i = 0; i < ENDER_SIZE && i < chest.getContainerSize(); i++) {
+            out[i] = chest.getItem(i).copy();
+        }
+        return out;
+    }
+
+    /** Overwrites a connected player's ender chest. */
+    public static void writeOnlineEnder(ServerPlayer player, ItemStack[] slots) {
+        var chest = player.getEnderChestInventory();
+        for (int i = 0; i < ENDER_SIZE && i < chest.getContainerSize(); i++) {
+            chest.setItem(i, safe(slots, i).copy());
+        }
+        chest.setChanged();
+    }
+
     // -- Offline -------------------------------------------------------------
 
     /** True when this server has a stored data file for the player. */
@@ -132,6 +154,15 @@ public final class InventoryAccess {
      */
     public static void writeOfflineAsync(MinecraftServer server, UUID uuid, ItemStack[] slots,
                                          Consumer<Boolean> callback) {
+        writeOfflineAsync(server, uuid, slots, null, callback);
+    }
+
+    /**
+     * Same, with the ender chest written alongside the inventory. Pass {@code null} for
+     * {@code ender} to leave the stored ender chest untouched.
+     */
+    public static void writeOfflineAsync(MinecraftServer server, UUID uuid, ItemStack[] slots,
+                                         ItemStack @Nullable [] ender, Consumer<Boolean> callback) {
         if (server.getPlayerList().getPlayer(uuid) != null) {
             callback.accept(false);
             return;
@@ -145,10 +176,16 @@ public final class InventoryAccess {
         // game is mutating underneath it.
         ItemStack[] copy = new ItemStack[SIZE];
         for (int i = 0; i < SIZE; i++) copy[i] = safe(slots, i).copy();
+        ItemStack[] enderCopy = null;
+        if (ender != null) {
+            enderCopy = new ItemStack[ENDER_SIZE];
+            for (int i = 0; i < ENDER_SIZE; i++) enderCopy[i] = safe(ender, i).copy();
+        }
         HolderLookup.Provider registries = server.registryAccess();
+        final ItemStack[] enderFinal = enderCopy;
 
         CompletableFuture
-                .supplyAsync(() -> writeOfflineBlocking(server, uuid, copy, registries), exec)
+                .supplyAsync(() -> writeOfflineBlocking(server, uuid, copy, enderFinal, registries), exec)
                 .thenAccept(ok -> server.execute(() -> callback.accept(ok)));
     }
 
@@ -166,7 +203,8 @@ public final class InventoryAccess {
     }
 
     private static boolean writeOfflineBlocking(MinecraftServer server, UUID uuid,
-                                                ItemStack[] slots, HolderLookup.Provider registries) {
+                                                ItemStack[] slots, ItemStack @Nullable [] ender,
+                                                HolderLookup.Provider registries) {
         Path file = playerFile(server, uuid);
         if (!Files.exists(file)) return false;
         Path tmp = file.resolveSibling(uuid + ".dat.arcadia-tmp");
@@ -174,6 +212,7 @@ public final class InventoryAccess {
         try {
             CompoundTag root = NbtIo.readCompressed(file, NbtAccounter.unlimitedHeap());
             root.put("Inventory", toInventoryTag(slots, registries));
+            if (ender != null) root.put("EnderItems", toContainerTag(ender, registries));
             NbtIo.writeCompressed(root, tmp);
             // Keep the previous file as .dat_old before swapping, the same guarantee vanilla gives.
             Files.copy(file, backup, StandardCopyOption.REPLACE_EXISTING);
@@ -223,6 +262,32 @@ public final class InventoryAccess {
         CompoundTag tag = new CompoundTag();
         tag.putByte("Slot", (byte) slot);
         list.add(stack.save(registries, tag));
+    }
+
+    /**
+     * Reads a plain slot-indexed container list (the ender chest layout) into a dense array. The
+     * game's own {@link net.minecraft.world.SimpleContainer} does the parsing, so a modded stack
+     * round-trips exactly as vanilla would store it.
+     */
+    public static ItemStack[] fromContainerTag(ListTag list, int size, HolderLookup.Provider registries) {
+        net.minecraft.world.SimpleContainer container = new net.minecraft.world.SimpleContainer(size);
+        try {
+            container.fromTag(list, registries);
+        } catch (Exception e) {
+            LOGGER.error("[AdminPanel] Failed to parse container tag", e);
+        }
+        ItemStack[] out = new ItemStack[size];
+        for (int i = 0; i < size; i++) out[i] = container.getItem(i).copy();
+        return out;
+    }
+
+    /** Dense array back to the slot-indexed container list. */
+    public static ListTag toContainerTag(ItemStack[] slots, HolderLookup.Provider registries) {
+        int size = slots == null ? 0 : slots.length;
+        net.minecraft.world.SimpleContainer container =
+                new net.minecraft.world.SimpleContainer(Math.max(1, size));
+        for (int i = 0; i < size; i++) container.setItem(i, safe(slots, i).copy());
+        return container.createTag(registries);
     }
 
     private static ItemStack safe(ItemStack[] slots, int index) {

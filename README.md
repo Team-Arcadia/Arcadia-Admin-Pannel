@@ -28,6 +28,8 @@ Arcadia Admin Panel is a NeoForge Minecraft mod that gives server staff a comple
 - **Offline Mail, Playtime, AFK list, Radar, Bulk Actions and Return Teleport (1.3.0)** — Leave a message for a disconnected player. Rank playtime and sessions. See who is idle and where. See who is nearby. Build a selection from the grid and message, gather, heal, warn or kick it. Walk back out of every panel teleport.
 - **Disguise, extended (1.3.0)** — A picker menu listing every living entity with its spawn egg, plus baby form, a render scale (visual only: the hitbox stays the player's), an optional mob name above the disguise, `random`, server-wide `--all` / `--random` / `--clear` / `--list`, and an optional clear-on-death.
 - **Filters and Sorting (1.3.0)** — The player grid filters by online, offline, jailed, muted, banned, warned, watched, frozen, vanished, AFK or selected, sorts by name, last seen, playtime or warn count, and marks each head with its current state.
+- **Daily Inventory Backups (1.3.2)** — A full copy of every connected player's inventory, taken once a day and again when they disconnect, kept for the last seven captures. Death snapshots answer "I died and lost everything"; this answers the rest of the support queue, the item that vanished into a broken machine or a rolled-back chunk with nobody dying and no evidence but the player's word. The ender chest is included. Staff browse a player's backups, **click a single stack to hand that one item back**, or restore the whole backup, which replaces the inventory rather than adding to it so it cannot duplicate anything. Saving an inventory edit takes a backup first, so the editor finally has an undo. Backups live in the shared MySQL table `arcadia_inventory_backups` when a database is configured (readable from every server on the network) and in one compressed file per player otherwise.
+- **In-Game Command Index (1.3.2)** — `/arcadia_adminpanel help` prints every command the viewer's nodes actually allow, grouped by what they are for, each one clickable to drop it in the chat box. Reachable from the Staff Tools screen too. Alongside it, `online` lists who is connected with their AFK, vanish, freeze, mute, jail, watch and warn markers (click a name to open their sheet), and `whereis <player>` answers where somebody is in one line, including the last known position of a disconnected one.
 - **Bilingual UI** — English and French lang files, automatic locale detection.
 
 ## Commands
@@ -119,6 +121,11 @@ All commands use the prefix `/arcadia_adminpanel`.
 | `disguise --random` | `arcadia.adminpanel.disguise` | Give every online player a random disguise |
 | `disguise --clear` | `arcadia.adminpanel.disguise` | Remove every disguise |
 | `disguise --list` | `arcadia.adminpanel.disguise` | List the disguised players |
+| `invbackup <player>` | `arcadia.adminpanel.invbackup` | Browse a player's daily inventory backups |
+| `invbackupnow [player]` | `arcadia.adminpanel.invbackup` | Back up one player, or everyone connected |
+| `online` | `arcadia.adminpanel.open` | Who is connected, with their state markers |
+| `whereis <player>` | `arcadia.adminpanel.info` | Where a player is, online or last known |
+| `help [section]` | `arcadia.adminpanel.help` | The clickable command index |
 
 ### GUI-only permission nodes
 
@@ -157,6 +164,8 @@ arcadia.adminpanel.kick
 arcadia.adminpanel.mute          # also needs the MOD staff grade
 arcadia.adminpanel.jail
 arcadia.adminpanel.teleport
+arcadia.adminpanel.help          # the in-game command index
+arcadia.adminpanel.invbackup     # browse and restore inventory backups
 
 # Admin — everything (or simply grant arcadia.adminpanel.*)
 arcadia.adminpanel.*
@@ -184,7 +193,7 @@ arcadia.hub.adminpanel
 ## Installation
 
 1. Install [Arcadia Lib](https://github.com/Team-Arcadia/Arcadia-Lib) ≥ 1.2.14 in your `mods/` folder
-2. Place `arcadia-admin-panel-1.3.1.jar` in your `mods/` folder
+2. Place `arcadia-admin-panel-1.3.2.jar` in your `mods/` folder
 3. (Optional) Install FTB Essentials, FTB Teams, FTB Chunks for the full feature set
 4. (Optional) Install LuckPerms and grant the `arcadia.adminpanel.*` nodes to the groups you want
 5. Start the server
@@ -253,6 +262,12 @@ All tunables live in `config/arcadia/arcadiaadminpanel/config.json` (auto-create
 | `loginQueueAutoMinutes` | `10` | Minutes the automatic queue stays on. |
 | `watchlistAlertOnJoin` | `true` | Ping staff when a watched player connects. |
 | `radarRadius` | `128` | Radius (blocks) scanned by the proximity radar. |
+| `inventoryBackupEnabled` | `true` | Take periodic copies of connected players' inventories. |
+| `inventoryBackupIntervalHours` | `24` | Hours between two automatic captures of the same player. |
+| `inventoryBackupKeepPerPlayer` | `7` | Backups kept per player; the oldest is dropped past this. |
+| `inventoryBackupOnLogout` | `true` | Also capture on disconnect, the last known good state. |
+| `inventoryBackupEnderChest` | `true` | Include the ender chest in a backup. |
+| `inventoryBackupMinIntervalMinutes` | `60` | Floor between two captures, so a relog loop cannot flood the history. |
 
 ### Multi-Server Sync
 Configure MySQL in `config/arcadia/lib/database.toml` and set `enabled = true`. All servers sharing the same database will sync warns + jails automatically. Each server identifies itself via the JVM property `-Darcadia.server_id=server1`.
@@ -304,6 +319,8 @@ Arcadia Admin Panel est un mod NeoForge pour Minecraft qui offre au staff serveu
 - **Courrier Hors Ligne, Temps de Jeu, Liste AFK, Radar, Actions Groupées et Retour (1.3.0)** — Laissez un message à un joueur déconnecté. Classez le temps de jeu et les sessions. Voyez qui est inactif et où. Voyez qui est à proximité. Constituez une sélection depuis la grille pour message, rassemblement, soin, avertissement ou expulsion. Remontez chaque téléportation du panel.
 - **Déguisement, étendu (1.3.0)** — Un menu de sélection listant toutes les entités vivantes avec leur œuf d'apparition, plus la forme bébé, une échelle de rendu (purement visuelle : la hitbox reste celle du joueur), un nom de mob optionnel au-dessus du déguisement, `random`, les commandes serveur `--all` / `--random` / `--clear` / `--list`, et un retrait optionnel à la mort.
 - **Filtres et Tris (1.3.0)** — La grille des joueurs filtre par en ligne, hors ligne, prison, mute, bannis, avertis, surveillés, gelés, invisibles, AFK ou sélectionnés, trie par nom, dernière connexion, temps de jeu ou nombre d'avertissements, et marque chaque tête avec son état actuel.
+- **Sauvegardes Quotidiennes d'Inventaire (1.3.2)** — Une copie complète de l'inventaire de chaque joueur connecté, prise une fois par jour puis à sa déconnexion, les sept dernières étant conservées. Les instantanés de mort répondent à « je suis mort et j'ai tout perdu » ; ceci répond au reste du support, l'objet disparu dans une machine cassée ou un chunk revenu en arrière, sans mort et sans autre preuve que la parole du joueur. Le coffre de l'Ender est inclus. Le staff parcourt les sauvegardes d'un joueur, **clique sur une pile pour lui rendre cet objet-là**, ou restaure la sauvegarde entière, ce qui remplace l'inventaire au lieu de s'y ajouter et ne peut donc rien dupliquer. Sauvegarder une modification dans l'éditeur d'inventaire prend d'abord une copie : l'éditeur dispose enfin d'un retour en arrière. Les sauvegardes vivent dans la table MySQL partagée `arcadia_inventory_backups` quand une base est configurée (lisible depuis tous les serveurs du réseau), et dans un fichier compressé par joueur sinon.
+- **Index des Commandes en Jeu (1.3.2)** — `/arcadia_adminpanel help` affiche toutes les commandes que les nodes du lecteur autorisent réellement, groupées par usage, chacune cliquable pour l'insérer dans le chat. Accessible aussi depuis l'écran Outils Staff. À côté, `online` liste les connectés avec leurs marqueurs AFK, invisibilité, gel, mute, prison, surveillance et avertissements (clic sur un nom pour ouvrir sa fiche), et `whereis <joueur>` répond en une ligne où se trouve quelqu'un, y compris la dernière position connue d'un joueur déconnecté.
 - **Interface Bilingue** — Fichiers de langue anglais et français, détection automatique de la locale.
 
 ## Commandes
@@ -395,6 +412,11 @@ Toutes les commandes utilisent le préfixe `/arcadia_adminpanel`.
 | `disguise --random` | `arcadia.adminpanel.disguise` | Donner un déguisement aléatoire à chaque joueur |
 | `disguise --clear` | `arcadia.adminpanel.disguise` | Retirer tous les déguisements |
 | `disguise --list` | `arcadia.adminpanel.disguise` | Lister les joueurs déguisés |
+| `invbackup <joueur>` | `arcadia.adminpanel.invbackup` | Parcourir les sauvegardes d'inventaire d'un joueur |
+| `invbackupnow [joueur]` | `arcadia.adminpanel.invbackup` | Sauvegarder un joueur, ou tous les connectés |
+| `online` | `arcadia.adminpanel.open` | Qui est connecté, avec ses marqueurs d'état |
+| `whereis <joueur>` | `arcadia.adminpanel.info` | Où se trouve un joueur, en ligne ou en dernier connu |
+| `help [section]` | `arcadia.adminpanel.help` | L'index cliquable des commandes |
 
 ### Nodes de permission réservés au GUI
 

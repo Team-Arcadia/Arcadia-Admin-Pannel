@@ -227,5 +227,6 @@ public final class StaffModeEvents {
         RestartScheduler.onServerTick(server);
         AutoBroadcast.onServerTick(server);
         LoginQueueAuto.onServerTick(server);
+        com.arcadia.adminpanel.util.InventoryBackupManager.onServerTick(server);
     }
 }

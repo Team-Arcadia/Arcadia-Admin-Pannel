@@ -163,6 +163,11 @@ public class InventoryEditMenu extends ChestMenu {
 
         ServerPlayer targetPlayer = server.getPlayerList().getPlayer(target);
         if (targetPlayer != null) {
+            // A backup of what was there before the edit, taken automatically since 1.3.2. An
+            // inventory editor with an explicit save still has no undo, and the state most worth
+            // keeping is the one that is about to be overwritten.
+            com.arcadia.adminpanel.util.InventoryBackupManager.capture(targetPlayer,
+                    com.arcadia.adminpanel.util.InventoryBackupManager.REASON_MANUAL);
             InventoryAccess.writeOnline(targetPlayer, slots);
             finishSave(true);
             return;

@@ -507,6 +507,9 @@ public class ChatListener {
         com.arcadia.adminpanel.util.WatchlistManager.onJoin(sp);
         com.arcadia.adminpanel.util.AltDetector.onJoin(sp);
         com.arcadia.adminpanel.util.MailManager.onJoin(sp);
+        // Reads this player's backup headers off the tick thread, so the daily sweep knows when they
+        // were last captured without ever touching disk itself.
+        com.arcadia.adminpanel.util.InventoryBackupManager.onJoin(sp);
         // A player who was frozen when they disconnected — or when the server went down — comes
         // back frozen: the hold is re-applied and the anchor re-pinned to where they spawned.
         // The overlay state is pushed either way so a stale client flag cannot survive a relog.
@@ -581,6 +584,10 @@ public class ChatListener {
         // ── 1.3.0 disconnect cleanup ────────────────────────────────────────
         // Order matters: the spectate sessions are restored before the flags they depend on are
         // dropped, so a staff member never persists as a spectator locked to a camera.
+        // Before anything else is torn down: the disconnect state is the last known good copy of
+        // this player's inventory, and it is the one support will be asked about tomorrow.
+        com.arcadia.adminpanel.util.InventoryBackupManager.onQuit(sp);
+
         com.arcadia.adminpanel.util.SpectateManager.onStaffQuit(sp);
         com.arcadia.adminpanel.util.SpectateManager.onTargetQuit(sp);
         com.arcadia.adminpanel.util.VanishManager.onQuit(sp);

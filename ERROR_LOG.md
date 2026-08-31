@@ -4,6 +4,26 @@ Self-improvement log. Check this before starting work and apply the prevention r
 
 ---
 
+## [2026-08-31 15:10] — A static field cannot name a constant declared below it
+
+**Context:** 1.3.2 command index. `SECTION_SUGGESTIONS` was declared at the top of `StaffOpsCommand`, next to `ITEM_SUGGESTIONS`, and its lambda reads `HELP_SECTIONS`, which is declared two hundred lines further down with the rest of the help code.
+**Error:** `StaffOpsCommand.java:89: error: illegal forward reference`.
+**Root cause:** A static initialiser may only refer to a static field declared earlier in the class by its simple name. The lambda body does not run at class-init time, but the rule is lexical, not temporal: javac rejects the reference regardless of when it would be evaluated.
+**Fix:** Moved the suggestion provider down next to `HELP_SECTIONS`, which is where it belongs anyway. Qualifying the name (`StaffOpsCommand.HELP_SECTIONS`) also compiles, but it hides the ordering dependency instead of removing it.
+**Prevention:** Declare a static field immediately after the data it reads, not next to the fields it resembles. Grouping by kind ("all the suggestion providers together") is what put a forward reference there in the first place.
+
+---
+
+## [2026-08-31 14:20] — A shared `TEXT` payload column will not hold an inventory
+
+**Context:** Designing the storage for the daily inventory backups. The obvious move was a new `RecordStore` kind: the store already handles the dual JSON/database backend, cross-server sync and retention, and adding a kind is one line.
+**Error:** Caught before writing any of it, not at runtime. `arcadia_admin_records.payload` is `TEXT` (65 535 bytes) and holds Gson output; a modded 41-slot inventory plus a 27-slot ender chest serialises well past that, and `RecordStore` loads every row of every kind into memory at boot.
+**Root cause:** The record store is built for small immutable payloads that are read on every menu build. An inventory is the opposite: large, binary, and read only when a staff member opens one specific backup. Reusing the store would have traded a one-line feature for silent truncation and a boot-time memory cost proportional to the number of backups.
+**Fix:** A dedicated table with a `MEDIUMTEXT` payload holding base64-encoded compressed NBT, and header columns (`created_at`, `capture_reason`, `dimension`, `xp_level`, `item_count`) so the list screen never fetches a payload. The column is named `capture_reason` because `trigger` is a reserved word in MySQL and MariaDB.
+**Prevention:** Before reusing a generic store, check the column type against the largest realistic payload and check whether the store's read pattern matches the feature's. "It is one line" is a reason to look harder, not a reason to skip the check.
+
+---
+
 ## [2026-08-24 17:30] — A restore that copies instead of consuming is a duplication button
 
 **Context:** Death snapshots. `restoreOnline` walks the stored `ItemStack[]`, copies each stack into the target's inventory and audits the result. The snapshot stays in the list afterwards.

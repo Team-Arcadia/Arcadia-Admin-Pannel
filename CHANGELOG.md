@@ -4,7 +4,119 @@ All notable changes to Arcadia Admin Panel are documented here.
 
 ---
 
-## [1.3.1] - 2026-08-24 (latest)
+## [1.3.2] - 2026-08-31 (latest)
+
+The item-loss release. Death snapshots already covered the player who died; this covers the other
+half of the support queue, where nothing died and an item is simply gone. Every connected player's
+inventory is now copied once a day and again when they log off, and staff can hand back one stack or
+the whole thing. The staff screens gained the two things that were missing around it: a way to find a
+command, and a way to see the server at a glance.
+
+### Added
+
+- **Daily inventory backups** — a full copy of every connected player's inventory, taken once a day
+  and again when they disconnect, with the last seven kept per player. The ender chest is included by
+  default, since that is where players keep what they can least afford to lose. Retention is enforced
+  on every write, so neither the table nor the files grow without bound. Node:
+  `arcadia.adminpanel.invbackup`.
+- **A backup screen with two different weights of action.** Clicking a single stack hands that one
+  item back to a connected player, which is what the overwhelming majority of "I lost my drill"
+  tickets actually need. Restoring replaces the whole inventory with the backup: it cannot duplicate
+  anything, but it discards what was collected since, so it says so and asks twice. Both are audited,
+  and restoring works on a disconnected player by rewriting their stored data.
+- **The inventory editor takes a backup before it saves.** It has an explicit save and no undo, and
+  the state most worth keeping is the one about to be overwritten.
+- **Backups are stored where the rest of the panel stores things** — the shared MySQL table
+  `arcadia_inventory_backups` when a database is configured, so a backup taken on one server can be
+  read from another, and one compressed NBT file per player otherwise. The payload is compressed NBT
+  rather than JSON: a modded stack does not survive a JSON round-trip. Listing a player's backups
+  reads headers only; the stacks are fetched when somebody opens one specific backup.
+- **`/arcadia_adminpanel help`** — the command index, in game. It prints only what the viewer's nodes
+  actually allow, grouped by what the commands are for, with every entry clickable to drop it in the
+  chat box ready to complete. It suggests rather than runs: half of these take an argument, and a
+  moderation command that fires the moment you touch it is a trap. Also reachable from Staff Tools.
+- **`online`** — who is connected, each name clickable to open their sheet, with the markers a
+  moderator scans for: AFK, vanished, frozen, muted, jailed, watched, and the warn count.
+- **`whereis <player>`** — where somebody is in one line: dimension, coordinates and, when you are in
+  the same world, the distance. For a disconnected player it answers with the last position their FTB
+  data recorded.
+- **`invbackup <player>`** and **`invbackupnow [player]`** — open a player's backups, and take one on
+  demand for one player or for everyone connected. Worth running before a risky migration.
+
+### Changed
+
+- **Staff Tools has a backups tile.** Left-click captures everyone connected right now, right-click
+  turns the daily schedule on or off, and the tile carries the interval and the retention so an
+  operator does not have to open the config file to know what is running.
+- **Player Tools has a backups button**, in the assist row next to the death snapshots, showing how
+  many backups exist and when the last one was taken. The count is warmed off the tick thread and the
+  button redraws when it lands, the same way the death-snapshot tile does.
+- **The player sheet shows the backup count** on its Player Tools button, from cache only: the sheet
+  is drawn on the tick thread and a count is not worth a disk read.
+- **Six new config keys** — `inventoryBackupEnabled`, `inventoryBackupIntervalHours`,
+  `inventoryBackupKeepPerPlayer`, `inventoryBackupOnLogout`, `inventoryBackupEnderChest` and
+  `inventoryBackupMinIntervalMinutes`. The last one is a floor between two captures of the same
+  player, without which a relog loop would write one backup per reconnection and push the useful
+  history out of the retention window.
+
+### Ajouts
+
+- **Sauvegardes quotidiennes d'inventaire** — une copie complète de l'inventaire de chaque joueur
+  connecté, prise une fois par jour puis à sa déconnexion, les sept dernières étant conservées par
+  joueur. Le coffre de l'Ender est inclus par défaut, puisque c'est là que les joueurs rangent ce
+  qu'ils peuvent le moins se permettre de perdre. La rétention s'applique à chaque écriture : ni la
+  table ni les fichiers ne grossissent sans limite. Node : `arcadia.adminpanel.invbackup`.
+- **Un écran de sauvegardes avec deux actions de poids différents.** Cliquer sur une pile rend cet
+  objet-là à un joueur connecté, ce dont la grande majorité des tickets « j'ai perdu ma foreuse » a
+  réellement besoin. Restaurer remplace l'inventaire entier par la sauvegarde : cela ne peut rien
+  dupliquer, mais cela écarte ce qui a été récupéré depuis, donc l'écran le dit et demande deux
+  clics. Les deux sont journalisées, et la restauration fonctionne sur un joueur déconnecté en
+  réécrivant ses données stockées.
+- **L'éditeur d'inventaire prend une sauvegarde avant d'enregistrer.** Il a une sauvegarde explicite
+  et aucun retour en arrière, et l'état qui vaut le plus la peine d'être gardé est celui qui va être
+  écrasé.
+- **Les sauvegardes sont stockées là où le panel stocke le reste** — la table MySQL partagée
+  `arcadia_inventory_backups` quand une base est configurée, une sauvegarde prise sur un serveur
+  étant alors lisible depuis un autre, et un fichier NBT compressé par joueur sinon. Le contenu est
+  du NBT compressé plutôt que du JSON : une pile moddée ne survit pas à un aller-retour JSON. Lister
+  les sauvegardes d'un joueur ne lit que les en-têtes ; les objets ne sont chargés qu'à l'ouverture
+  d'une sauvegarde précise.
+- **`/arcadia_adminpanel help`** — l'index des commandes, en jeu. Il n'affiche que ce que les nodes
+  du lecteur autorisent réellement, groupé par usage, chaque entrée étant cliquable pour l'insérer
+  dans le chat, prête à compléter. Elle propose la commande au lieu de la lancer : la moitié prend un
+  argument, et une commande de modération qui part au moindre clic est un piège. Accessible aussi
+  depuis Outils Staff.
+- **`online`** — qui est connecté, chaque nom cliquable pour ouvrir sa fiche, avec les marqueurs
+  qu'un modérateur cherche : AFK, invisible, gelé, mute, en prison, surveillé, et le nombre
+  d'avertissements.
+- **`whereis <joueur>`** — où se trouve quelqu'un, en une ligne : dimension, coordonnées et, si vous
+  êtes dans le même monde, la distance. Pour un joueur déconnecté, la dernière position que ses
+  données FTB ont enregistrée.
+- **`invbackup <joueur>`** et **`invbackupnow [joueur]`** — ouvrir les sauvegardes d'un joueur, et en
+  prendre une à la demande pour un joueur ou pour tous les connectés. À lancer avant une migration
+  risquée.
+
+### Modifications
+
+- **Outils Staff dispose d'une tuile de sauvegardes.** Clic gauche : sauvegarder tous les connectés
+  maintenant. Clic droit : activer ou couper la planification quotidienne. La tuile porte l'intervalle
+  et la rétention, un opérateur n'a donc pas à ouvrir le fichier de config pour savoir ce qui tourne.
+- **Outils Joueur dispose d'un bouton de sauvegardes**, dans la rangée d'assistance à côté des
+  instantanés de mort, indiquant combien de sauvegardes existent et quand la dernière a été prise. Le
+  compte est chargé hors du thread de tick et le bouton se redessine à son arrivée, comme la tuile
+  des instantanés de mort.
+- **La fiche joueur affiche le nombre de sauvegardes** sur son bouton Outils Joueur, depuis le cache
+  uniquement : la fiche est dessinée sur le thread de tick et un compteur ne vaut pas une lecture
+  disque.
+- **Six nouvelles clés de configuration** — `inventoryBackupEnabled`,
+  `inventoryBackupIntervalHours`, `inventoryBackupKeepPerPlayer`, `inventoryBackupOnLogout`,
+  `inventoryBackupEnderChest` et `inventoryBackupMinIntervalMinutes`. La dernière est un plancher
+  entre deux captures du même joueur, sans lequel une boucle de reconnexion écrirait une sauvegarde
+  par reconnexion et chasserait l'historique utile hors de la fenêtre de rétention.
+
+---
+
+## [1.3.1] - 2026-08-24
 
 A corrective release for the three 1.3.0 tools that did not hold up in use: the freeze did nothing
 visible, the death history reset itself, and the tool screens were a wall of icons with no structure.

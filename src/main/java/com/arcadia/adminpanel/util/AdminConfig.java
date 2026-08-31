@@ -165,6 +165,27 @@ public final class AdminConfig {
         /** How many deaths to keep per player. Oldest is dropped past this. */
         public int deathSnapshotsPerPlayer = 5;
 
+        // ── Daily inventory backups (1.3.2) ─────────────────────────────────
+        /**
+         * Take a periodic copy of every connected player's inventory so a lost item can be looked up
+         * instead of argued about. ON by default: the whole point is that the backup already exists
+         * when somebody reports the loss.
+         */
+        public boolean inventoryBackupEnabled = true;
+        /** Hours between two automatic captures of the same player. */
+        public int inventoryBackupIntervalHours = 24;
+        /** Backups kept per player. Oldest is dropped past this, in the file and in the table. */
+        public int inventoryBackupKeepPerPlayer = 7;
+        /** Also capture when a player disconnects: the last known good state before they log off. */
+        public boolean inventoryBackupOnLogout = true;
+        /** Include the ender chest. It is where players keep what they can least afford to lose. */
+        public boolean inventoryBackupEnderChest = true;
+        /**
+         * Floor between two captures of one player, in minutes. Without it a relog loop would write
+         * one backup per reconnection and push the useful history out of the retention window.
+         */
+        public int inventoryBackupMinIntervalMinutes = 60;
+
         // ── Inventory editor (1.3.0) ────────────────────────────────────────
         /** Allow editing an online player's inventory from the panel. */
         public boolean inventoryEditEnabled = true;

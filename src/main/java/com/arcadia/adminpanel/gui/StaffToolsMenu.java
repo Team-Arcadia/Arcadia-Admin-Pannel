@@ -71,6 +71,7 @@ public class StaffToolsMenu extends ChestMenu {
     private static final int SLOT_CHAT_CLEAR = 23;
     private static final int SLOT_RESTART = 24;
     private static final int SLOT_BROADCAST = 25;
+    private static final int SLOT_BACKUPS = 26;
 
     private static final int SLOT_VANISH = 28;
     private static final int SLOT_SILENT = 29;
@@ -83,6 +84,7 @@ public class StaffToolsMenu extends ChestMenu {
     private static final int SLOT_PLAYERS = 48;
     private static final int SLOT_CLOSE = 49;
     private static final int SLOT_RADAR = 50;
+    private static final int SLOT_HELP = 51;
 
     private final ServerPlayer admin;
 
@@ -177,6 +179,15 @@ public class StaffToolsMenu extends ChestMenu {
                     "§8" + t(AdminConfig.get().autoBroadcastEnabled ? "misc.on" : "misc.off"));
         }
 
+        if (AdminPermissions.INV_BACKUP.check(admin)) {
+            var cfg = AdminConfig.get();
+            put(SLOT_BACKUPS, cfg.inventoryBackupEnabled ? Items.CHEST : Items.GRAY_DYE,
+                    cfg.inventoryBackupEnabled ? "§b" : "§7", "tools.backups.server",
+                    "§7" + t(cfg.inventoryBackupEnabled ? "misc.on" : "misc.off")
+                            + " §8" + cfg.inventoryBackupIntervalHours + "h §8/ §8"
+                            + cfg.inventoryBackupKeepPerPlayer + " " + t("backups.kept"),
+                    "§8" + t("tools.backups.server.hint"));
+        }
         if (AdminPermissions.VANISH.check(admin)) {
             boolean on = VanishManager.isVanished(admin.getUUID());
             put(SLOT_VANISH, on ? Items.GLASS : Items.GLASS_PANE, on ? "§a" : "§7", "tools.vanish",
@@ -216,6 +227,10 @@ public class StaffToolsMenu extends ChestMenu {
         }
         if (AdminPermissions.RADAR.check(admin)) {
             put(SLOT_RADAR, Items.COMPASS, "§b", "tools.radar", "§7" + t("tools.radar.hint"));
+        }
+
+        if (AdminPermissions.HELP.check(admin)) {
+            put(SLOT_HELP, Items.OAK_SIGN, "§f", "tools.help", "§7" + t("tools.help.hint"));
         }
 
         put(SLOT_PLAYERS, Items.PLAYER_HEAD, "§f", "tools.players", "§7" + t("tools.players.hint"));
@@ -403,6 +418,37 @@ public class StaffToolsMenu extends ChestMenu {
                 sp.closeContainer();
                 if (BackManager.teleportBack(sp)) SoundHelper.playAt(sp, SoundHelper.TELEPORT);
                 else sp.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.error(t("back.none")));
+            }
+            case SLOT_BACKUPS -> {
+                if (!AdminPermissions.INV_BACKUP.check(sp)) return;
+                // Left click takes a backup of everyone connected right now, which is what a staff
+                // member wants before a risky migration or a suspected dupe. Right click flips the
+                // daily schedule, since somebody has to be able to stop it without editing a file.
+                if (button == 1) {
+                    AdminConfig.get().inventoryBackupEnabled = !AdminConfig.get().inventoryBackupEnabled;
+                    AdminConfig.save();
+                    SoundHelper.playAt(sp, SoundHelper.CLICK);
+                    build();
+                    return;
+                }
+                if (!AdminConfig.get().inventoryBackupEnabled) {
+                    sp.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.error(t("backups.disabled")));
+                    SoundHelper.error(sp);
+                    return;
+                }
+                int n = com.arcadia.adminpanel.util.InventoryBackupManager.captureAll(
+                        server, com.arcadia.adminpanel.util.InventoryBackupManager.REASON_MANUAL);
+                com.arcadia.adminpanel.util.AuditManager.recordServer(sp,
+                        com.arcadia.adminpanel.util.AdminAction.BACKUP_CAPTURE, n + " players");
+                sp.sendSystemMessage(com.arcadia.lib.ArcadiaMessages.success(
+                        t("backups.captured_all").replace("%count%", String.valueOf(n))));
+                SoundHelper.success(sp);
+                build();
+            }
+            case SLOT_HELP -> {
+                if (!AdminPermissions.HELP.check(sp)) return;
+                sp.closeContainer();
+                com.arcadia.adminpanel.command.StaffOpsCommand.sendHelp(sp, null);
             }
             case SLOT_RADAR -> {
                 if (!AdminPermissions.RADAR.check(sp)) return;

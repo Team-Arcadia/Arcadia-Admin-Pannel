@@ -10,6 +10,7 @@ import com.arcadia.adminpanel.gui.ChunkBrowserMenu;
 import com.arcadia.adminpanel.gui.ClientModsMenu;
 import com.arcadia.adminpanel.gui.DeathSnapshotMenu;
 import com.arcadia.adminpanel.gui.HistoryMenu;
+import com.arcadia.adminpanel.gui.InventoryBackupMenu;
 import com.arcadia.adminpanel.gui.InventoryEditMenu;
 import com.arcadia.adminpanel.gui.LagPanelMenu;
 import com.arcadia.adminpanel.gui.NotesMenu;
@@ -26,6 +27,7 @@ import com.arcadia.adminpanel.util.BackManager;
 import com.arcadia.adminpanel.util.BanManager;
 import com.arcadia.adminpanel.util.ChatControl;
 import com.arcadia.adminpanel.util.FreezeManager;
+import com.arcadia.adminpanel.util.InventoryBackupManager;
 import com.arcadia.adminpanel.util.LagMonitor;
 import com.arcadia.adminpanel.util.LanguageHelper;
 import com.arcadia.adminpanel.util.MailManager;
@@ -47,6 +49,10 @@ import com.mojang.brigadier.context.CommandContext;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
+import net.minecraft.network.chat.ClickEvent;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.chat.HoverEvent;
+import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import org.jetbrains.annotations.Nullable;
@@ -144,6 +150,18 @@ public final class StaffOpsCommand {
                 target("audit", gate.apply(AdminPermissions.AUDIT), StaffOpsCommand::audit),
                 target("invedit", gate.apply(AdminPermissions.INV_EDIT), StaffOpsCommand::invEdit),
                 target("deaths", gate.apply(AdminPermissions.DEATH_RESTORE), StaffOpsCommand::deaths),
+                target("invbackup", gate.apply(AdminPermissions.INV_BACKUP), StaffOpsCommand::invBackup),
+                lit("invbackupnow", gate.apply(AdminPermissions.INV_BACKUP), StaffOpsCommand::backupAll)
+                        .then(Commands.argument("target", StringArgumentType.string())
+                                .suggests(AdminPanelCommand.PLAYER_SUGGESTIONS)
+                                .executes(StaffOpsCommand::backupOne)),
+                target("whereis", gate.apply(AdminPermissions.INFO), StaffOpsCommand::whereIs),
+                lit("online", gate.apply(AdminPermissions.OPEN), StaffOpsCommand::onlineList),
+                lit("help", gate.apply(AdminPermissions.HELP), ctx -> help(ctx, null))
+                        .then(Commands.argument("section", StringArgumentType.word())
+                                .suggests(SECTION_SUGGESTIONS)
+                                .executes(ctx -> help(ctx,
+                                        StringArgumentType.getString(ctx, "section")))),
                 target("templates", gate.apply(AdminPermissions.TEMPLATES), StaffOpsCommand::templates),
                 target("select", gate.apply(AdminPermissions.BULK), StaffOpsCommand::select),
                 lit("selectclear", gate.apply(AdminPermissions.BULK), StaffOpsCommand::selectClear),
@@ -584,6 +602,263 @@ public final class StaffOpsCommand {
                 reason == null ? "" : reason, minutes);
         ok(ctx, "ban.applied", "%player%", targetName(ctx));
         return 1;
+    }
+
+    // -- Inventory backups (1.3.2) -------------------------------------------
+
+    private static int invBackup(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer admin = self(ctx);
+        UUID uuid = targetUuid(ctx);
+        if (admin == null || uuid == null) {
+            fail(ctx, "error.invalid_target");
+            return 0;
+        }
+        if (!AdminConfig.get().inventoryBackupEnabled) {
+            fail(ctx, "backups.disabled");
+            return 0;
+        }
+        InventoryBackupMenu.open(admin, uuid, targetName(ctx));
+        return 1;
+    }
+
+    /** Captures one connected player on demand: the "before I touch anything" button. */
+    private static int backupOne(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer admin = self(ctx);
+        MinecraftServer server = ctx.getSource().getServer();
+        ServerPlayer target = server.getPlayerList().getPlayerByName(targetName(ctx));
+        if (target == null) {
+            fail(ctx, "error.player_offline");
+            return 0;
+        }
+        if (!InventoryBackupManager.capture(target, InventoryBackupManager.REASON_MANUAL)) {
+            fail(ctx, "backups.capture_failed", "%player%", target.getName().getString());
+            return 0;
+        }
+        com.arcadia.adminpanel.util.AuditManager.record(admin,
+                com.arcadia.adminpanel.util.AdminAction.BACKUP_CAPTURE,
+                target.getUUID(), target.getName().getString(), "manual");
+        ok(ctx, "backups.captured", "%player%", target.getName().getString());
+        return 1;
+    }
+
+    /** Captures everyone connected. Worth running before a migration or a suspected dupe. */
+    private static int backupAll(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer admin = self(ctx);
+        MinecraftServer server = ctx.getSource().getServer();
+        if (!AdminConfig.get().inventoryBackupEnabled) {
+            fail(ctx, "backups.disabled");
+            return 0;
+        }
+        int n = InventoryBackupManager.captureAll(server, InventoryBackupManager.REASON_MANUAL);
+        com.arcadia.adminpanel.util.AuditManager.recordServer(admin,
+                com.arcadia.adminpanel.util.AdminAction.BACKUP_CAPTURE, n + " players");
+        ok(ctx, "backups.captured_all", "%count%", String.valueOf(n));
+        return n;
+    }
+
+    // -- Locate and roster (1.3.2) -------------------------------------------
+
+    /**
+     * Where a player is, in one line. Connected: their live position, dimension and distance from
+     * you. Disconnected: the last position their FTB data recorded.
+     */
+    private static int whereIs(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer admin = self(ctx);
+        MinecraftServer server = ctx.getSource().getServer();
+        String name = targetName(ctx);
+        ServerPlayer target = server.getPlayerList().getPlayerByName(name);
+
+        if (target != null) {
+            String dim = shortDim(target.level().dimension().location().toString());
+            String distance = admin != null && admin.level() == target.level()
+                    ? " §7" + LanguageHelper.getText("whereis.distance", admin) + " §f"
+                            + (int) Math.sqrt(admin.distanceToSqr(target)) + "m"
+                    : "";
+            String flags = flagsOf(target);
+            ctx.getSource().sendSuccess(() -> ArcadiaMessages.info(
+                    "§e" + target.getName().getString() + " §7" + dim + " §f"
+                            + (int) target.getX() + ", " + (int) target.getY() + ", "
+                            + (int) target.getZ() + distance + flags), false);
+            return 1;
+        }
+
+        UUID uuid = AdminPanelCommand.resolveUUID(ctx.getSource(), name);
+        if (uuid == null) {
+            fail(ctx, "error.invalid_target");
+            return 0;
+        }
+        com.arcadia.adminpanel.util.FTBDataReader.ensureLocated(server);
+        var data = com.arcadia.adminpanel.util.FTBDataReader.readPlayerData(uuid);
+        if (data == null || data.lastSeen == null) {
+            fail(ctx, "whereis.unknown", "%player%", name);
+            return 0;
+        }
+        ctx.getSource().sendSuccess(() -> ArcadiaMessages.info(
+                "§c" + name + " §8(" + LanguageHelper.getText("player.offline", admin)
+                        + ") §7" + data.lastSeen.getShortDimension() + " §f"
+                        + data.lastSeen.getFormattedCoords()), false);
+        return 1;
+    }
+
+    /**
+     * The online roster a moderator actually wants: who is here, who is idle, who is hiding, who is
+     * frozen, who is carrying warns. Each name opens that player's sheet.
+     */
+    private static int onlineList(CommandContext<CommandSourceStack> ctx) {
+        ServerPlayer admin = self(ctx);
+        MinecraftServer server = ctx.getSource().getServer();
+        List<ServerPlayer> players = new java.util.ArrayList<>(server.getPlayerList().getPlayers());
+        players.sort((a, b) -> a.getName().getString().compareToIgnoreCase(b.getName().getString()));
+
+        ctx.getSource().sendSuccess(() -> ArcadiaMessages.info(
+                LanguageHelper.getText("online.header", admin)
+                        .replace("%count%", String.valueOf(players.size()))
+                        .replace("%max%", String.valueOf(server.getMaxPlayers()))), false);
+        for (ServerPlayer p : players) {
+            String name = p.getName().getString();
+            int warns = com.arcadia.adminpanel.util.WarnManager.getInstance()
+                    .getWarnCount(p.getUUID());
+            String suffix = flagsOf(p)
+                    + (warns > 0 ? " §e" + warns + "w" : "")
+                    + " §8" + shortDim(p.level().dimension().location().toString());
+            Component line = Component.literal("§8- §b" + name)
+                    .withStyle(st -> st
+                            .withClickEvent(new ClickEvent(ClickEvent.Action.RUN_COMMAND,
+                                    "/arcadia_adminpanel panel " + name))
+                            .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                    Component.literal("§7"
+                                            + LanguageHelper.getText("online.open", admin)))))
+                    .append(Component.literal(suffix));
+            ctx.getSource().sendSuccess(() -> line, false);
+        }
+        return players.size();
+    }
+
+    /** The one-glance state markers shared by {@code whereis} and {@code online}. */
+    private static String flagsOf(ServerPlayer p) {
+        StringBuilder sb = new StringBuilder();
+        if (com.arcadia.adminpanel.util.AfkTracker.isAfk(p.getUUID())) sb.append(" §8[afk]");
+        if (VanishManager.isVanished(p.getUUID())) sb.append(" §8[vanish]");
+        if (FreezeManager.isFrozen(p.getUUID())) sb.append(" §b[freeze]");
+        if (com.arcadia.lib.staff.StaffActions.isMuted(p.getUUID())) sb.append(" §c[mute]");
+        if (com.arcadia.adminpanel.util.JailManager.getInstance().isJailed(p.getUUID())) {
+            sb.append(" §c[jail]");
+        }
+        if (WatchlistManager.isWatched(p.getUUID())) sb.append(" §d[watch]");
+        return sb.toString();
+    }
+
+    private static String shortDim(String id) {
+        if (id == null) return "";
+        int colon = id.indexOf(':');
+        return colon >= 0 ? id.substring(colon + 1) : id;
+    }
+
+    // -- Command index (1.3.2) -----------------------------------------------
+
+    /** One group of the in-game index. {@code perm} decides whether a viewer sees the group at all. */
+    private record HelpSection(String id, String labelKey, AdminPermissions perm,
+                               List<String> commands) {}
+
+    /**
+     * The index itself. It lists what each group holds rather than describing every argument: the
+     * usage string is the documentation, and clicking one puts it in the chat box ready to complete.
+     */
+    private static final List<HelpSection> HELP_SECTIONS = List.of(
+            new HelpSection("panel", "help.section.panel", AdminPermissions.OPEN, List.of(
+                    "panel", "tools", "online", "whereis <player>", "help")),
+            new HelpSection("investigate", "help.section.investigate", AdminPermissions.AUDIT, List.of(
+                    "audit <player>", "history <player>", "notes <player>", "note <player> <text>",
+                    "sessions", "afklist", "alts", "clientmods", "radar")),
+            new HelpSection("moderate", "help.section.moderate", AdminPermissions.KICK, List.of(
+                    "warnoffline <player> <reason>", "warnlist <player>", "mute <player> <minutes>",
+                    "unmute <player>", "jail <player> <minutes>", "unjail <player>",
+                    "tempban <player> <minutes>", "banlist", "templates <player>",
+                    "freeze <player>", "unfreeze <player>", "spectate <player>",
+                    "watch <player>", "unwatch <player>")),
+            new HelpSection("inventory", "help.section.inventory", AdminPermissions.INV_BACKUP, List.of(
+                    "invbackup <player>", "invbackupnow", "invbackupnow <player>",
+                    "invedit <player>", "deaths <player>", "giveitem <player> <item>",
+                    "mail <player> <message>")),
+            new HelpSection("server", "help.section.server", AdminPermissions.WORLD, List.of(
+                    "world", "lag", "lagpanel", "chunks", "restart <minutes>", "restart cancel",
+                    "broadcast", "chatlock", "clearchat", "loginqueue", "announce <title>")),
+            new HelpSection("self", "help.section.self", AdminPermissions.OPEN, List.of(
+                    "vanish", "silent", "cmdspy", "socialspy", "back",
+                    "select <player>", "selectclear", "stafflist", "stafftoggle")),
+            new HelpSection("cosmetic", "help.section.cosmetic", AdminPermissions.NAMETAG_EDIT, List.of(
+                    "nametag color <player> <colour>", "nametag name <player> <pseudo>",
+                    "nametag effect <player> <effect>", "disguise <player> <mob>",
+                    "disguise clear <player>")));
+
+    /** Section ids for {@code help <section>}, so the index can be narrowed to one group. */
+    private static final com.mojang.brigadier.suggestion.SuggestionProvider<CommandSourceStack>
+            SECTION_SUGGESTIONS = (ctx, builder) -> SharedSuggestionProvider.suggest(
+                    HELP_SECTIONS.stream().map(HelpSection::id), builder);
+
+    private static int help(CommandContext<CommandSourceStack> ctx, @Nullable String section) {
+        ServerPlayer admin = self(ctx);
+        if (admin == null) {
+            // Console gets the same index without the click handlers, which do nothing there.
+            for (HelpSection s : HELP_SECTIONS) {
+                ctx.getSource().sendSuccess(() -> Component.literal(
+                        "§6" + LanguageHelper.getText(s.labelKey(), (ServerPlayer) null)
+                                + " §7" + String.join(", ", s.commands())), false);
+            }
+            return 1;
+        }
+        sendHelp(admin, section);
+        return 1;
+    }
+
+    /**
+     * Prints the command index to a staff member, filtered to what their nodes actually allow and
+     * with every command clickable. Also reachable from the Staff Tools screen.
+     */
+    public static void sendHelp(ServerPlayer admin, @Nullable String section) {
+        admin.sendSystemMessage(Component.literal("§8§m" + "─".repeat(34)));
+        admin.sendSystemMessage(Component.literal(
+                "§6§l" + LanguageHelper.getText("help.title", admin)));
+
+        boolean any = false;
+        for (HelpSection s : HELP_SECTIONS) {
+            if (section != null && !section.equalsIgnoreCase(s.id())) continue;
+            if (!admin.hasPermissions(2) && !s.perm().check(admin)) continue;
+            any = true;
+            MutableComponent line = Component.literal("§6▸ §e"
+                    + LanguageHelper.getText(s.labelKey(), admin) + " §8: ");
+            boolean first = true;
+            for (String command : s.commands()) {
+                if (!first) line.append(Component.literal("§8, "));
+                first = false;
+                line.append(clickable(command));
+            }
+            admin.sendSystemMessage(line);
+        }
+
+        if (!any) {
+            admin.sendSystemMessage(ArcadiaMessages.error(
+                    LanguageHelper.getText("help.unknown_section", admin)));
+            return;
+        }
+        admin.sendSystemMessage(Component.literal(
+                "§8" + LanguageHelper.getText("help.hint", admin)));
+    }
+
+    /**
+     * One clickable entry. It suggests rather than runs: half of these take an argument, and a
+     * command that fires the moment you touch it is a trap on a moderation tool.
+     */
+    private static Component clickable(String command) {
+        String full = "/arcadia_adminpanel " + command;
+        String label = command.split(" ")[0];
+        String rest = command.length() > label.length()
+                ? "§8" + command.substring(label.length()) : "";
+        return Component.literal("§b" + label + rest)
+                .withStyle(st -> st
+                        .withClickEvent(new ClickEvent(ClickEvent.Action.SUGGEST_COMMAND, full))
+                        .withHoverEvent(new HoverEvent(HoverEvent.Action.SHOW_TEXT,
+                                Component.literal("§7" + full))));
     }
 
     // -- Server --------------------------------------------------------------
